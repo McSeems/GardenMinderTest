@@ -114,9 +114,36 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .chip-group{display:flex;flex-wrap:wrap;gap:8px;}
 .chip{padding:10px 16px;border-radius:50px;border:2px solid var(--green-pale);background:white;font-size:0.88rem;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif;color:var(--text-mid);font-weight:500;}
 .chip.selected{background:var(--green-mid);color:white;border-color:var(--green-mid);}
-.soil-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.soil-quiz-btn{width:100%;padding:12px 14px;border-radius:10px;border:2px solid var(--green-pale);background:white;font-family:var(--ff-body);font-size:0.85rem;color:var(--text-dark);cursor:pointer;text-align:left;transition:all 0.18s;font-weight:500;}
+.soil-quiz-btn:active{background:var(--green-mist);}
+.soil-quiz-btn.selected{border-color:var(--green-mid);background:var(--green-mist);color:var(--green-deep);font-weight:600;}
+.soil-quiz-btn.skip{color:var(--text-light);font-size:0.8rem;border-style:dashed;background:transparent;}
+.soil-quiz-btn.skip.selected{border-color:var(--text-light);background:rgba(138,170,148,0.1);}
+
+/* Pro bandeau */
+.pro-banner{margin:0 0 12px;background:linear-gradient(135deg,#0a1628,#1a2e4a);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;cursor:pointer;}
+.pro-banner::before{content:'';position:absolute;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(74,158,202,0.15) 0%,transparent 70%);top:-60px;right:-40px;}
+.pro-banner-tag{font-size:0.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#7ab8d8;margin-bottom:6px;}
+.pro-banner-title{font-family:var(--ff-display);font-size:1rem;font-weight:600;color:white;margin-bottom:6px;}
+.pro-banner-desc{font-size:0.8rem;color:rgba(255,255,255,0.55);line-height:1.5;margin-bottom:12px;}
+.pro-banner-feats{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+.pro-banner-feat{font-size:0.78rem;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:6px;}
+.pro-banner-feat::before{content:'✓';color:#4a9eca;font-weight:700;flex-shrink:0;}
+.pro-banner-cta{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4a9eca,#2d7ab5);color:white;border:none;border-radius:10px;padding:10px 16px;font-family:var(--ff-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-decoration:none;}
+
+/* Share social buttons */
+.share-social-row{display:flex;gap:8px;margin-top:10px;}
+.share-social-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:10px;border:none;font-family:var(--ff-body);font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+.share-social-btn:active{transform:scale(0.97);}
+.share-btn-insta{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:white;}
+.share-btn-facebook{background:#1877f2;color:white;}
+.share-btn-copy{background:var(--green-mist);color:var(--green-deep);}
+
+/* Nav partage badge */
+.nav-share-icon{font-size:1.2rem;}
 .soil-card{padding:0;border-radius:var(--radius-sm);border:2px solid var(--green-pale);background:white;text-align:center;cursor:pointer;transition:all 0.2s;overflow:hidden;}
-.soil-card.selected{border-color:var(--green-mid);background:var(--green-mist);}
+.soil-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
 .soil-card-name{font-size:0.85rem;font-weight:600;color:var(--text-dark);margin-bottom:2px;}
 .soil-card-desc{font-size:0.75rem;color:var(--text-light);}
 .plant-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -817,12 +844,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="landing-features">
     <div class="feature-pill"><span class="feature-pill-icon">💧</span><span class="feature-pill-text">Hygro météo réelle — arrosez au bon moment</span></div>
     <div class="feature-pill"><span class="feature-pill-icon">📖</span><span class="feature-pill-text">Journal de bord — récoltes, traitements, notes</span></div>
-    <div class="feature-pill"><span class="feature-pill-icon">📸</span><span class="feature-pill-text">Timelapse automatique — 4 saisons en images</span></div>
-    <div class="feature-pill"><span class="feature-pill-icon">🌍</span><span class="feature-pill-text">Communauté de jardiniers proches de chez vous</span></div>
+    <div class="feature-pill"><span class="feature-pill-icon">📸</span><span class="feature-pill-text">Timelapse Premium — 4 saisons en images</span></div>
+    <div class="feature-pill"><span class="feature-pill-icon">📲</span><span class="feature-pill-text">Partagez vos progrès sur Instagram & Facebook</span></div>
   </div>
   <div class="landing-bottom">
     <button class="btn-start" onclick="goTo('auth')">Commencer gratuitement →</button>
-    <div class="landing-legal">Gratuit · Sans publicité · Journal & communauté inclus</div>
+    <div class="landing-legal">Gratuit · Sans publicité · Journal & gamification inclus</div>
   </div>
 </div>
 
@@ -928,9 +955,59 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
-    <!-- Step 3 : Plants -->
+    <!-- Step 3 : Soil Quiz -->
     <div class="wizard-step" id="wstep-3">
-      <div class="info-box">🌿 Choisissez jusqu'à <strong>5 plantes gratuites</strong>. Chaque plante aura son propre score d'hydratation. <span style="color:var(--premium);font-weight:600;">Premium : 60+ plantes illimitées.</span></div>
+      <div class="info-box">🪨 Quelques questions pour identifier votre type de sol et calibrer le modèle. <strong>Répondez à ce que vous savez</strong> — chaque question a une sortie "Je ne sais pas".</div>
+
+      <!-- Q1 : Texture -->
+      <div class="field-group">
+        <div class="field-label">Prenez une poignée de terre humide. Quel est son aspect ?</div>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q1">
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','argile')">🏔️ Elle colle, se roule facilement en boudin — Sol argileux</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','limon')">🌍 Elle tient bien mais ne colle pas — Sol limoneux (idéal)</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','sable')">🏖️ Elle s'émiette, ne tient pas — Sol sableux</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','calcaire')">⬜ Elle est blanche/grise et caillouteuse — Sol calcaire</button>
+          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'texture',null)">🤷 Je ne sais pas</button>
+        </div>
+      </div>
+
+      <!-- Q2 : Rétention eau -->
+      <div class="field-group">
+        <div class="field-label">Après une forte pluie, que se passe-t-il ?</div>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q2">
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','lent')">🐢 L'eau reste longtemps en surface, le sol met du temps à sécher</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','normal')">✅ L'eau s'absorbe en quelques minutes, le sol sèche normalement</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','rapide')">⚡ L'eau disparaît très vite, le sol sèche en quelques heures</button>
+          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'retention',null)">🤷 Je ne sais pas / Je ne l'ai pas observé</button>
+        </div>
+      </div>
+
+      <!-- Q3 : Couleur -->
+      <div class="field-group">
+        <div class="field-label">Quelle est la couleur de votre terre en profondeur (5-10 cm) ?</div>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q3">
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','fonce')">🟤 Terre noire ou très foncée — Sol riche en humus</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','brun')">🪵 Brun moyen classique — Sol standard</button>
+          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','clair')">🟡 Beige/jaune/rougeâtre ou caillouteux — Sol pauvre ou calcaire</button>
+          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'couleur',null)">🤷 Je ne sais pas</button>
+        </div>
+      </div>
+
+      <!-- Résultat dynamique -->
+      <div id="soil-quiz-result" style="display:none;margin-top:4px;padding:14px;background:linear-gradient(135deg,var(--green-mist),#d0eedd);border-radius:12px;border:1px solid var(--green-pale);">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎯 Sol détecté</div>
+        <div id="soil-quiz-result-text" style="font-size:0.9rem;color:var(--text-dark);font-weight:600;"></div>
+        <div id="soil-quiz-result-desc" style="font-size:0.8rem;color:var(--text-mid);margin-top:4px;line-height:1.5;"></div>
+      </div>
+
+      <div style="margin-top:12px;padding:12px 14px;background:rgba(138,170,148,0.15);border-radius:10px;font-size:0.8rem;color:var(--text-mid);line-height:1.5;">
+        💡 Pas de réponse parfaite ? Ce n'est pas grave. Vous pourrez affiner la calibration dans les réglages une fois l'app lancée.
+      </div>
+    </div>
+
+    <!-- Step 4 : Plants -->
+    <div class="wizard-step" id="wstep-4">
+      <div class="info-box">🌿 Choisissez jusqu'à <strong>3 plantes gratuites</strong> pour démarrer. Chaque plante aura son propre score d'hydratation. <span style="color:var(--premium);font-weight:600;">Premium : 60+ plantes, illimitées.</span></div>
       <div class="plant-grid" id="wizard-plant-grid">
         <!-- generated -->
       </div>
@@ -940,8 +1017,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
-    <!-- Step 4 : Settings -->
-    <div class="wizard-step" id="wstep-4">
+    <!-- Step 5 : Settings -->
+    <div class="wizard-step" id="wstep-5">
       <div class="field-group">
         <div class="field-label">Prix de l'eau (€ / m³)</div>
         <input class="input-field" id="price-input" type="number" step="0.01" placeholder="Ex : 4.30" value="4.30">
@@ -958,6 +1035,9 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
           <div class="reminder-opt" onclick="selectReminder(this,'both')"><span>🔔</span><span class="reminder-opt-text">Matin et soir</span></div>
           <div class="reminder-opt" onclick="selectReminder(this,'none')"><span>❌</span><span class="reminder-opt-text">Désactivés</span></div>
         </div>
+      </div>
+      <div style="margin-top:8px;padding:13px 14px;background:linear-gradient(135deg,#e8f5ec,#d0ead8);border-radius:10px;border:1px solid var(--green-pale);font-size:0.82rem;color:var(--green-deep);line-height:1.55;">
+        ⚙️ <strong>Conseil :</strong> Vous pourrez affiner la calibration de votre sol dans les Réglages → Calibration sol. Plus vous utilisez l'app, plus le modèle devient précis pour votre jardin !
       </div>
     </div>
 
@@ -1088,7 +1168,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav" id="main-nav">
     <div class="nav-item active" id="nav-home" onclick="switchTab('home',this)"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" id="nav-journal" onclick="switchTab('journal',this)"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" id="nav-community" onclick="switchTab('community',this)" style="position:relative;"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div><div class="nav-badge" id="com-badge">3</div></div>
+    <div class="nav-item" id="nav-community" onclick="switchTab('community',this)" style="position:relative;"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div><div class="nav-badge" id="com-badge">3</div></div>
     <div class="nav-item" id="nav-memory" onclick="switchTab('memory',this)"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" id="nav-settings" onclick="switchTab('settings',this)"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1200,7 +1280,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="openJournalFromPlant()"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="goBack();switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div></div>
+    <div class="nav-item" onclick="goBack();switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="goBack();switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
 </div>
@@ -1262,7 +1342,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div></div>
+    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1272,110 +1352,70 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 <div id="tab-community" class="hidden" style="position:fixed;inset:0;height:100%;background:var(--cream);z-index:50;display:flex;flex-direction:column;">
   <div class="com-header">
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div class="com-title">Commu<em>nauté</em></div>
-      <div class="com-actions">
-        <button class="com-action-btn">🔔</button>
-        <button class="com-action-btn">✉️</button>
-      </div>
+      <div class="com-title">Par<em>tager</em></div>
     </div>
   </div>
-  <div style="flex:1;overflow-y:auto;padding-bottom:80px;">
-    <!-- Stories -->
-    <div class="stories-row">
-      <div class="story-item"><div class="story-add">＋</div><div class="story-name">Mon jardin</div></div>
-      <div class="story-item"><div class="story-ring new"><div class="story-av">🍅</div></div><div class="story-name">Pierre M.</div></div>
-      <div class="story-item"><div class="story-ring new"><div class="story-av">🌿</div></div><div class="story-name">Marie L.</div></div>
-      <div class="story-item"><div class="story-ring"><div class="story-av">🌻</div></div><div class="story-name">Jd Boutan</div></div>
-      <div class="story-item"><div class="story-ring seen"><div class="story-av">🥕</div></div><div class="story-name">Sophie T.</div></div>
-      <div class="story-item"><div class="story-ring seen"><div class="story-av">🌸</div></div><div class="story-name">Claude B.</div></div>
+  <div style="flex:1;overflow-y:auto;padding:16px;padding-bottom:80px;">
+
+    <!-- Intro -->
+    <div style="text-align:center;padding:20px 16px 24px;">
+      <div style="font-size:3.2rem;margin-bottom:12px;">📲</div>
+      <div style="font-family:var(--ff-display);font-size:1.25rem;font-weight:600;color:var(--text-dark);margin-bottom:8px;">Partagez vos progrès</div>
+      <div style="font-size:0.88rem;color:var(--text-mid);line-height:1.6;max-width:280px;margin:0 auto;">Montrez l'évolution de votre jardin à votre entourage sur Instagram ou Facebook.</div>
     </div>
-    <!-- Carte voisins -->
-    <div class="neighbors-map">
-      <div class="map-grid"></div>
-      <div class="map-pin-you">🌱</div>
-      <div class="map-pin-nb" style="left:26%;top:30%;">🍅</div>
-      <div class="map-pin-nb" style="left:64%;top:22%;">🌻</div>
-      <div class="map-pin-nb" style="left:70%;top:56%;">🥕</div>
-      <div class="map-pin-nb" style="left:32%;top:65%;">🌸</div>
-      <div class="map-bottom">
-        <div class="map-cta-text">🗺 8 jardins dans un rayon de 2 km</div>
-        <div class="map-sub-text">Voir la carte complète →</div>
+
+    <!-- Partage dernière entrée -->
+    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);" id="share-last-entry-card">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">📖 Dernière entrée journal</div>
+      <div id="share-entry-preview" style="font-size:0.9rem;color:var(--text-mid);margin-bottom:14px;line-height:1.5;">Aucune entrée journal pour l'instant.<br>Ajoutez une observation ou une photo dans le Journal !</div>
+      <div class="share-social-row" id="share-entry-btns" style="display:none;">
+        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','entry')">📸 Instagram</button>
+        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','entry')">👍 Facebook</button>
+        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','entry')">📋 Copier</button>
       </div>
     </div>
-    <!-- Défi du mois -->
-    <div class="challenge-strip">
-      <div class="challenge-icon">🏆</div>
-      <div class="challenge-body">
-        <div class="challenge-tag">⚡ Défi du mois</div>
-        <div class="challenge-title">Zéro plante perdue en mai</div>
-        <div class="challenge-bar-wrap"><div class="challenge-bar-fill"></div></div>
-        <div class="challenge-sub">62% de la communauté · 18 jours restants</div>
+
+    <!-- Partage score du jour -->
+    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">💧 Score hydrique du jour</div>
+      <div id="share-score-preview" style="background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:12px;padding:16px;margin-bottom:14px;text-align:center;">
+        <div style="font-family:var(--ff-display);font-size:2rem;color:white;font-weight:300;" id="share-score-num">—%</div>
+        <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);margin-top:4px;" id="share-score-label">Score hydrique · GardenMinder</div>
       </div>
-      <button class="btn-challenge">Rejoindre</button>
-    </div>
-    <!-- Tabs -->
-    <div class="com-tabs-row">
-      <button class="com-tab active" onclick="setComTab(this)">Proches</button>
-      <button class="com-tab" onclick="setComTab(this)">Tendances</button>
-      <button class="com-tab" onclick="setComTab(this)">Questions<span class="com-notif-dot"></span></button>
-    </div>
-    <!-- Post 1 avant/après -->
-    <div class="com-post">
-      <div class="post-head">
-        <div class="post-av-ring"><div class="post-av">🍅</div></div>
-        <div><div class="post-name">Pierre M.</div><div class="post-loc">📍 À 420m · Jardin de la Butte</div></div>
-        <div class="post-time-txt">2h</div>
-      </div>
-      <div class="post-ba">
-        <div class="post-ba-panel" style="background:linear-gradient(160deg,#d4e8d4,#b0c8b0);"><div class="post-ba-label">Avant</div>🥀</div>
-        <div class="post-ba-panel" style="background:linear-gradient(160deg,#90d090,#60b060);"><div class="post-ba-label">3 semaines</div>🍅</div>
-      </div>
-      <div class="post-body" style="padding-top:10px;">
-        <div class="post-plant-tag">🍅 Tomates cerises — 'Supersweet 100'</div>
-        <div class="post-text">3 semaines de suivi GardenMinder et la différence est nette. L'arrosage régularisé a tout changé !</div>
-      </div>
-      <div class="post-footer">
-        <button class="post-action liked" onclick="toggleComLike(this)">❤️ 12</button>
-        <div class="post-sep-v"></div>
-        <button class="post-action">💬 3</button>
-        <div class="post-share">↗</div>
+      <div class="share-social-row">
+        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','score')">📸 Instagram</button>
+        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','score')">👍 Facebook</button>
+        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','score')">📋 Copier</button>
       </div>
     </div>
-    <!-- Post 2 question -->
-    <div class="com-post">
-      <div class="post-head">
-        <div class="post-av-ring" style="background:linear-gradient(135deg,var(--earth),var(--earth-light));"><div class="post-av">🌻</div></div>
-        <div><div class="post-name">Jardin Boutan</div><div class="post-loc">📍 À 1,2km · Potager collectif</div></div>
-        <div class="post-time-txt">5h</div>
+
+    <!-- Partage niveau / badge -->
+    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">🏆 Mon niveau jardin</div>
+      <div id="share-level-preview" style="background:linear-gradient(135deg,#fef9e7,#fde9a0);border-radius:12px;padding:16px;margin-bottom:14px;border:1px solid #f0c840;text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:6px;" id="share-level-emoji">🌱</div>
+        <div style="font-family:var(--ff-display);font-size:1rem;font-weight:600;color:var(--text-dark);" id="share-level-name">Jardin Débutant</div>
+        <div style="font-size:0.78rem;color:#8b5e08;margin-top:4px;" id="share-level-pts">0 points · GardenMinder</div>
       </div>
-      <div class="post-img">🌻</div>
-      <div class="post-body" style="padding-top:10px;">
-        <div class="post-plant-tag">🌻 Tournesol — question</div>
-        <div class="post-text">Feuilles inférieures qui jaunissent — carence ou normal à ce stade ? Quelqu'un a déjà vu ça ? 🙏</div>
-      </div>
-      <div class="post-footer">
-        <button class="post-action">🤔 4</button>
-        <div class="post-sep-v"></div>
-        <button class="post-action" style="color:var(--green-mid);font-weight:600;">💬 Répondre</button>
-        <div class="post-share">↗</div>
+      <div class="share-social-row">
+        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','level')">📸 Instagram</button>
+        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','level')">👍 Facebook</button>
+        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','level')">📋 Copier</button>
       </div>
     </div>
-    <!-- Échanges surplus -->
-    <div class="swap-section">
-      <div class="swap-section-title"><h3>🌱 Échanges proches</h3><a>Voir tout</a></div>
-      <div class="swap-scroll">
-        <div class="swap-card"><div class="swap-emoji">🍅</div><div class="swap-name">Plants tomates</div><div class="swap-who">Sophie T.</div><div class="swap-dist">320m</div></div>
-        <div class="swap-card"><div class="swap-emoji">🌿</div><div class="swap-name">Boutures basilic</div><div class="swap-who">Pierre M.</div><div class="swap-dist">420m</div></div>
-        <div class="swap-card"><div class="swap-emoji">🥒</div><div class="swap-name">Surplus courgettes</div><div class="swap-who">Marie L.</div><div class="swap-dist">800m</div></div>
-        <div class="swap-card"><div class="swap-emoji">🌸</div><div class="swap-name">Bulbes dahlias</div><div class="swap-who">Claude B.</div><div class="swap-dist">1.1km</div></div>
-      </div>
+
+    <!-- Hashtags tips -->
+    <div style="background:var(--green-mist);border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);margin-bottom:8px;">💡 Hashtags suggérés</div>
+      <div style="font-size:0.8rem;color:var(--green-mid);line-height:1.8;">#GardenMinder #MonJardin #Jardinage #Potager #JardinConnecté #ArrosageIntelligent</div>
     </div>
-    <div style="height:16px;"></div>
+
+    <div style="height:8px;"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div></div>
+    <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1395,6 +1435,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
       <div class="level-info">
         <div class="level-name" id="garden-level-name">Jardin Débutant</div>
+        <div id="garden-player-title" style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:5px;display:none;font-style:italic;"></div>
         <div class="level-sub" id="garden-level-sub">Continuez à jardiner pour progresser</div>
         <div class="level-bar-wrap"><div class="level-bar-fill" id="garden-level-bar" style="width:20%;"></div></div>
         <div class="level-bar-text" id="garden-level-pts">0 / 100 points</div>
@@ -1441,7 +1482,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div></div>
+    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1727,12 +1768,38 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="settings-section-title">Application</div>
       <div class="settings-row" onclick="openChangeCityWithWarning()"><div class="settings-row-icon">🏡</div><div class="settings-row-text"><div class="settings-row-label">Changer de jardin</div><div class="settings-row-val" id="set-garden-count">1 jardin (Gratuit)</div></div><div class="settings-row-arrow">›</div></div>
     </div>
+
+    <!-- Bandeau Pro -->
+    <div style="padding:0 0 8px;">
+      <div class="pro-banner" onclick="openProContact()">
+        <div class="pro-banner-tag">🏢 GardenMinder Pro</div>
+        <div class="pro-banner-title">Vous êtes paysagiste ?</div>
+        <div class="pro-banner-desc">Gérez tous vos chantiers depuis une seule app. Rapports PDF clients, alertes météo nommées, gestion d'équipe.</div>
+        <div class="pro-banner-feats">
+          <div class="pro-banner-feat">Tableau de bord multi-sites (10–50 chantiers)</div>
+          <div class="pro-banner-feat">Rapport PDF hebdo automatique pour vos clients</div>
+          <div class="pro-banner-feat">Alertes météo nommées par chantier</div>
+          <div class="pro-banner-feat">Accès équipe terrain · 9,90€/mois</div>
+        </div>
+        <button class="pro-banner-cta" onclick="openProContact();event.stopPropagation()">📩 Nous contacter →</button>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <div style="padding:0 0 8px;">
+      <div style="background:white;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetApp()">
+          <div style="font-size:18px;width:32px;text-align:center;">🗑️</div>
+          <div style="flex:1;font-size:0.92rem;color:var(--danger);font-weight:500;">Réinitialiser l'application</div>
+        </div>
+      </div>
+    </div>
     <div style="height:16px;"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">🌍</div></div><div class="nav-label">Communauté</div></div>
+    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -2042,22 +2109,26 @@ function introNext() {
 
 // ── WIZARD ───────────────────────────────────────────────────────────────────
 let wizardStep=1;
-const WIZARD_TITLES=['','Où est votre jardin ?','Votre jardin','Mes plantes','Derniers réglages'];
+const WIZARD_STEPS_TOTAL=5;
+const WIZARD_TITLES=['','Où est votre jardin ?','Votre jardin','Quel est votre sol ?','Mes plantes','Derniers réglages'];
+let soilQuizAnswers={texture:null,retention:null,couleur:null};
 function updateWizard(){
-  document.getElementById('wizard-progress').style.width=((wizardStep-1)/3*100)+'%';
-  document.getElementById('wizard-step-label').textContent='Étape '+wizardStep+' sur 4';
+  document.getElementById('wizard-progress').style.width=((wizardStep-1)/(WIZARD_STEPS_TOTAL-1)*100)+'%';
+  document.getElementById('wizard-step-label').textContent='Étape '+wizardStep+' sur '+WIZARD_STEPS_TOTAL;
   document.getElementById('wizard-step-title').textContent=WIZARD_TITLES[wizardStep];
   document.querySelectorAll('.wizard-step').forEach(s=>s.classList.remove('active'));
   document.getElementById('wstep-'+wizardStep).classList.add('active');
   document.getElementById('wizard-back').style.display=wizardStep===1?'none':'';
-  document.getElementById('wizard-next').textContent=wizardStep===4?'Commencer 🌱':'Continuer →';
-  if(wizardStep===3) renderWizardPlants();
+  document.getElementById('wizard-next').textContent=wizardStep===WIZARD_STEPS_TOTAL?'Commencer 🌱':'Continuer →';
+  if(wizardStep===4) renderWizardPlants();
+  if(wizardStep===3) renderSoilQuizResult();
 }
 updateWizard();
 function wizardNext(){
-  if(wizardStep===4){finalizeSetup();return;}
+  if(wizardStep===WIZARD_STEPS_TOTAL){finalizeSetup();return;}
   if(wizardStep===1){const c=document.getElementById('city-input').value.trim();if(!c&&!state.city){alert('Veuillez entrer votre ville.');return;}if(c)state.city=c;}
   if(wizardStep===2){const s=document.getElementById('surface-input').value;if(s)state.surface=parseFloat(s);}
+  if(wizardStep===3){applySoilQuizResult();}
   wizardStep++;updateWizard();
 }
 function wizardPrev(){if(wizardStep===1){goTo('landing');return;}wizardStep--;updateWizard();}
@@ -2075,6 +2146,59 @@ function renderWizardPlants(){
       <div class="plant-water">💧 ${p.waterNeed}mm/j</div>
     </div>`;
   }).join('');
+}
+
+// ── SOIL QUIZ (Wizard step 3) ─────────────────────────────────────────────────
+function selectSoilQuiz(btn, question, value) {
+  const groupId = 'soil-q' + {texture:'1',retention:'2',couleur:'3'}[question];
+  const group = document.getElementById(groupId);
+  if(group) group.querySelectorAll('.soil-quiz-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  soilQuizAnswers[question] = value;
+  renderSoilQuizResult();
+}
+
+function renderSoilQuizResult() {
+  const a = soilQuizAnswers;
+  const answered = [a.texture, a.retention, a.couleur].filter(v => v !== null).length;
+  const resultEl = document.getElementById('soil-quiz-result');
+  if(!resultEl) return;
+  if(answered === 0) { resultEl.style.display='none'; return; }
+
+  // Scoring
+  let soilScore = { argileux:0, limoneux:0, sableux:0, calcaire:0 };
+  if(a.texture === 'argile')    soilScore.argileux += 3;
+  if(a.texture === 'limon')     soilScore.limoneux += 3;
+  if(a.texture === 'sable')     soilScore.sableux  += 3;
+  if(a.texture === 'calcaire')  soilScore.calcaire += 3;
+  if(a.retention === 'lent')    { soilScore.argileux += 2; }
+  if(a.retention === 'normal')  { soilScore.limoneux += 2; }
+  if(a.retention === 'rapide')  { soilScore.sableux  += 2; soilScore.calcaire += 1; }
+  if(a.couleur === 'fonce')     soilScore.limoneux += 1;
+  if(a.couleur === 'clair')     { soilScore.sableux += 1; soilScore.calcaire += 1; }
+
+  const best = Object.entries(soilScore).sort((a,b) => b[1]-a[1])[0][0];
+  const soilInfo = {
+    argileux: { emoji:'🏔️', label:'Sol argileux', desc:'Lourd et compact, il retient bien l\'eau mais peut s\'engorgera. Le modèle appliquera une rétention élevée — moins d\'arrosages fréquents.', badge:'💧 Rétention élevée' },
+    limoneux: { emoji:'🌍', label:'Sol limoneux (idéal)', desc:'Équilibre parfait entre rétention et drainage. C\'est le sol de référence des jardiniers. Le modèle appliquera des valeurs standard.', badge:'✅ Rétention équilibrée' },
+    sableux:  { emoji:'🏖️', label:'Sol sableux', desc:'Drainage très rapide — il faudra arroser plus souvent et en plus petites quantités. Le modèle augmentera la fréquence des alertes.', badge:'⚡ Drainage rapide' },
+    calcaire: { emoji:'⬜', label:'Sol calcaire/caillouteux', desc:'pH basique, drainage variable. Attention à la chlorose sur certaines plantes. Le modèle appliquera une rétention modérée.', badge:'🪨 pH basique' },
+  };
+  const info = soilInfo[best];
+  document.getElementById('soil-quiz-result-text').textContent = info.emoji + ' ' + info.label + ' · ' + info.badge;
+  document.getElementById('soil-quiz-result-desc').textContent = info.desc;
+  resultEl.style.display = 'block';
+  window._soilQuizResult = best;
+}
+
+function applySoilQuizResult() {
+  if(window._soilQuizResult) {
+    state.soil = window._soilQuizResult;
+    // Sync the soil-card selection too (for settings display)
+    document.querySelectorAll('.soil-card').forEach(c => c.classList.remove('selected'));
+    const matchCard = document.querySelector(`.soil-card[onclick*="${window._soilQuizResult}"]`);
+    if(matchCard) matchCard.classList.add('selected');
+  }
 }
 
 // ── GPS — Nominatim (OpenStreetMap) pour le reverse geocoding ─────────────
@@ -2157,7 +2281,7 @@ function togglePlant(el,key){
   const idx=state.selectedPlants.indexOf(key);
   if(idx>-1){state.selectedPlants.splice(idx,1);el.classList.remove('selected');}
   else{
-    const freeLimit = 5 + (state.bonusPlantSlots || 0);
+    const freeLimit = 3 + (state.bonusPlantSlots || 0);
     if(!isPremium()&&state.selectedPlants.length>=freeLimit){openPremiumModal('plants');return;}
     state.selectedPlants.push(key);el.classList.add('selected');
   }
@@ -2170,9 +2294,7 @@ function finalizeSetup(){
   if(state.selectedPlants.length===0) state.selectedPlants=['tomato','lawn'];
   state.selectedPlants.forEach(k=>{state.plantMoisture[k]=65+Math.random()*25;});
   fetchWeather().then(()=>{initApp();goTo('app');});
-}
-
-// ── WEATHER ──────────────────────────────────────────────────────────────────
+}────────────────────────────────────────────────────────────────
 
 // Source unique pour la pluie d'aujourd'hui (prévision daily, pas current)
 function getRainToday(){
@@ -2720,6 +2842,7 @@ function purchasePremium(){
   state.premium.purchased=true;
   state.premium.type='purchased';
   state.premium.active=true;
+  state.premium.purchasedAt = Date.now();
   document.getElementById('modal-premium').classList.remove('open');
   // Hide trial end screen if showing
   if(document.getElementById('screen-trial-end').classList.contains('active')) goTo('app');
@@ -2728,6 +2851,13 @@ function purchasePremium(){
   document.getElementById('premium-header-badge').textContent='✨ Premium';
   const nudge=document.getElementById('trial-nudge-bar');
   if(nudge)nudge.style.display='none';
+  // Award "Soutien" badge
+  if(!state.earnedBadges) state.earnedBadges = [];
+  if(!state.earnedBadges.includes('premium_supporter')) {
+    state.earnedBadges.push('premium_supporter');
+    setTimeout(() => showToast('🏅 Badge rare débloqué : Jardinier Soutien !'), 800);
+  }
+  saveState();
   renderSettingsTab();
   renderPlantStrip();
 }
@@ -2970,7 +3100,7 @@ function renderSettingsTab(){
         badge.style.color = '#8b5e08';
       } else {
         badge.className = 'free-badge';
-        badge.textContent = `Gratuit ${used}/5`;
+        badge.textContent = `Gratuit ${used}/3`;
       }
     }
     if(state.premium.type==='trial'){
@@ -3271,15 +3401,31 @@ const ENTRY_TYPES = {
 };
 
 const ALL_BADGES = [
-  { id:'first_seed',   emoji:'🌱', name:'Premier semis',       desc:'Première entrée journal',  cond: s=>s.journalEntries.length>=1 },
-  { id:'survivor',     emoji:'☀️', name:'Survivant canicule',  desc:'Rare — Canicule traversée',cond: s=>s.gardenPoints>=50, rare:true },
-  { id:'first_harvest',emoji:'🍅', name:'Première récolte',    desc:'Première récolte notée',   cond: s=>s.journalEntries.some(e=>e.type==='harvest') },
-  { id:'w100',         emoji:'💧', name:'100 arrosages',       desc:'100 arrosages enregistrés',cond: s=>(s.wateringHistory||[]).length>=5 },
-  { id:'winter',       emoji:'❄️', name:'Jardinier d\'hiver',  desc:'Entrée en hiver',          cond: s=>{ const m=new Date().getMonth(); return m>=11||m<=1; } },
-  { id:'seasons',      emoji:'🔄', name:'4 saisons',           desc:'Un an de jardinage',       cond: s=>s.gardenPoints>=200, rare:true },
-  { id:'helper',       emoji:'🌍', name:'10 voisins aidés',    desc:'10 réponses communauté',   cond: _=>false },
-  { id:'anniversary',  emoji:'🎂', name:'1 an de jardin',      desc:'365 jours avec GardenMinder',cond: s=>s.gardenPoints>=300, rare:true },
+  { id:'first_seed',        emoji:'🌱', name:'Premier semis',        desc:'Première entrée journal',              cond: s=>s.journalEntries.length>=1 },
+  { id:'survivor',          emoji:'☀️', name:'Survivant canicule',   desc:'Rare — Canicule traversée',            cond: s=>s.gardenPoints>=50, rare:true },
+  { id:'first_harvest',     emoji:'🍅', name:'Première récolte',     desc:'Première récolte notée',               cond: s=>s.journalEntries.some(e=>e.type==='harvest') },
+  { id:'w100',              emoji:'💧', name:'100 arrosages',        desc:'100 arrosages enregistrés',            cond: s=>(s.wateringHistory||[]).length>=5 },
+  { id:'winter',            emoji:'❄️', name:'Jardinier d\'hiver',   desc:'Entrée en hiver',                      cond: s=>{ const m=new Date().getMonth(); return m>=11||m<=1; } },
+  { id:'seasons',           emoji:'🔄', name:'4 saisons',            desc:'Un an de jardinage',                   cond: s=>s.gardenPoints>=200, rare:true },
+  { id:'anniversary',       emoji:'🎂', name:'1 an de jardin',       desc:'365 jours avec GardenMinder',          cond: s=>s.gardenPoints>=300, rare:true },
+  { id:'photo_addict',      emoji:'📸', name:'Mémoire visuelle',     desc:'5 entrées journal avec photo',         cond: s=>(s.journalEntries||[]).filter(e=>e.photo).length>=5 },
+  { id:'shared_social',     emoji:'📲', name:'Partage en fleur',     desc:'Première entrée partagée sur réseaux', cond: s=>(s.journalEntries||[]).some(e=>e.sharedSocial) },
+  { id:'premium_supporter', emoji:'🏅', name:'Jardinier Soutien',    desc:'Rare · Soutien officiel du projet',    cond: s=>s.premium&&s.premium.purchased, rare:true },
+  { id:'calibrated',        emoji:'🎯', name:'Sol calibré',          desc:'Calibration sol effectuée',            cond: s=>s.calibration&&(s.calibration.offset!==0||s.calibration.soilMultiplier!==1.0) },
 ];
+
+// Titres débloqués selon niveau — enrichis en Premium
+const PREMIUM_TITLES = [
+  { levelIdx:0, free:'Jardinier Débutant',   premium:'Apprenti Botaniste' },
+  { levelIdx:1, free:'Jardinier Apprenti',    premium:'Cultivateur Avisé' },
+  { levelIdx:2, free:'Jardinier Confirmé',    premium:'Maître des Saisons' },
+  { levelIdx:3, free:'Jardinier Expert',      premium:'Gardien des Terres' },
+  { levelIdx:4, free:'Jardinier Maître',      premium:'Grand Maître Botaniste 🌿' },
+];
+function getPlayerTitle(levelIdx) {
+  const entry = PREMIUM_TITLES[Math.min(levelIdx, PREMIUM_TITLES.length-1)];
+  return isPremium() ? entry.premium : entry.free;
+}
 
 const GARDEN_LEVELS = [
   { min:0,   max:100,  name:'Jardin Débutant',  emoji:'🌱', reward: null },
@@ -3379,6 +3525,7 @@ function switchTab(tab, el) {
     community: () => {
       document.getElementById('tab-community').classList.remove('hidden');
       const cb = document.getElementById('com-badge'); if(cb) cb.style.display='none';
+      renderShareTab();
     },
     memory: () => { document.getElementById('tab-memory').classList.remove('hidden'); renderMemoryTab(); },
   };
@@ -3614,15 +3761,114 @@ function renderJournalTab() {
   timeline.innerHTML = html;
 }
 
-// ── COMMUNAUTÉ ────────────────────────────────────────────────────────────────
-function setComTab(btn) {
-  document.querySelectorAll('.com-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+// ── PARTAGE RÉSEAUX SOCIAUX ───────────────────────────────────────────────────
+function renderShareTab() {
+  // Score preview
+  const pts = state.gardenPoints || 0;
+  const minMoisture = state.selectedPlants.length > 0
+    ? Math.min(...state.selectedPlants.map(k => state.plantMoisture[k] || 60))
+    : 60;
+  const score = Math.round(minMoisture);
+  const scoreEl = document.getElementById('share-score-num');
+  const scoreLbl = document.getElementById('share-score-label');
+  if(scoreEl) scoreEl.textContent = score + '%';
+  if(scoreLbl) scoreLbl.textContent = 'Score hydrique · ' + (state.city || 'Mon Jardin') + ' · GardenMinder';
+
+  // Level preview
+  const level = GARDEN_LEVELS.find(l => pts >= l.min && pts < l.max) || GARDEN_LEVELS[0];
+  const levelIdx = GARDEN_LEVELS.indexOf(level);
+  const el = id => document.getElementById(id);
+  if(el('share-level-emoji')) el('share-level-emoji').textContent = level.emoji;
+  if(el('share-level-name')) el('share-level-name').textContent = getPlayerTitle(levelIdx);
+  if(el('share-level-pts')) el('share-level-pts').textContent = pts + ' points · GardenMinder';
+
+  // Last journal entry preview
+  const entries = state.journalEntries || [];
+  const preview = el('share-entry-preview');
+  const btns = el('share-entry-btns');
+  if(entries.length > 0) {
+    const last = entries[0];
+    const t = ENTRY_TYPES[last.type] || ENTRY_TYPES.note;
+    if(preview) preview.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px;">
+      <span style="font-size:1.4rem;">${t.icon}</span>
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${last.plant}</div>
+        <div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px;">${last.text}</div>
+        <div style="font-size:0.72rem;color:var(--text-light);margin-top:4px;">${last.date || ''}</div>
+      </div>
+    </div>`;
+    if(btns) btns.style.display = 'flex';
+  } else {
+    if(preview) preview.innerHTML = 'Aucune entrée journal pour l\'instant.<br>Ajoutez une observation ou une photo dans le Journal !';
+    if(btns) btns.style.display = 'none';
+  }
 }
-function toggleComLike(btn) {
-  btn.classList.toggle('liked');
-  const num = parseInt(btn.textContent.match(/\d+/)?.[0]||'0');
-  btn.innerHTML = btn.classList.contains('liked') ? `❤️ ${num+1}` : `🤍 ${num-1}`;
+
+function shareToSocial(platform, type) {
+  const pts = state.gardenPoints || 0;
+  const score = Math.round(Math.min(...(state.selectedPlants.length > 0 ? state.selectedPlants.map(k => state.plantMoisture[k]||60) : [60])));
+  const level = GARDEN_LEVELS.find(l => pts >= l.min && pts < l.max) || GARDEN_LEVELS[0];
+  const levelIdx = GARDEN_LEVELS.indexOf(level);
+
+  let text = '';
+  if(type === 'score') {
+    text = `💧 Mon jardin est à ${score}% d'hydratation aujourd'hui !\n🌱 Suivi intelligent avec GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
+  } else if(type === 'level') {
+    text = `🏆 Je suis "${getPlayerTitle(levelIdx)}" sur GardenMinder avec ${pts} points !\n🌱 L'app qui prend soin de votre jardin\n#GardenMinder #Jardinage #JardinConnecté`;
+  } else if(type === 'entry') {
+    const last = (state.journalEntries||[])[0];
+    if(!last) return;
+    text = `📖 Journal de bord :\n"${last.text}"\n🌱 Via GardenMinder — ${state.city || 'Mon Jardin'}\n#GardenMinder #MonJardin #Jardinage`;
+  }
+
+  if(platform === 'copy') {
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Texte copié !'));
+    // Mark entry as shared socially
+    if(type === 'entry' && state.journalEntries.length > 0) {
+      state.journalEntries[0].sharedSocial = true;
+      saveState(); checkBadges();
+    }
+    return;
+  }
+  if(platform === 'instagram') {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('📋 Texte copié — collez-le dans Instagram !');
+    });
+    return;
+  }
+  if(platform === 'facebook') {
+    const url = encodeURIComponent('https://gardenminder.app');
+    const fbText = encodeURIComponent(text);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${fbText}`, '_blank');
+    if(type === 'entry' && state.journalEntries.length > 0) {
+      state.journalEntries[0].sharedSocial = true;
+      saveState(); checkBadges();
+    }
+  }
+}
+
+// ── CONTACT PRO ───────────────────────────────────────────────────────────────
+function openProContact() {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.3s ease;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(0,0,0,0.2);">
+      <div style="width:36px;height:4px;background:rgba(0,0,0,0.12);border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-size:1.8rem;margin-bottom:10px;text-align:center;">🏢</div>
+      <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:600;color:var(--text-dark);text-align:center;margin-bottom:6px;">GardenMinder Pro</div>
+      <div style="font-size:0.85rem;color:var(--text-mid);text-align:center;margin-bottom:20px;line-height:1.5;">Pour les paysagistes et professionnels du jardin. Gérez jusqu'à 50 chantiers, générez des rapports PDF clients, alertes météo nommées.</div>
+      <div style="background:linear-gradient(135deg,#f0f8ff,#e0f0f8);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:0.8rem;font-weight:700;color:#1a4060;margin-bottom:8px;">💼 Inclus dans Pro 9,90€/mois</div>
+        <div style="font-size:0.8rem;color:#2a5a7a;line-height:1.8;">✓ Multi-sites (10–50 chantiers)<br>✓ Rapport PDF automatique chaque semaine<br>✓ Alertes météo par nom de chantier<br>✓ Mode équipe terrain<br>✓ Calcul devis arrosage</div>
+      </div>
+      <a href="mailto:pro@gardenminder.app?subject=GardenMinder Pro — Demande d'information" 
+         style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;background:linear-gradient(135deg,#0a1628,#1a2e4a);color:white;border-radius:14px;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;text-decoration:none;margin-bottom:10px;">
+        📩 Contacter l'équipe Pro
+      </a>
+      <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:14px;background:var(--green-mist);color:var(--green-mid);border:none;border-radius:14px;font-family:var(--ff-body);font-size:0.9rem;font-weight:500;cursor:pointer;">Retour</button>
+    </div>`;
+  modal.onclick = e => { if(e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
 }
 
 // ── MÉMOIRE VIVANTE ───────────────────────────────────────────────────────────
@@ -3643,6 +3889,14 @@ function renderMemoryTab() {
   const bar = document.getElementById('garden-level-bar');
   if (bar) bar.style.width = Math.min(100, progress) + '%';
 
+  const levelIdx2 = GARDEN_LEVELS.indexOf(level);
+  const title = getPlayerTitle(levelIdx2);
+  // Show title under level name
+  const titleEl = document.getElementById('garden-player-title');
+  if(titleEl) { titleEl.textContent = title; titleEl.style.display = 'block'; }
+  // If Premium, show a special glow on the orb
+  const orb = document.querySelector('.level-orb');
+  if(orb) orb.style.boxShadow = isPremium() ? '0 6px 20px rgba(124,77,255,0.5)' : '0 6px 20px rgba(74,140,92,0.4)';
   // Update level emoji visual (large icon in the orb)
   const orbEmoji = document.getElementById('level-orb-emoji');
   if(orbEmoji) orbEmoji.textContent = level.emoji;

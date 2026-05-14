@@ -1102,7 +1102,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
       <div id="hero-alert" style="margin:10px 16px;padding:10px 14px;border-radius:10px;background:rgba(240,192,64,0.15);border:1px solid rgba(240,192,64,0.3);display:flex;gap:10px;align-items:flex-start;">
         <span id="hero-alert-icon" style="font-size:16px;flex-shrink:0;margin-top:1px;">✅</span>
-        <span id="hero-alert-text" style="font-size:0.83rem;color:rgba(255,255,255,0.9);line-height:1.5;">Jardin en bonne santé.</span>
+        <span id="hero-alert-text" style="font-size:0.83rem;color:rgba(255,255,255,0.9);line-height:1.5;flex:1;">Jardin en bonne santé.</span>
+        <button onclick="shareGardenScore()" style="flex-shrink:0;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 9px;color:white;font-size:0.72rem;cursor:pointer;font-family:var(--ff-body);">📲</button>
       </div>
       <div style="padding:8px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 12px;">
@@ -1127,6 +1128,16 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <!-- Plants strip -->
     <div class="section-title">Mes plantes</div>
     <div class="plant-strip" id="plant-strip"></div>
+
+    <!-- Précipitations 7j -->
+    <div class="section-title">Précipitations — 7 jours</div>
+    <div style="margin:0 16px 14px;background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);">
+      <div id="home-precip-chart" style="height:64px;"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--text-light);">
+        <span id="home-precip-labels" style="display:contents;"></span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-mid);margin-top:6px;text-align:right;" id="home-precip-total"></div>
+    </div>
 
     <!-- Quick actions -->
     <div class="section-title">Actions rapides</div>
@@ -1154,21 +1165,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="forecast-scroll">
       <div class="forecast-row" id="forecast-row"></div>
     </div>
-
-    <!-- Stats -->
-    <div class="section-title">Ce mois-ci</div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" id="stat-liters">—</div><div class="stat-label">Litres arrosés</div></div>
-      <div class="stat-card"><div class="stat-val" id="stat-cost">—€</div><div class="stat-label">Coût eau</div></div>
-      <div class="stat-card"><div class="stat-val" id="stat-savings">—€</div><div class="stat-label">Économies</div></div>
-    </div>
     <div style="height:16px;"></div>
   </div>
 
   <div class="bottom-nav" id="main-nav">
     <div class="nav-item active" id="nav-home" onclick="switchTab('home',this)"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" id="nav-journal" onclick="switchTab('journal',this)"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" id="nav-community" onclick="switchTab('community',this)" style="position:relative;"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div><div class="nav-badge" id="com-badge">3</div></div>
     <div class="nav-item" id="nav-memory" onclick="switchTab('memory',this)"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" id="nav-settings" onclick="switchTab('settings',this)"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1280,7 +1282,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="openJournalFromPlant()"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="goBack();switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
+    
     <div class="nav-item" onclick="goBack();switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
 </div>
@@ -1312,21 +1314,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     </div>
     <div class="journal-seg">
       <button class="journal-seg-btn active" onclick="setJournalSeg(this,'notes')">📖 Mes notes</button>
-      <button class="journal-seg-btn" onclick="setJournalSeg(this,'watering')">💧 Arrosages</button>
-      <button class="journal-seg-btn" onclick="setJournalSeg(this,'stats')">📊 Bilan</button>
+      <button class="journal-seg-btn" onclick="setJournalSeg(this,'watering')">📊 Historique</button>
+      <button class="journal-seg-btn" onclick="setJournalSeg(this,'stats')">📈 Bilan</button>
     </div>
   </div>
   <div style="flex:1;overflow-y:auto;padding-bottom:80px;" id="journal-content">
-    <div class="journal-summary">
-      <div class="journal-sum-label">Ce mois-ci</div>
-      <div class="journal-sum-row">
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-entries">0</div><div class="journal-sum-sub">entrées</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-harvest">0</div><div class="journal-sum-sub">récoltes</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-problems">0</div><div class="journal-sum-sub">problèmes</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-shared">0</div><div class="journal-sum-sub">partagées</div></div>
-      </div>
-    </div>
-    <!-- Section Notes -->
+    <!-- Section Notes (pas de bandeau Ce mois-ci ici) -->
     <div id="journal-section-notes">
       <div id="journal-timeline"></div>
     </div>
@@ -1342,80 +1335,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
-    <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
-    <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
-  </div>
-</div>
-
-<!-- ══════════════════ TAB : COMMUNAUTÉ ══════════════════ -->
-<div id="tab-community" class="hidden" style="position:fixed;inset:0;height:100%;background:var(--cream);z-index:50;display:flex;flex-direction:column;">
-  <div class="com-header">
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div class="com-title">Par<em>tager</em></div>
-    </div>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:16px;padding-bottom:80px;">
-
-    <!-- Intro -->
-    <div style="text-align:center;padding:20px 16px 24px;">
-      <div style="font-size:3.2rem;margin-bottom:12px;">📲</div>
-      <div style="font-family:var(--ff-display);font-size:1.25rem;font-weight:600;color:var(--text-dark);margin-bottom:8px;">Partagez vos progrès</div>
-      <div style="font-size:0.88rem;color:var(--text-mid);line-height:1.6;max-width:280px;margin:0 auto;">Montrez l'évolution de votre jardin à votre entourage sur Instagram ou Facebook.</div>
-    </div>
-
-    <!-- Partage dernière entrée -->
-    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);" id="share-last-entry-card">
-      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">📖 Dernière entrée journal</div>
-      <div id="share-entry-preview" style="font-size:0.9rem;color:var(--text-mid);margin-bottom:14px;line-height:1.5;">Aucune entrée journal pour l'instant.<br>Ajoutez une observation ou une photo dans le Journal !</div>
-      <div class="share-social-row" id="share-entry-btns" style="display:none;">
-        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','entry')">📸 Instagram</button>
-        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','entry')">👍 Facebook</button>
-        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','entry')">📋 Copier</button>
-      </div>
-    </div>
-
-    <!-- Partage score du jour -->
-    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);">
-      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">💧 Score hydrique du jour</div>
-      <div id="share-score-preview" style="background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:12px;padding:16px;margin-bottom:14px;text-align:center;">
-        <div style="font-family:var(--ff-display);font-size:2rem;color:white;font-weight:300;" id="share-score-num">—%</div>
-        <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);margin-top:4px;" id="share-score-label">Score hydrique · GardenMinder</div>
-      </div>
-      <div class="share-social-row">
-        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','score')">📸 Instagram</button>
-        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','score')">👍 Facebook</button>
-        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','score')">📋 Copier</button>
-      </div>
-    </div>
-
-    <!-- Partage niveau / badge -->
-    <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:12px;box-shadow:var(--shadow);">
-      <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">🏆 Mon niveau jardin</div>
-      <div id="share-level-preview" style="background:linear-gradient(135deg,#fef9e7,#fde9a0);border-radius:12px;padding:16px;margin-bottom:14px;border:1px solid #f0c840;text-align:center;">
-        <div style="font-size:2.5rem;margin-bottom:6px;" id="share-level-emoji">🌱</div>
-        <div style="font-family:var(--ff-display);font-size:1rem;font-weight:600;color:var(--text-dark);" id="share-level-name">Jardin Débutant</div>
-        <div style="font-size:0.78rem;color:#8b5e08;margin-top:4px;" id="share-level-pts">0 points · GardenMinder</div>
-      </div>
-      <div class="share-social-row">
-        <button class="share-social-btn share-btn-insta" onclick="shareToSocial('instagram','level')">📸 Instagram</button>
-        <button class="share-social-btn share-btn-facebook" onclick="shareToSocial('facebook','level')">👍 Facebook</button>
-        <button class="share-social-btn share-btn-copy" onclick="shareToSocial('copy','level')">📋 Copier</button>
-      </div>
-    </div>
-
-    <!-- Hashtags tips -->
-    <div style="background:var(--green-mist);border-radius:12px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);margin-bottom:8px;">💡 Hashtags suggérés</div>
-      <div style="font-size:0.8rem;color:var(--green-mid);line-height:1.8;">#GardenMinder #MonJardin #Jardinage #Potager #JardinConnecté #ArrosageIntelligent</div>
-    </div>
-
-    <div style="height:8px;"></div>
-  </div>
-  <div class="bottom-nav">
-    <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
-    <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1440,17 +1359,18 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="level-bar-wrap"><div class="level-bar-fill" id="garden-level-bar" style="width:20%;"></div></div>
         <div class="level-bar-text" id="garden-level-pts">0 / 100 points</div>
         <div id="level-reward-info"></div>
+        <button onclick="shareGardenLevel()" style="margin-top:10px;display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.12);color:white;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:var(--ff-body);">📲 Partager mon niveau</button>
       </div>
     </div>
     <!-- Timelapse -->
-    <div class="timelapse-card">
+    <div class="timelapse-card" onclick="openTimelapseModal()" style="cursor:pointer;">
       <div class="timelapse-icon">🎬</div>
       <div class="timelapse-body">
-        <div class="timelapse-tag">📸 Mémoire photo</div>
+        <div class="timelapse-tag">✨ Premium · Mémoire photo</div>
         <div class="timelapse-title">Créez votre timelapse de saison</div>
         <div class="timelapse-sub">Ajoutez des photos dans le Journal pour débloquer votre avant/après</div>
       </div>
-      <button class="btn-timelapse">Voir →</button>
+      <button class="btn-timelapse" onclick="openTimelapseModal();event.stopPropagation()">Voir →</button>
     </div>
     <!-- Série hebdo -->
     <div class="streak-card">
@@ -1482,7 +1402,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item" onclick="switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -1506,21 +1425,33 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="plant-picker-scroll" id="entry-plant-picker"></div>
   <div class="sheet-section">Note</div>
   <textarea class="entry-textarea" id="entry-text" placeholder="Décrivez ce que vous avez observé, fait ou souhaitez retenir…"></textarea>
-  <!-- Photo (optionnelle, pour toutes les entrées) -->
+  <!-- Photo (optionnelle) -->
   <div style="margin-bottom:14px;">
-    <label for="entry-photo-input" id="entry-photo-label" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--green-mist);border-radius:12px;border:2px dashed var(--green-pale);cursor:pointer;">
-      <span style="font-size:18px;">📷</span>
-      <span style="font-size:0.85rem;color:var(--green-mid);font-weight:600;">Ajouter une photo (optionnel)</span>
-    </label>
-    <input type="file" id="entry-photo-input" accept="image/*" style="display:none;" onchange="handleEntryPhoto(this)">
-    <div id="entry-photo-preview" style="display:none;margin-top:8px;position:relative;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <label for="entry-photo-input" id="entry-photo-label" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;background:var(--green-mist);border-radius:12px;border:2px dashed var(--green-pale);cursor:pointer;">
+        <span style="font-size:18px;">🖼️</span>
+        <span style="font-size:0.82rem;color:var(--green-mid);font-weight:600;">Galerie</span>
+      </label>
+      <input type="file" id="entry-photo-input" accept="image/*" style="display:none;" onchange="handleEntryPhoto(this)">
+      <label for="entry-camera-input" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;background:var(--green-mist);border-radius:12px;border:2px dashed var(--green-pale);cursor:pointer;">
+        <span style="font-size:18px;">📷</span>
+        <span style="font-size:0.82rem;color:var(--green-mid);font-weight:600;">Photo</span>
+      </label>
+      <input type="file" id="entry-camera-input" accept="image/*" capture="environment" style="display:none;" onchange="handleEntryPhoto(this)">
+    </div>
+    <div id="entry-photo-preview" style="display:none;margin-top:4px;position:relative;">
       <img id="entry-photo-img" style="width:100%;border-radius:10px;max-height:170px;object-fit:cover;display:block;" alt="">
       <button type="button" onclick="removeEntryPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer;line-height:1;">✕</button>
     </div>
   </div>
-  <div class="share-row">
-    <div class="share-row-info"><strong>Partager avec la communauté</strong><span>Visible par les jardiniers proches</span></div>
-    <div class="toggle-sw" id="entry-share-toggle" onclick="toggleEntryShare()"><div class="toggle-knob"></div></div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Partager cette entrée</div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="share-social-btn share-btn-insta" onclick="shareEntryOnSave('instagram')" id="share-entry-insta" style="flex:1;opacity:0.5;pointer-events:none;">📸 Instagram</button>
+      <button type="button" class="share-social-btn share-btn-facebook" onclick="shareEntryOnSave('facebook')" id="share-entry-fb" style="flex:1;opacity:0.5;pointer-events:none;">👍 Facebook</button>
+      <button type="button" class="share-social-btn share-btn-copy" onclick="shareEntryOnSave('copy')" id="share-entry-copy" style="flex:1;opacity:0.5;pointer-events:none;">📋 Copier</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--text-light);margin-top:6px;" class="share-hint-msg">Disponible après enregistrement</div>
   </div>
   <button class="btn-submit-entry" onclick="submitJournalEntry()">Enregistrer dans le journal ✓</button>
 </div>
@@ -1799,7 +1730,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="bottom-nav">
     <div class="nav-item" onclick="switchTab('home',document.getElementById('nav-home'))"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="switchTab('journal',document.getElementById('nav-journal'))"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
-    <div class="nav-item" onclick="switchTab('community',document.getElementById('nav-community'))"><div class="nav-icon-wrap"><div class="nav-icon">📲</div></div><div class="nav-label">Partager</div></div>
     <div class="nav-item" onclick="switchTab('memory',document.getElementById('nav-memory'))"><div class="nav-icon-wrap"><div class="nav-icon">🏆</div></div><div class="nav-label">Mémoire</div></div>
     <div class="nav-item active"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
@@ -2077,7 +2007,7 @@ function isSetupDone() { return !!(state.city && state.selectedPlants && state.s
 // ── NAVIGATION ───────────────────────────────────────────────────────────────
 function goTo(id) {
   // Hide ALL overlay tabs first
-  ['tab-history','tab-alerts','tab-settings','tab-journal','tab-community','tab-memory'].forEach(tid => {
+  ['tab-history','tab-alerts','tab-settings','tab-journal','tab-memory'].forEach(tid => {
     const t = document.getElementById(tid);
     if(t) { t.classList.add('hidden'); }
   });
@@ -2090,7 +2020,7 @@ function goTo(id) {
   saveState();
 }
 function goBack() { goTo(prevScreen || 'app'); }
-const TAB_IDS = ['history','alerts','settings','journal','community','memory'];
+const TAB_IDS = ['history','alerts','settings','journal','memory'];
 function hideAllTabs() { TAB_IDS.forEach(t => { const el=document.getElementById('tab-'+t); if(el){ el.classList.add('hidden'); } }); }
 // First switchTab removed — the comprehensive one at line ~2985 handles all overlay tabs.
 
@@ -2294,7 +2224,7 @@ function finalizeSetup(){
   if(state.selectedPlants.length===0) state.selectedPlants=['tomato','lawn'];
   state.selectedPlants.forEach(k=>{state.plantMoisture[k]=65+Math.random()*25;});
   fetchWeather().then(()=>{initApp();goTo('app');});
-}────────────────────────────────────────────────────────────────
+}
 
 // Source unique pour la pluie d'aujourd'hui (prévision daily, pas current)
 function getRainToday(){
@@ -2439,6 +2369,7 @@ function initApp(){
   renderForecast();
   updateStats();
   renderAccountInHeader();
+  setTimeout(renderHomePrecipChart, 50);
 }
 
 // Calcule l'humidité affichée d'une plante (lecture seule, n'écrit PAS dans state)
@@ -3485,7 +3416,17 @@ function showLevelUpModal(idx, lvl) {
 }
 
 let currentEntryType = 'action';
-let entryShareOn = false;
+let _lastSavedEntryId = null;
+
+function shareEntryOnSave(platform) {
+  const entry = (state.journalEntries||[]).find(e => e.id === _lastSavedEntryId);
+  if(!entry) { showToast('Enregistrez d\'abord l\'entrée'); return; }
+  const t = ENTRY_TYPES[entry.type] || ENTRY_TYPES.note;
+  const text = `${t.icon} ${entry.plant} — ${entry.text}\n🌱 Mon jardin · GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
+  _shareVia(platform, encodeURIComponent(text));
+  entry.sharedSocial = true;
+  saveState(); checkBadges();
+}
 
 // ── TAB SWITCHING (extended for new tabs) ─────────────────────────────────────
 function switchTab(tab, el) {
@@ -3494,7 +3435,7 @@ function switchTab(tab, el) {
   if (el) el.classList.add('active');
 
   // Hide all overlay tabs
-  ['tab-history','tab-alerts','tab-settings','tab-journal','tab-community','tab-memory'].forEach(id => {
+  ['tab-history','tab-alerts','tab-settings','tab-journal','tab-memory'].forEach(id => {
     const t = document.getElementById(id);
     if (t) { t.classList.add('hidden'); }
   });
@@ -3522,11 +3463,6 @@ function switchTab(tab, el) {
     alerts: () => { document.getElementById('tab-alerts').classList.remove('hidden'); renderAlertsTab(); },
     settings: () => { document.getElementById('tab-settings').classList.remove('hidden'); renderSettingsTab(); },
     journal: () => { document.getElementById('tab-journal').classList.remove('hidden'); renderJournalTab(); if(fab) fab.style.display='flex'; },
-    community: () => {
-      document.getElementById('tab-community').classList.remove('hidden');
-      const cb = document.getElementById('com-badge'); if(cb) cb.style.display='none';
-      renderShareTab();
-    },
     memory: () => { document.getElementById('tab-memory').classList.remove('hidden'); renderMemoryTab(); },
   };
   if (tabMap[tab]) tabMap[tab]();
@@ -3562,6 +3498,7 @@ function removeEntryPhoto() {
 
 function openEntrySheet() {
   _entryPhotoData = null;
+  _lastSavedEntryId = null;
   document.getElementById('entry-overlay').classList.add('open');
   document.getElementById('entry-sheet').classList.add('open');
   // Reset photo UI
@@ -3571,6 +3508,15 @@ function openEntrySheet() {
   if(prev) prev.style.display = 'none';
   if(lbl) lbl.style.display = 'flex';
   if(inp) inp.value = '';
+  const cam = document.getElementById('entry-camera-input');
+  if(cam) cam.value = '';
+  // Reset share buttons
+  ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(btn) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; }
+  });
+  const hint = document.querySelector('.share-hint-msg');
+  if(hint) hint.textContent = 'Disponible après enregistrement';
   // Reset to default type
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
   const firstBtn = document.querySelector('.type-btn');
@@ -3597,11 +3543,7 @@ function selectEntryPlant(chip) {
   document.querySelectorAll('.plant-chip-pick').forEach(c => c.classList.remove('selected'));
   chip.classList.add('selected');
 }
-function toggleEntryShare() {
-  entryShareOn = !entryShareOn;
-  const sw = document.getElementById('entry-share-toggle');
-  sw.classList.toggle('off', !entryShareOn);
-}
+
 function submitJournalEntry() {
   const text = document.getElementById('entry-text').value.trim();
   const plantEl = document.querySelector('.plant-chip-pick.selected');
@@ -3612,26 +3554,35 @@ function submitJournalEntry() {
     type: currentEntryType,
     plant,
     text: text || ENTRY_TYPES[currentEntryType].label + ' enregistré',
-    shared: entryShareOn,
+    shared: false,
     date: now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}),
     time: now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
     ts: now.toISOString(),
     photo: _entryPhotoData || null,
   };
   state.journalEntries.unshift(entry);
+  _lastSavedEntryId = entry.id;
+  // Activer les boutons de partage
+  ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+  });
+  const hint = document.querySelector('.share-hint-msg');
+  if(hint) hint.textContent = '✅ Entrée enregistrée — vous pouvez maintenant partager';
   // Add garden points + bonus for photo
   const pts = { action:5, note:3, harvest:10, problem:4, treatment:6, taille:7 };
   const prevPoints = state.gardenPoints || 0;
   let earnedPts = pts[currentEntryType] || 5;
-  if(entry.photo) earnedPts += 3; // bonus photo
+  if(entry.photo) earnedPts += 3;
   state.gardenPoints = prevPoints + earnedPts;
   saveState();
-  closeEntrySheet();
   showToast('✅ Entrée ajoutée au journal ! +' + earnedPts + ' pts');
   checkBadges();
-  checkLevelUp(prevPoints); // 🎁 Niveau atteint ?
+  checkLevelUp(prevPoints);
   renderJournalTab();
   if (document.getElementById('tab-memory') && !document.getElementById('tab-memory').classList.contains('hidden')) renderMemoryTab();
+  // Fermer la sheet après un court délai pour laisser voir les boutons de partage
+  setTimeout(() => closeEntrySheet(), 1200);
 }
 function setJournalSeg(btn, mode) {
   document.querySelectorAll('.journal-seg-btn').forEach(b => b.classList.remove('active'));
@@ -3646,28 +3597,127 @@ function setJournalSeg(btn, mode) {
   if(mode === 'stats') renderJournalStats();
 }
 
+let journalHistPeriod = '7j';
+
+function setJournalHistPeriod(period) {
+  journalHistPeriod = period;
+  document.querySelectorAll('.jhist-period-btn').forEach(b => {
+    const active = b.dataset.period === period;
+    b.style.background = active ? 'var(--green-mid)' : 'white';
+    b.style.color = active ? 'white' : 'var(--text-mid)';
+    b.style.borderColor = active ? 'var(--green-mid)' : 'var(--green-pale)';
+  });
+  renderJournalHistCharts();
+}
+
+// Périodes individuelles par graphique
+const _chartPeriods = { precip: '7j', hygro: '7j', water: '7j' };
+
+function setIndivPeriod(chartKey, period, btn) {
+  _chartPeriods[chartKey] = period;
+  // Mettre à jour les boutons uniquement de ce graphique
+  btn.closest('.jhist-card-periods').querySelectorAll('.jhist-ind-btn').forEach(b => {
+    const active = b.dataset.period === period;
+    b.style.background = active ? 'var(--green-mid)' : 'white';
+    b.style.color = active ? 'white' : 'var(--text-mid)';
+  });
+  renderSingleChart(chartKey);
+}
+
+function renderSingleChart(chartKey) {
+  const p = _chartPeriods[chartKey];
+  if(chartKey === 'precip') {
+    const d = getPrecipData(p);
+    renderBarChart('jhist-precip-chart', d, 'var(--water)', 'rgba(74,158,202,0.4)', 'mm');
+    const tot = (d.values||[]).filter(v=>v!=null&&v>0).reduce((a,b)=>a+b,0);
+    const el = document.getElementById('jhist-precip-stat'); if(el) el.textContent = tot.toFixed(1)+' mm';
+  } else if(chartKey === 'hygro') {
+    const n = p==='7j'?7:30;
+    const d = getMoistureData(p);
+    const cur = state.selectedPlants.length>0
+      ? Math.round(Object.values(state.plantMoisture).reduce((a,b)=>a+b,0)/state.selectedPlants.length) : 60;
+    if(!d.hasData) {
+      const synth = Array(n).fill(null); synth[n-1]=cur;
+      renderBarChart('jhist-hygro-chart',{values:synth,labels:buildLabels(p,n),hasData:true},'var(--green-mid)','var(--green-pale)','%');
+    } else { renderBarChart('jhist-hygro-chart',d,'var(--green-mid)','var(--green-pale)','%'); }
+    const el = document.getElementById('jhist-hygro-stat'); if(el) el.textContent = cur+'% auj.';
+  } else if(chartKey === 'water') {
+    const d = getWaterData(p);
+    renderBarChart('jhist-water-chart', d, 'var(--water)', 'rgba(74,158,202,0.35)', 'L');
+    const tot = (d.values||[]).filter(v=>v!=null&&v>0).reduce((a,b)=>a+b,0);
+    const el = document.getElementById('jhist-water-stat');
+    if(el) el.textContent = tot>0 ? tot+'L · '+((tot/1000)*(state.price||4.3)).toFixed(2)+'€' : '—';
+  }
+}
+
+function renderJournalHistCharts() {
+  ['precip','hygro','water'].forEach(k => renderSingleChart(k));
+}
+
+function _indivPeriodBtns(chartKey) {
+  const cur = _chartPeriods[chartKey] || '7j';
+  return `<div class="jhist-card-periods" style="display:flex;gap:4px;">
+    ${['7j','30j'].map(p => `<button class="jhist-ind-btn" data-period="${p}" onclick="setIndivPeriod('${chartKey}','${p}',this)"
+      style="padding:4px 10px;border-radius:8px;border:1px solid ${p===cur?'var(--green-mid)':'var(--green-pale)'};
+      background:${p===cur?'var(--green-mid)':'white'};color:${p===cur?'white':'var(--text-mid)'};
+      font-family:var(--ff-body);font-size:0.72rem;font-weight:600;cursor:pointer;">${p==='7j'?'7J':'30J'}</button>`).join('')}
+  </div>`;
+}
+
 function renderJournalWatering() {
   const list = document.getElementById('journal-watering-list');
   if(!list) return;
   const history = state.wateringHistory || [];
-  if(history.length === 0) {
-    list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:0.9rem;">💧 Aucun arrosage enregistré</div>';
-    return;
-  }
-  list.innerHTML = history.map(e => {
-    const plant = e.plant ? PLANT_DB[e.plant] : null;
-    return `<div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:12px;">
-      <div style="font-size:22px;">${plant ? plant.emoji : '💧'}</div>
-      <div style="flex:1;">
-        <div style="font-size:0.9rem;font-weight:600;color:var(--text-dark);">${plant ? plant.name : 'Jardin'}</div>
-        <div style="font-size:0.78rem;color:var(--text-light);margin-top:2px;">${e.date}</div>
+  const totalL = history.reduce((s,e)=>s+e.liters,0);
+
+  const card = (chartId, statId, chartKey, icon, label, subtext) => `
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">${icon} ${label}</div>
+          <span id="${statId}" style="font-size:0.72rem;font-weight:600;color:var(--green-mid);"></span>
+        </div>
+        ${_indivPeriodBtns(chartKey)}
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div>
-        <div style="font-size:0.75rem;color:var(--text-light);">${((e.liters/1000)*state.price).toFixed(2)}€</div>
-      </div>
+      <div id="${chartId}" style="height:80px;"></div>
+      <div style="font-size:0.7rem;color:var(--text-light);margin-top:6px;">${subtext}</div>
     </div>`;
-  }).join('');
+
+  const waterRows = history.length === 0
+    ? `<div style="text-align:center;padding:20px;color:var(--text-light);font-size:0.85rem;">Aucun arrosage enregistré</div>`
+    : history.slice(0,15).map(e => {
+        const plant = e.plant ? PLANT_DB[e.plant] : null;
+        return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
+          <div style="font-size:20px;">${plant ? plant.emoji : '💧'}</div>
+          <div style="flex:1;">
+            <div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${plant ? plant.name : 'Jardin'}</div>
+            <div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  list.innerHTML =
+    card('jhist-precip-chart','jhist-precip-stat','precip','🌧️','Précipitations','Pluie mesurée + prévisions météo')
+    + card('jhist-hygro-chart','jhist-hygro-stat','hygro','💧','Hygrométrie sol','Taux d\'humidité moyen de vos plantes')
+    + `<div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">🚿 Arrosages</div>
+            <span id="jhist-water-stat" style="font-size:0.72rem;font-weight:600;color:var(--green-mid);"></span>
+          </div>
+          ${_indivPeriodBtns('water')}
+        </div>
+        <div id="jhist-water-chart" style="height:80px;"></div>
+        <div style="font-size:0.7rem;color:var(--text-light);margin-top:6px;margin-bottom:14px;">Volume apporté par vos sessions</div>
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;padding-top:12px;border-top:1px solid var(--green-mist);">🕐 Historique détaillé · ${totalL}L · ${((totalL/1000)*(state.price||4.3)).toFixed(2)}€</div>
+        ${waterRows}
+      </div>`;
+
+  setTimeout(renderJournalHistCharts, 0);
 }
 
 function renderJournalStats() {
@@ -3678,12 +3728,31 @@ function renderJournalStats() {
   const totalCost = (totalL/1000)*state.price;
   const savings = Math.max(0,(totalL*1.3/1000)*state.price - totalCost);
   const entries = state.journalEntries || [];
+
+  // Données du mois en cours
+  const now = new Date();
+  const thisMonth = entries.filter(e => {
+    const d = new Date(e.ts || Date.now());
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
   const byType = {};
   entries.forEach(e => { byType[e.type] = (byType[e.type]||0)+1; });
   const typeLabels = {action:'Actions',note:'Notes',harvest:'Récoltes',problem:'Problèmes',treatment:'Traitements',taille:'Tailles'};
   const typeEmoji = {action:'✅',note:'📝',harvest:'🌾',problem:'⚠️',treatment:'💊',taille:'✂️'};
+
   el.innerHTML = `
-    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <!-- Bandeau Ce mois-ci -->
+    <div class="journal-summary" style="margin:0 0 10px;border-radius:14px;">
+      <div class="journal-sum-label">Ce mois-ci</div>
+      <div class="journal-sum-row">
+        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-entries">${thisMonth.length}</div><div class="journal-sum-sub">entrées</div></div>
+        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-harvest">${thisMonth.filter(e=>e.type==='harvest').length}</div><div class="journal-sum-sub">récoltes</div></div>
+        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-problems">${thisMonth.filter(e=>e.type==='problem').length}</div><div class="journal-sum-sub">problèmes</div></div>
+        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-shared">${thisMonth.filter(e=>e.sharedSocial).length}</div><div class="journal-sum-sub">partagées</div></div>
+      </div>
+    </div>
+
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">💧 Bilan arrosages</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
         <div><div style="font-family:'Fraunces',serif;font-size:1.5rem;color:var(--water);">${totalL}</div><div style="font-size:0.72rem;color:var(--text-light);">Litres total</div></div>
@@ -3691,7 +3760,7 @@ function renderJournalStats() {
         <div><div style="font-family:'Fraunces',serif;font-size:1.5rem;color:var(--ok);">${savings.toFixed(2)}€</div><div style="font-size:0.72rem;color:var(--text-light);">Économies</div></div>
       </div>
     </div>
-    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">📖 Activité journal</div>
       ${Object.keys(typeLabels).filter(k=>byType[k]).map(k=>`
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--green-mist);">
@@ -3710,17 +3779,6 @@ function renderJournalStats() {
 }
 function renderJournalTab() {
   const entries = state.journalEntries || [];
-  const thisMonth = entries.filter(e => {
-    const d = new Date(e.ts || Date.now());
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
-  const sid = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-  sid('jsv-entries', thisMonth.length);
-  sid('jsv-harvest', thisMonth.filter(e=>e.type==='harvest').length);
-  sid('jsv-problems', thisMonth.filter(e=>e.type==='problem').length);
-  sid('jsv-shared', thisMonth.filter(e=>e.shared).length);
-
   const timeline = document.getElementById('journal-timeline');
   if (!entries.length) {
     timeline.innerHTML = `<div style="text-align:center;padding:50px 24px;color:var(--text-light);">
@@ -3752,8 +3810,8 @@ function renderJournalTab() {
         <div class="jcard-text">${e.text}</div>
         ${e.photo ? `<img src="${e.photo}" style="width:100%;border-radius:8px;margin-top:8px;max-height:180px;object-fit:cover;display:block;" alt="Photo">` : ''}
         <div class="jcard-chips">
-          ${e.shared ? '<span class="jcard-chip">🌍 Partagée</span>' : ''}
-          <span class="jcard-shared">${e.shared ? '❤️ Communauté' : ''}</span>
+          ${e.sharedSocial ? '<span class="jcard-chip">📲 Partagée</span>' : ''}
+          <button onclick="shareJournalEntry(${e.id})" style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--green-pale);background:white;font-size:0.75rem;color:var(--text-mid);cursor:pointer;font-family:var(--ff-body);">📲 Partager</button>
         </div>
       </div>
     </div>`;
@@ -3762,88 +3820,151 @@ function renderJournalTab() {
 }
 
 // ── PARTAGE RÉSEAUX SOCIAUX ───────────────────────────────────────────────────
-function renderShareTab() {
-  // Score preview
-  const pts = state.gardenPoints || 0;
-  const minMoisture = state.selectedPlants.length > 0
-    ? Math.min(...state.selectedPlants.map(k => state.plantMoisture[k] || 60))
-    : 60;
-  const score = Math.round(minMoisture);
-  const scoreEl = document.getElementById('share-score-num');
-  const scoreLbl = document.getElementById('share-score-label');
-  if(scoreEl) scoreEl.textContent = score + '%';
-  if(scoreLbl) scoreLbl.textContent = 'Score hydrique · ' + (state.city || 'Mon Jardin') + ' · GardenMinder';
-
-  // Level preview
-  const level = GARDEN_LEVELS.find(l => pts >= l.min && pts < l.max) || GARDEN_LEVELS[0];
-  const levelIdx = GARDEN_LEVELS.indexOf(level);
-  const el = id => document.getElementById(id);
-  if(el('share-level-emoji')) el('share-level-emoji').textContent = level.emoji;
-  if(el('share-level-name')) el('share-level-name').textContent = getPlayerTitle(levelIdx);
-  if(el('share-level-pts')) el('share-level-pts').textContent = pts + ' points · GardenMinder';
-
-  // Last journal entry preview
-  const entries = state.journalEntries || [];
-  const preview = el('share-entry-preview');
-  const btns = el('share-entry-btns');
-  if(entries.length > 0) {
-    const last = entries[0];
-    const t = ENTRY_TYPES[last.type] || ENTRY_TYPES.note;
-    if(preview) preview.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px;">
-      <span style="font-size:1.4rem;">${t.icon}</span>
-      <div>
-        <div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${last.plant}</div>
-        <div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px;">${last.text}</div>
-        <div style="font-size:0.72rem;color:var(--text-light);margin-top:4px;">${last.date || ''}</div>
-      </div>
-    </div>`;
-    if(btns) btns.style.display = 'flex';
-  } else {
-    if(preview) preview.innerHTML = 'Aucune entrée journal pour l\'instant.<br>Ajoutez une observation ou une photo dans le Journal !';
-    if(btns) btns.style.display = 'none';
-  }
+function shareJournalEntry(entryId) {
+  const entry = (state.journalEntries || []).find(e => e.id === entryId);
+  if(!entry) return;
+  const t = ENTRY_TYPES[entry.type] || ENTRY_TYPES.note;
+  const text = `${t.icon} ${entry.plant} — ${entry.text}\n🌱 Mon jardin · GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
+  _showShareSheet(text, () => {
+    entry.sharedSocial = true;
+    saveState();
+    checkBadges();
+    renderJournalTab();
+  });
 }
 
-function shareToSocial(platform, type) {
+// ── GRAPHIQUE PRÉCIPITATIONS ACCUEIL ─────────────────────────────────────────
+function renderHomePrecipChart() {
+  const el = document.getElementById('home-precip-chart');
+  if(!el) return;
+  const data = getPrecipData('7j');
+  renderBarChart('home-precip-chart', data, 'var(--water)', 'rgba(74,158,202,0.35)', 'mm');
+  const tot = (data.values||[]).filter(v=>v!=null&&v>0).reduce((a,b)=>a+b,0);
+  const totEl = document.getElementById('home-precip-total');
+  if(totEl) totEl.textContent = tot.toFixed(1)+' mm cette semaine';
+}
+
+// ── TIMELAPSE MODAL ───────────────────────────────────────────────────────────
+function openTimelapseModal() {
+  const isPrem = isPremium();
+  const photos = (state.journalEntries||[]).filter(e=>e.photo).slice(0,4);
+  const modal = document.createElement('div');
+  modal.id = 'timelapse-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.25s ease;';
+  const examples = [
+    { from:'🥀', to:'🍅', label:'Tomates cerises · 3 semaines', desc:'De la plantation à la 1ère récolte' },
+    { from:'🌱', to:'🌿', label:'Potager complet · 1 saison', desc:'Printemps → Automne en 12 photos' },
+    { from:'🪴', to:'🌸', label:'Hortensia · 2 mois', desc:'Bourgeon → floraison complète' },
+  ];
+  modal.innerHTML = `
+    <div style="background:var(--cream);border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
+      <div style="width:36px;height:4px;background:rgba(0,0,0,0.12);border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-size:1.6rem;text-align:center;margin-bottom:8px;">🎬</div>
+      <div style="font-family:var(--ff-display);font-size:1.15rem;font-weight:600;text-align:center;color:var(--text-dark);margin-bottom:6px;">Timelapse de saison</div>
+      <div style="font-size:0.85rem;color:var(--text-mid);text-align:center;margin-bottom:20px;line-height:1.5;">Photographiez régulièrement vos plantes depuis le Journal.<br>GardenMinder compose automatiquement votre timelapse.</div>
+      ${!isPrem ? `<div style="background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:12px;padding:12px 14px;margin-bottom:16px;border:1px solid #c8b8ff;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openPremiumModal('timelapse')">
+        <span style="font-size:1.4rem;">✨</span>
+        <div><div style="font-size:0.82rem;font-weight:700;color:var(--premium);">Fonctionnalité Premium</div>
+        <div style="font-size:0.75rem;color:#5a3a9a;">Débloquez le timelapse et l'avant/après — 9,99€ à vie →</div></div>
+      </div>` : ''}
+      <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">🖼️ Exemples de créations</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+        ${examples.map(ex => `<div style="background:white;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center;gap:14px;">
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+            <div style="font-size:2rem;">${ex.from}</div>
+            <div style="font-size:0.65rem;color:var(--text-light);padding:0 2px;">→</div>
+            <div style="font-size:2rem;">${ex.to}</div>
+          </div>
+          <div><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${ex.label}</div>
+          <div style="font-size:0.75rem;color:var(--text-mid);margin-top:2px;">${ex.desc}</div></div>
+        </div>`).join('')}
+      </div>
+      <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📷 Comment ça marche</div>
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:16px;">
+        ${[['1.','Prenez une photo depuis la même position à chaque visite'],['2.','Ajoutez-la dans le Journal (entrée photo)'],['3.','Après 5 photos minimum, le timelapse se génère automatiquement'],['4.','Partagez-le sur Instagram ou Facebook en un tap']].map(([n,t])=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--green-mist);">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--green-mid);flex-shrink:0;width:16px;">${n}</div>
+          <div style="font-size:0.82rem;color:var(--text-mid);line-height:1.4;">${t}</div>
+        </div>`).join('')}
+      </div>
+      ${photos.length > 0 ? `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${photos.length})</div>
+        <div style="display:flex;gap:6px;margin-bottom:16px;">
+          ${photos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}
+          ${photos.length<4?`<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>`:''}
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-light);text-align:center;margin-bottom:16px;">${photos.length<5?`Encore ${5-photos.length} photo(s) pour débloquer le timelapse.`:isPrem?'✅ Timelapse disponible !':'Passez Premium pour générer le timelapse.'}</div>`
+      : `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;margin-bottom:16px;">Aucune photo encore. Ajoutez votre première depuis le Journal 📖</div>`}
+      <button onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();"
+        style="width:100%;padding:15px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;margin-bottom:8px;">📷 Ajouter une photo maintenant</button>
+      <button onclick="document.getElementById('timelapse-modal').remove();"
+        style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:500;cursor:pointer;">Fermer</button>
+    </div>`;
+  modal.onclick = e => { if(e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function shareGardenScore() {
+  const score = Math.round(Math.min(...(state.selectedPlants.length > 0
+    ? state.selectedPlants.map(k => state.plantMoisture[k] || 60)
+    : [60])));
+  const text = `💧 Mon jardin est à ${score}% d'hydratation aujourd'hui !\n📍 ${state.city || 'Mon Jardin'} · GardenMinder\n#GardenMinder #ArrosageIntelligent #Jardinage`;
+  _showShareSheet(text);
+}
+
+function shareGardenLevel() {
   const pts = state.gardenPoints || 0;
-  const score = Math.round(Math.min(...(state.selectedPlants.length > 0 ? state.selectedPlants.map(k => state.plantMoisture[k]||60) : [60])));
   const level = GARDEN_LEVELS.find(l => pts >= l.min && pts < l.max) || GARDEN_LEVELS[0];
   const levelIdx = GARDEN_LEVELS.indexOf(level);
+  const text = `${level.emoji} Je suis "${getPlayerTitle(levelIdx)}" sur GardenMinder avec ${pts} points !\n🌱 L'app intelligente pour votre jardin\n#GardenMinder #Jardinage #JardinConnecté`;
+  _showShareSheet(text);
+}
 
-  let text = '';
-  if(type === 'score') {
-    text = `💧 Mon jardin est à ${score}% d'hydratation aujourd'hui !\n🌱 Suivi intelligent avec GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
-  } else if(type === 'level') {
-    text = `🏆 Je suis "${getPlayerTitle(levelIdx)}" sur GardenMinder avec ${pts} points !\n🌱 L'app qui prend soin de votre jardin\n#GardenMinder #Jardinage #JardinConnecté`;
-  } else if(type === 'entry') {
-    const last = (state.journalEntries||[])[0];
-    if(!last) return;
-    text = `📖 Journal de bord :\n"${last.text}"\n🌱 Via GardenMinder — ${state.city || 'Mon Jardin'}\n#GardenMinder #MonJardin #Jardinage`;
-  }
-
-  if(platform === 'copy') {
-    navigator.clipboard.writeText(text).then(() => showToast('📋 Texte copié !'));
-    // Mark entry as shared socially
-    if(type === 'entry' && state.journalEntries.length > 0) {
-      state.journalEntries[0].sharedSocial = true;
-      saveState(); checkBadges();
-    }
+function _showShareSheet(text, onShared) {
+  // Essayer l'API Web Share native (mobile)
+  if(navigator.share) {
+    navigator.share({ text }).then(() => { if(onShared) onShared(); }).catch(() => {});
     return;
   }
-  if(platform === 'instagram') {
+  // Fallback : bottom sheet avec options
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;">
+      <div style="width:32px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 16px;"></div>
+      <div style="font-size:0.8rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">Partager sur</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="_shareVia('instagram','${encodeURIComponent(text)}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366);color:white;font-family:var(--ff-body);font-size:0.92rem;font-weight:600;cursor:pointer;text-align:left;">
+          <span style="font-size:1.3rem;">📸</span> Instagram — copier le texte
+        </button>
+        <button onclick="_shareVia('facebook','${encodeURIComponent(text)}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;border:none;background:#1877f2;color:white;font-family:var(--ff-body);font-size:0.92rem;font-weight:600;cursor:pointer;text-align:left;">
+          <span style="font-size:1.3rem;">👍</span> Facebook
+        </button>
+        <button onclick="_shareVia('copy','${encodeURIComponent(text)}')" style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;border:none;background:var(--green-mist);color:var(--green-deep);font-family:var(--ff-body);font-size:0.92rem;font-weight:600;cursor:pointer;text-align:left;">
+          <span style="font-size:1.3rem;">📋</span> Copier le texte
+        </button>
+      </div>
+      <button onclick="this.closest('div').parentElement.remove()" style="margin-top:10px;width:100%;padding:12px;background:transparent;color:var(--text-light);border:none;font-family:var(--ff-body);font-size:0.9rem;cursor:pointer;">Annuler</button>
+    </div>`;
+  modal.onclick = e => { if(e.target === modal) { modal.remove(); } };
+  // Store callback
+  modal._onShared = onShared;
+  window._shareModal = modal;
+  document.body.appendChild(modal);
+}
+
+function _shareVia(platform, encodedText) {
+  const text = decodeURIComponent(encodedText);
+  if(platform === 'copy' || platform === 'instagram') {
     navigator.clipboard.writeText(text).then(() => {
-      showToast('📋 Texte copié — collez-le dans Instagram !');
-    });
-    return;
+      showToast(platform === 'instagram' ? '📋 Texte copié — collez-le dans Instagram !' : '📋 Texte copié !');
+    }).catch(() => { prompt('Copiez ce texte :', text); });
+  } else if(platform === 'facebook') {
+    const fbUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://gardenminder.app') + '&quote=' + encodeURIComponent(text);
+    window.open(fbUrl, '_blank');
   }
-  if(platform === 'facebook') {
-    const url = encodeURIComponent('https://gardenminder.app');
-    const fbText = encodeURIComponent(text);
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${fbText}`, '_blank');
-    if(type === 'entry' && state.journalEntries.length > 0) {
-      state.journalEntries[0].sharedSocial = true;
-      saveState(); checkBadges();
-    }
+  const modal = window._shareModal;
+  if(modal) {
+    if(modal._onShared) modal._onShared();
+    modal.remove();
   }
 }
 

@@ -2053,7 +2053,8 @@ function updateWizard(){
   if(wizardStep===4) renderWizardPlants();
   if(wizardStep===3) renderSoilQuizResult();
 }
-updateWizard();
+// Appel différé — évite de bloquer le JS si le DOM n'est pas encore prêt
+document.addEventListener('DOMContentLoaded', () => { try { updateWizard(); } catch(e) {} });
 function wizardNext(){
   if(wizardStep===WIZARD_STEPS_TOTAL){finalizeSetup();return;}
   if(wizardStep===1){const c=document.getElementById('city-input').value.trim();if(!c&&!state.city){alert('Veuillez entrer votre ville.');return;}if(c)state.city=c;}
@@ -4096,10 +4097,9 @@ function checkBadges() {
 // (FAB injected dynamically)
 
 // ── INIT ───────────────────────────────────────────────────────────────────────
-document.getElementById('wizard-back').style.display='none';
-
-// Init autocomplete wizard
 document.addEventListener('DOMContentLoaded', () => {
+  const wb = document.getElementById('wizard-back');
+  if(wb) wb.style.display = 'none';
   initCityAutocomplete('city-input', 'autocomplete-list');
 });
 

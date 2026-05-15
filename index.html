@@ -22,7 +22,7 @@ const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=ma
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
-if('serviceWorker' in navigator){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
+if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1129,14 +1129,10 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="section-title">Mes plantes</div>
     <div class="plant-strip" id="plant-strip"></div>
 
-    <!-- Précipitations 7j -->
-    <div class="section-title">Précipitations — 7 jours</div>
-    <div style="margin:0 16px 14px;background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);">
-      <div id="home-precip-chart" style="height:64px;"></div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.7rem;color:var(--text-light);">
-        <span id="home-precip-labels" style="display:contents;"></span>
-      </div>
-      <div style="font-size:0.75rem;color:var(--text-mid);margin-top:6px;text-align:right;" id="home-precip-total"></div>
+    <!-- Prévisions 7 jours -->
+    <div class="section-title">Prévisions 7 jours</div>
+    <div class="forecast-scroll">
+      <div class="forecast-row" id="forecast-row"></div>
     </div>
 
     <!-- Quick actions -->
@@ -1160,11 +1156,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </button>
     </div>
 
-    <!-- Forecast -->
-    <div class="section-title">Prévisions 7 jours</div>
-    <div class="forecast-scroll">
-      <div class="forecast-row" id="forecast-row"></div>
-    </div>
     <div style="height:16px;"></div>
   </div>
 
@@ -2224,7 +2215,9 @@ function finalizeSetup(){
   state.flow=parseFloat(document.getElementById('flow-input').value)||10;
   if(state.selectedPlants.length===0) state.selectedPlants=['tomato','lawn'];
   state.selectedPlants.forEach(k=>{state.plantMoisture[k]=65+Math.random()*25;});
-  fetchWeather().then(()=>{initApp();goTo('app');});
+  initApp();
+  goTo('app');
+  fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
 }
 
 // Source unique pour la pluie d'aujourd'hui (prévision daily, pas current)
@@ -2297,22 +2290,23 @@ function mergePrecipToLocal(times, sums){
 }
 
 async function fetchWeather(){
-  if(!state.lat||!state.lon){
-    const geo=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(state.city||'Paris')+'&count=1&language=fr').then(r=>r.json()).catch(()=>null);
-    if(geo&&geo.results&&geo.results.length){state.lat=geo.results[0].latitude;state.lon=geo.results[0].longitude;state.city=geo.results[0].name;}
-    else{state.lat=48.8566;state.lon=2.3522;state.city='Paris';}
-  }
-  const url='https://api.open-meteo.com/v1/forecast?latitude='+state.lat+'&longitude='+state.lon
-    +'&current=temperature_2m,windspeed_10m,precipitation&daily=precipitation_sum,temperature_2m_max,weathercode'
-    +'&forecast_days=7&past_days=92&timezone=auto';
-  try{
+  try {
+    if(!state.lat||!state.lon){
+      const geo=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(state.city||'Paris')+'&count=1&language=fr').then(r=>r.json()).catch(()=>null);
+      if(geo&&geo.results&&geo.results.length){state.lat=geo.results[0].latitude;state.lon=geo.results[0].longitude;state.city=geo.results[0].name;}
+      else{state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
+    }
+    const url='https://api.open-meteo.com/v1/forecast?latitude='+state.lat+'&longitude='+state.lon
+      +'&current=temperature_2m,windspeed_10m,precipitation&daily=precipitation_sum,temperature_2m_max,weathercode'
+      +'&forecast_days=7&past_days=92&timezone=auto';
     const d=await fetch(url).then(r=>r.json());
     state.weather=d.current;
     state.forecast=d.daily;
     state.precipHistory=(d.daily&&d.daily.precipitation_sum)?d.daily.precipitation_sum.slice(0,7):[];
     mergePrecipToLocal(d.daily&&d.daily.time, d.daily&&d.daily.precipitation_sum);
     applyWindFactor();
-  }catch(e){
+  } catch(e) {
+    if(!state.lat){state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
     state.weather={temperature_2m:22,windspeed_10m:15,precipitation:0};
     state.forecast={time:[],precipitation_sum:[0,2,0,0,5,1,0],temperature_2m_max:[24,22,25,27,20,21,23],weathercode:[1,61,1,1,80,2,1]};
     state.precipHistory=[3,0,8,2,0,1,0];
@@ -2329,14 +2323,14 @@ function wxIcon(code){return WX_ICONS[code]||WX_ICONS[Math.floor(code/10)*10]||'
 
 // ── INIT APP ─────────────────────────────────────────────────────────────────
 function initApp(){
-  document.getElementById('header-city').textContent='📍 '+state.city;
+  try {
+  const hc = document.getElementById('header-city'); if(hc) hc.textContent='📍 '+state.city;
   if(isPremium()){
-    document.getElementById('premium-header-badge').style.display='block';
-    document.getElementById('premium-header-badge').textContent = state.premium.purchased ? '✨ Premium' : '✨ Essai';
+    const pb = document.getElementById('premium-header-badge');
+    if(pb){ pb.style.display='block'; pb.textContent = state.premium.purchased ? '✨ Premium' : '✨ Essai'; }
   }
   if(state.weather){
     const _wt=document.getElementById('w-temp'); if(_wt) _wt.textContent=Math.round(state.weather.temperature_2m)+'°C';
-    // Pluie du jour = prévision daily (source unique getRainToday)
     const _wr=document.getElementById('w-rain'); if(_wr) _wr.textContent=getRainToday().toFixed(1)+' mm';
     const _r7=document.getElementById('w-rain7');
     if(_r7){
@@ -2346,7 +2340,6 @@ function initApp(){
       for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);const idx=allT.indexOf(d.toISOString().slice(0,10));if(idx!==-1)sum7+=allP[idx]||0;}
       _r7.textContent=sum7.toFixed(1)+' mm';
     }
-    // Prochain arrosage — plante la plus urgente
     const _nw=document.getElementById('w-next-water');
     if(_nw&&state.selectedPlants.length>0){
       let worst=null,worstScore=Infinity;
@@ -2354,16 +2347,13 @@ function initApp(){
       if(worst)_nw.textContent=daysUntilWatering(worst);
     }
   }
-  // Trial nudge
   if(state.premium.type==='trial'&&!state.premium.purchased){
     const days=trialDaysLeft();
     const nudge=document.getElementById('trial-nudge-bar');
     const daysEl=document.getElementById('trial-days-left');
-    if(days>0&&days<=7){nudge.style.display='flex';if(daysEl)daysEl.textContent=days;}
+    if(days>0&&days<=7){if(nudge)nudge.style.display='flex';if(daysEl)daysEl.textContent=days;}
     else if(days===0){goTo('trial-end');return;}
   }
-  // Recalcul centralisé : écrit les valeurs à jour dans state.plantMoisture
-  // Garantit que updateHeroScore, renderPlantStrip et openPlantDetail lisent tous la même valeur
   refreshAllMoisture();
   updateHeroScore();
   renderPlantStrip();
@@ -2371,6 +2361,7 @@ function initApp(){
   updateStats();
   renderAccountInHeader();
   setTimeout(renderHomePrecipChart, 50);
+  } catch(e) { console.warn('initApp error:', e); }
 }
 
 // Calcule l'humidité affichée d'une plante (lecture seule, n'écrit PAS dans state)
@@ -2476,9 +2467,9 @@ function updateStats(){
   const totalL=state.wateringHistory.reduce((s,e)=>s+e.liters,0);
   const cost=(totalL/1000)*state.price;
   const savings=Math.max(0,(totalL*1.3/1000)*state.price-cost);
-  document.getElementById('stat-liters').textContent=totalL>0?totalL+'L':'—';
-  document.getElementById('stat-cost').textContent=totalL>0?cost.toFixed(2)+'€':'—€';
-  document.getElementById('stat-savings').textContent=totalL>0?savings.toFixed(2)+'€':'—€';
+  const sl=document.getElementById('stat-liters'); if(sl) sl.textContent=totalL>0?totalL+'L':'—';
+  const sc=document.getElementById('stat-cost'); if(sc) sc.textContent=totalL>0?cost.toFixed(2)+'€':'—€';
+  const ss=document.getElementById('stat-savings'); if(ss) ss.textContent=totalL>0?savings.toFixed(2)+'€':'—€';
 }
 
 // ── PLANT DETAIL ─────────────────────────────────────────────────────────────
@@ -4184,7 +4175,10 @@ function skipAuth() {
 
 function afterAuth() {
   if (isSetupDone()) {
-    fetchWeather().then(() => { initApp(); goTo('app'); });
+    // Naviguer immédiatement — météo chargée en arrière-plan
+    initApp();
+    goTo('app');
+    fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
   } else {
     goTo('intro');
   }
@@ -4227,7 +4221,9 @@ function renderAccountInHeader() {
   document.body.appendChild(fab);
 
   if (restored && isSetupDone()) {
-    fetchWeather().then(() => { initApp(); goTo('app'); });
+    initApp();
+    goTo('app');
+    fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
     return;
   }
   if (restored && state.account && !isSetupDone()) {

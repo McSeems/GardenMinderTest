@@ -147,11 +147,28 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .soil-card-name{font-size:0.85rem;font-weight:600;color:var(--text-dark);margin-bottom:2px;}
 .soil-card-desc{font-size:0.75rem;color:var(--text-light);}
 .plant-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.plant-card-wizard{padding:16px 12px;border-radius:var(--radius-sm);border:2px solid var(--green-pale);background:white;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;}
+.plant-card-wizard{padding:12px 8px;border-radius:var(--radius-sm);border:2px solid var(--green-pale);background:white;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;}
 .plant-card-wizard.selected{border-color:var(--green-mid);background:var(--green-mist);}
 .plant-card-wizard .plant-icon{font-size:28px;margin-bottom:8px;}
-.plant-card-wizard .plant-name{font-size:0.85rem;font-weight:600;color:var(--text-dark);margin-bottom:2px;}
-.plant-card-wizard .plant-water{font-size:0.75rem;color:var(--water);}
+.plant-card-wizard .plant-name{font-size:0.82rem;font-weight:600;color:var(--text-dark);margin-bottom:2px;}
+.plant-card-wizard .plant-water{font-size:0.72rem;color:var(--water);}
+.plant-card-wizard .plant-check{display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--green-mid);color:white;font-size:0.65rem;align-items:center;justify-content:center;font-weight:700;}
+.plant-card-wizard.selected .plant-check{display:flex;}
+.wizard-context-btn{padding:12px 10px;border-radius:12px;border:2px solid var(--green-pale);background:white;text-align:center;cursor:pointer;transition:all 0.15s;}
+.wizard-context-btn.selected{border-color:var(--green-mid);background:var(--green-mist);}
+.wizard-context-btn:active{transform:scale(0.97);}
+
+.wizard-cat-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:white;border-radius:10px;cursor:pointer;border:1px solid var(--green-pale);margin-bottom:8px;user-select:none;}
+.wizard-cat-header-icon{font-size:1.2rem;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.wizard-cat-header-name{font-size:0.9rem;font-weight:700;color:var(--text-dark);flex:1;}
+.wizard-cat-header-count{font-size:0.75rem;color:var(--green-mid);font-weight:600;}
+.wizard-cat-header-arrow{font-size:0.8rem;color:var(--text-light);transition:transform 0.2s;}
+.wizard-cat-header-arrow.open{transform:rotate(90deg);}
+.wizard-cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 2px;}
+.wizard-plant-counter{position:sticky;top:0;z-index:10;background:white;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid var(--green-pale);}
+.wizard-counter-dots{display:flex;gap:6px;}
+.wizard-counter-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all 0.2s;background:white;}
+.wizard-counter-dot.filled{border-color:var(--green-mid);background:var(--green-mist);}
 .plant-check{position:absolute;top:8px;right:8px;width:20px;height:20px;background:var(--green-mid);border-radius:50%;display:none;align-items:center;justify-content:center;color:white;font-size:11px;}
 .plant-card-wizard.selected .plant-check{display:flex;}
 .expose-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -169,7 +186,19 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .btn-next:active{background:var(--green-deep);}
 .info-box{background:var(--green-mist);border-radius:10px;padding:14px;font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin-bottom:16px;}
 
-/* ── PROGRESSION TREE MODAL ── */
+/* ── CONTAINER SHEET ── */
+.container-option{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:12px;border:2px solid var(--green-pale);background:white;cursor:pointer;transition:all 0.15s;margin-bottom:8px;}
+.container-option:active{transform:scale(0.98);}
+.container-option.selected{border-color:var(--green-mid);background:var(--green-mist);}
+.container-option-emoji{font-size:1.6rem;width:40px;text-align:center;flex-shrink:0;}
+.container-option-info{flex:1;}
+.container-option-label{font-size:0.9rem;font-weight:700;color:var(--text-dark);}
+.container-option-desc{font-size:0.74rem;color:var(--text-light);margin-top:2px;}
+.container-option-badge{font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;flex-shrink:0;}
+.container-option-badge.fast{background:#fde8e8;color:#c04040;}
+.container-option-badge.medium{background:#fef3e0;color:#b06020;}
+.container-option-badge.slow{background:#e8f5ec;color:#2d7a3f;}
+
 .prog-tree-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
 .prog-tree-sheet{background:var(--cream);border-radius:24px 24px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:20px 20px 48px;animation:slideUp 0.3s ease;}
 .prog-node{display:flex;gap:14px;align-items:flex-start;margin-bottom:4px;cursor:pointer;transition:all 0.15s;}
@@ -1077,13 +1106,28 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 
     <!-- Step 4 : Plants -->
     <div class="wizard-step" id="wstep-4">
-      <div class="info-box">🌿 Choisissez jusqu'à <strong>3 plantes gratuites</strong> pour démarrer. Chaque plante aura son propre score d'hydratation. <span style="color:var(--premium);font-weight:600;">Premium : 60+ plantes, illimitées.</span></div>
-      <div class="plant-grid" id="wizard-plant-grid">
-        <!-- generated -->
+      <!-- Contexte jardin : pleine terre ou balcon -->
+      <div style="background:white;border-radius:14px;padding:14px 16px;margin-bottom:14px;border:1px solid var(--green-pale);">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text-dark);margin-bottom:10px;">🌍 Contexte de votre jardin</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="wizard-context-grid">
+          <div class="wizard-context-btn selected" id="wctx-ground" onclick="setWizardContext('ground',this)">
+            <div style="font-size:1.6rem;margin-bottom:4px;">🌍</div>
+            <div style="font-size:0.82rem;font-weight:700;color:var(--text-dark);">Jardin / pleine terre</div>
+            <div style="font-size:0.7rem;color:var(--text-light);margin-top:2px;">Potager, massifs, verger</div>
+          </div>
+          <div class="wizard-context-btn" id="wctx-pots" onclick="setWizardContext('pots',this)">
+            <div style="font-size:1.6rem;margin-bottom:4px;">🪴</div>
+            <div style="font-size:0.82rem;font-weight:700;color:var(--text-dark);">Balcon / terrasse</div>
+            <div style="font-size:0.7rem;color:var(--text-light);margin-top:2px;">Pots, jardinières, bacs</div>
+          </div>
+        </div>
+        <div id="wizard-context-note" style="display:none;font-size:0.75rem;color:var(--warn);margin-top:8px;padding:6px 10px;background:#fef3e0;border-radius:8px;">
+          🪴 Mode balcon activé — toutes vos plantes seront initialisées en "pot moyen". Vous pourrez affiner dans chaque fiche plante.
+        </div>
       </div>
-      <div style="margin-top:16px;padding:14px;background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:12px;border:1px solid #c8b8ff;cursor:pointer;" onclick="openPremiumModal('plants')">
-        <div style="font-size:0.82rem;font-weight:700;color:var(--premium);margin-bottom:4px;">✨ 55 plantes supplémentaires en Premium</div>
-        <div style="font-size:0.8rem;color:#5a3a9a;line-height:1.5;">Hortensias, pommiers, courgettes, basilic, bambou, oliviers… Essai 30j gratuit. <span style="font-weight:700;">Découvrir →</span></div>
+      <div class="info-box" id="wizard-plant-infobox">🌿 Choisissez <strong>3 plantes</strong> parmi toutes les espèces disponibles. <span style="color:var(--premium);font-weight:600;">Premium : plantes illimitées.</span></div>
+      <div id="wizard-plant-grid">
+        <!-- generated by renderWizardPlants() -->
       </div>
     </div>
 
@@ -1336,6 +1380,15 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Type de contenant -->
+    <div class="history-card" id="detail-container-card" style="padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text-dark);">🪴 Type de plantation</div>
+        <div id="detail-container-label" style="font-size:0.78rem;color:var(--green-mid);font-weight:600;cursor:pointer;" onclick="openContainerSheet()">🌍 Pleine terre ›</div>
+      </div>
+      <div id="detail-container-impact" style="font-size:0.75rem;color:var(--text-light);line-height:1.5;"></div>
     </div>
 
     <!-- Actions rapides -->
@@ -1943,7 +1996,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="premium-feature-item">
         <div class="premium-feature-icon">🌱</div>
         <div class="premium-feature-text">
-          <div class="title">60+ plantes dans la bibliothèque</div>
+          <div class="title">135+ plantes dans la bibliothèque</div>
           <div class="sub">Tomates, rosiers, hortensias, oliviers, pommiers, basilic… chaque espèce avec ses vrais besoins en eau.</div>
         </div>
       </div>
@@ -1996,57 +2049,186 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 <script>
 // ── PLANT DATABASE (full) ────────────────────────────────────────────────────
 const PLANT_DB = {
-  // FREE (5)
-  tomato:    { name:'Tomates',    emoji:'🍅', waterNeed:5.5, label:'Potager', family:'potager', premium:false },
-  lawn:      { name:'Gazon',      emoji:'🌿', waterNeed:4.5, label:'Pelouse', family:'gazon', premium:false },
-  rose:      { name:'Rosiers',    emoji:'🌹', waterNeed:3.5, label:'Jardin', family:'fleurs', premium:false },
-  lavender:  { name:'Lavande',    emoji:'💜', waterNeed:1.0, label:'Massif', family:'fleurs', premium:false },
-  courgette: { name:'Courgettes', emoji:'🥒', waterNeed:5.0, label:'Potager', family:'potager', premium:false },
-  // PREMIUM — Potager
-  cucumber:  { name:'Concombre',  emoji:'🥒', waterNeed:5.5, label:'Potager', family:'potager', premium:true },
-  pepper:    { name:'Poivron',    emoji:'🫑', waterNeed:4.5, label:'Potager', family:'potager', premium:true },
-  aubergine: { name:'Aubergine',  emoji:'🍆', waterNeed:4.5, label:'Potager', family:'potager', premium:true },
-  lettuce:   { name:'Salade',     emoji:'🥬', waterNeed:4.0, label:'Potager', family:'potager', premium:true },
-  carrot:    { name:'Carotte',    emoji:'🥕', waterNeed:2.5, label:'Potager', family:'potager', premium:true },
-  green_bean:{ name:'Haricots verts', emoji:'🫘', waterNeed:3.5, label:'Potager', family:'potager', premium:true },
-  basil:     { name:'Basilic',    emoji:'🌿', waterNeed:3.5, label:'Aromatiques', family:'potager', premium:true },
-  spinach:   { name:'Épinard',    emoji:'🍃', waterNeed:3.5, label:'Potager', family:'potager', premium:true },
-  radish:    { name:'Radis',      emoji:'🔴', waterNeed:2.5, label:'Potager', family:'potager', premium:true },
-  garlic:    { name:'Ail',        emoji:'🧄', waterNeed:1.5, label:'Potager', family:'potager', premium:true },
-  onion:     { name:'Oignon',     emoji:'🧅', waterNeed:2.5, label:'Potager', family:'potager', premium:true },
-  melon:     { name:'Melon',      emoji:'🍈', waterNeed:4.5, label:'Potager', family:'potager', premium:true },
-  // PREMIUM — Fleurs
-  hydrangea: { name:'Hortensia',  emoji:'💐', waterNeed:5.5, label:'Jardin', family:'fleurs', premium:true },
-  geranium:  { name:'Géranium',   emoji:'🌺', waterNeed:3.5, label:'Jardin', family:'fleurs', premium:true },
-  petunia:   { name:'Pétunia',    emoji:'🌸', waterNeed:3.5, label:'Jardin', family:'fleurs', premium:true },
-  peony:     { name:'Pivoine',    emoji:'🌸', waterNeed:2.5, label:'Jardin', family:'fleurs', premium:true },
-  iris:      { name:'Iris',       emoji:'🌷', waterNeed:1.5, label:'Jardin', family:'fleurs', premium:true },
-  clematis:  { name:'Clématite',  emoji:'🌿', waterNeed:3.5, label:'Jardin', family:'fleurs', premium:true },
-  sunflower: { name:'Tournesol',  emoji:'🌻', waterNeed:2.5, label:'Jardin', family:'fleurs', premium:true },
-  wisteria:  { name:'Glycine',    emoji:'💜', waterNeed:2.5, label:'Jardin', family:'fleurs', premium:true },
-  // PREMIUM — Fruitiers
-  apple:     { name:'Pommier',    emoji:'🍎', waterNeed:3.5, label:'Verger', family:'fruitiers', premium:true },
-  pear:      { name:'Poirier',    emoji:'🍐', waterNeed:3.5, label:'Verger', family:'fruitiers', premium:true },
-  cherry:    { name:'Cerisier',   emoji:'🍒', waterNeed:2.5, label:'Verger', family:'fruitiers', premium:true },
-  plum:      { name:'Prunier',    emoji:'🍑', waterNeed:2.5, label:'Verger', family:'fruitiers', premium:true },
-  fig:       { name:'Figuier',    emoji:'🌳', waterNeed:1.5, label:'Verger', family:'fruitiers', premium:true },
-  olive:     { name:'Olivier',    emoji:'🫒', waterNeed:1.0, label:'Verger', family:'fruitiers', premium:true },
-  lemon:     { name:'Citronnier', emoji:'🍋', waterNeed:3.5, label:'Verger', family:'fruitiers', premium:true },
-  grape:     { name:'Vigne',      emoji:'🍇', waterNeed:1.5, label:'Verger', family:'fruitiers', premium:true },
-  peach:     { name:'Pêcher',     emoji:'🍑', waterNeed:3.5, label:'Verger', family:'fruitiers', premium:true },
-  strawberry:{ name:'Fraisier',   emoji:'🍓', waterNeed:3.5, label:'Verger', family:'fruitiers', premium:true },
-  // PREMIUM — Arbustes
-  boxwood:   { name:'Buis',       emoji:'🌿', waterNeed:2.5, label:'Haie', family:'arbustes', premium:true },
-  thuja:     { name:'Thuya',      emoji:'🌲', waterNeed:2.5, label:'Haie', family:'arbustes', premium:true },
-  laurel:    { name:'Laurier palme', emoji:'🌿', waterNeed:2.5, label:'Haie', family:'arbustes', premium:true },
-  bamboo:    { name:'Bambou',     emoji:'🎋', waterNeed:5.0, label:'Jardin', family:'arbustes', premium:true },
-  palm:      { name:'Palmier',    emoji:'🌴', waterNeed:2.5, label:'Jardin', family:'arbustes', premium:true },
-  lilac:     { name:'Lilas',      emoji:'💜', waterNeed:1.5, label:'Jardin', family:'arbustes', premium:true },
-  forsythia: { name:'Forsythia',  emoji:'🌼', waterNeed:1.5, label:'Jardin', family:'arbustes', premium:true },
+  // ── POTAGER ──────────────────────────────────────────────────────────────
+  tomato:      { name:'Tomates',         emoji:'🍅', waterNeed:5.5, label:'Potager',      family:'potager', premium:false },
+  courgette:   { name:'Courgettes',      emoji:'🥒', waterNeed:5.0, label:'Potager',      family:'potager', premium:false },
+  cucumber:    { name:'Concombre',       emoji:'🥒', waterNeed:5.5, label:'Potager',      family:'potager', premium:false },
+  pepper:      { name:'Poivron',         emoji:'🫑', waterNeed:4.5, label:'Potager',      family:'potager', premium:false },
+  aubergine:   { name:'Aubergine',       emoji:'🍆', waterNeed:4.5, label:'Potager',      family:'potager', premium:false },
+  lettuce:     { name:'Salade',          emoji:'🥬', waterNeed:4.0, label:'Potager',      family:'potager', premium:false },
+  carrot:      { name:'Carotte',         emoji:'🥕', waterNeed:2.5, label:'Potager',      family:'potager', premium:false },
+  green_bean:  { name:'Haricots verts',  emoji:'🫘', waterNeed:3.5, label:'Potager',      family:'potager', premium:false },
+  spinach:     { name:'Épinard',         emoji:'🍃', waterNeed:3.5, label:'Potager',      family:'potager', premium:false },
+  radish:      { name:'Radis',           emoji:'🔴', waterNeed:2.5, label:'Potager',      family:'potager', premium:false },
+  garlic:      { name:'Ail',             emoji:'🧄', waterNeed:1.5, label:'Potager',      family:'potager', premium:false },
+  onion:       { name:'Oignon',          emoji:'🧅', waterNeed:2.5, label:'Potager',      family:'potager', premium:false },
+  melon:       { name:'Melon',           emoji:'🍈', waterNeed:4.5, label:'Potager',      family:'potager', premium:false },
+  pumpkin:     { name:'Courge / Potiron',emoji:'🎃', waterNeed:5.0, label:'Potager',      family:'potager', premium:false },
+  leek:        { name:'Poireau',         emoji:'🌱', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  beetroot:    { name:'Betterave',       emoji:'🟣', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  celery:      { name:'Céleri',          emoji:'🌿', waterNeed:4.5, label:'Potager',      family:'potager', premium:false },
+  fennel:      { name:'Fenouil',         emoji:'🌿', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  cabbage:     { name:'Chou',            emoji:'🥦', waterNeed:4.0, label:'Potager',      family:'potager', premium:false },
+  broccoli:    { name:'Brocoli',         emoji:'🥦', waterNeed:3.5, label:'Potager',      family:'potager', premium:false },
+  cauliflower: { name:'Chou-fleur',      emoji:'⚪', waterNeed:4.0, label:'Potager',      family:'potager', premium:false },
+  corn:        { name:'Maïs',            emoji:'🌽', waterNeed:5.0, label:'Potager',      family:'potager', premium:false },
+  potato:      { name:'Pomme de terre',  emoji:'🥔', waterNeed:4.0, label:'Potager',      family:'potager', premium:false },
+  sweet_potato:{ name:'Patate douce',    emoji:'🍠', waterNeed:3.5, label:'Potager',      family:'potager', premium:false },
+  asparagus:   { name:'Asperge',         emoji:'🌱', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  artichoke:   { name:'Artichaut',       emoji:'🌿', waterNeed:4.0, label:'Potager',      family:'potager', premium:false },
+  pea:         { name:'Pois / Petits pois',emoji:'🟢',waterNeed:3.0, label:'Potager',     family:'potager', premium:false },
+  broad_bean:  { name:'Fève',            emoji:'🫘', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  swiss_chard: { name:'Blette / Bette',  emoji:'🍃', waterNeed:3.5, label:'Potager',      family:'potager', premium:false },
+  parsnip:     { name:'Panais',          emoji:'🥕', waterNeed:2.5, label:'Potager',      family:'potager', premium:false },
+  turnip:      { name:'Navet',           emoji:'⚪', waterNeed:3.0, label:'Potager',      family:'potager', premium:false },
+  watermelon:  { name:'Pastèque',        emoji:'🍉', waterNeed:5.0, label:'Potager',      family:'potager', premium:false },
+  // ── AROMATIQUES ──────────────────────────────────────────────────────────
+  basil:       { name:'Basilic',         emoji:'🌿', waterNeed:3.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  mint:        { name:'Menthe',          emoji:'🌿', waterNeed:4.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  parsley:     { name:'Persil',          emoji:'🌿', waterNeed:3.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  chive:       { name:'Ciboulette',      emoji:'🌱', waterNeed:3.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  thyme:       { name:'Thym',            emoji:'🌿', waterNeed:1.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  rosemary:    { name:'Romarin',         emoji:'🌿', waterNeed:1.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  sage:        { name:'Sauge',           emoji:'🌿', waterNeed:1.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  oregano:     { name:'Origan',          emoji:'🌿', waterNeed:1.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  coriander:   { name:'Coriandre',       emoji:'🌿', waterNeed:3.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  dill:        { name:'Aneth',           emoji:'🌿', waterNeed:2.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  tarragon:    { name:'Estragon',        emoji:'🌿', waterNeed:2.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  chervil:     { name:'Cerfeuil',        emoji:'🌱', waterNeed:2.5, label:'Aromatiques',  family:'aromatiques', premium:false },
+  lemonbalm:   { name:'Mélisse',         emoji:'🌿', waterNeed:3.0, label:'Aromatiques',  family:'aromatiques', premium:false },
+  // ── FLEURS ───────────────────────────────────────────────────────────────
+  rose:        { name:'Rosiers',         emoji:'🌹', waterNeed:3.5, label:'Jardin',       family:'fleurs',  premium:false },
+  lavender:    { name:'Lavande',         emoji:'💜', waterNeed:1.0, label:'Massif',       family:'fleurs',  premium:false },
+  hydrangea:   { name:'Hortensia',       emoji:'💐', waterNeed:5.5, label:'Jardin',       family:'fleurs',  premium:false },
+  geranium:    { name:'Géranium',        emoji:'🌺', waterNeed:3.5, label:'Jardin',       family:'fleurs',  premium:false },
+  petunia:     { name:'Pétunia',         emoji:'🌸', waterNeed:3.5, label:'Jardin',       family:'fleurs',  premium:false },
+  peony:       { name:'Pivoine',         emoji:'🌸', waterNeed:2.5, label:'Jardin',       family:'fleurs',  premium:false },
+  iris:        { name:'Iris',            emoji:'🌷', waterNeed:1.5, label:'Jardin',       family:'fleurs',  premium:false },
+  clematis:    { name:'Clématite',       emoji:'🌿', waterNeed:3.5, label:'Jardin',       family:'fleurs',  premium:false },
+  sunflower:   { name:'Tournesol',       emoji:'🌻', waterNeed:2.5, label:'Jardin',       family:'fleurs',  premium:false },
+  wisteria:    { name:'Glycine',         emoji:'💜', waterNeed:2.5, label:'Jardin',       family:'fleurs',  premium:false },
+  dahlia:      { name:'Dahlia',          emoji:'🌸', waterNeed:4.0, label:'Massif',       family:'fleurs',  premium:false },
+  tulip:       { name:'Tulipe',          emoji:'🌷', waterNeed:2.0, label:'Massif',       family:'fleurs',  premium:false },
+  daffodil:    { name:'Jonquille',       emoji:'🌼', waterNeed:2.0, label:'Massif',       family:'fleurs',  premium:false },
+  magnolia:    { name:'Magnolia',        emoji:'🌸', waterNeed:3.0, label:'Jardin',       family:'fleurs',  premium:false },
+  chrysanthemum:{ name:'Chrysanthème',   emoji:'🌼', waterNeed:3.5, label:'Massif',       family:'fleurs',  premium:false },
+  begonia:     { name:'Bégonia',         emoji:'🌺', waterNeed:4.0, label:'Massif',       family:'fleurs',  premium:false },
+  fuchsia:     { name:'Fuchsia',         emoji:'🌸', waterNeed:4.5, label:'Jardin',       family:'fleurs',  premium:false },
+  pansy:       { name:'Pensée',          emoji:'🌸', waterNeed:3.5, label:'Massif',       family:'fleurs',  premium:false },
+  marigold:    { name:'Souci / Œillet d\'Inde', emoji:'🟠', waterNeed:2.5, label:'Massif',family:'fleurs',  premium:false },
+  zinnia:      { name:'Zinnia',          emoji:'🌸', waterNeed:3.0, label:'Massif',       family:'fleurs',  premium:false },
+  cosmos:      { name:'Cosmos',          emoji:'🌸', waterNeed:2.5, label:'Massif',       family:'fleurs',  premium:false },
+  lupin:       { name:'Lupin',           emoji:'💜', waterNeed:2.5, label:'Massif',       family:'fleurs',  premium:false },
+  delphinium:  { name:'Delphinium',      emoji:'💙', waterNeed:3.5, label:'Massif',       family:'fleurs',  premium:false },
+  // ── FRUITIERS ────────────────────────────────────────────────────────────
+  apple:       { name:'Pommier',         emoji:'🍎', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  pear:        { name:'Poirier',         emoji:'🍐', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  cherry:      { name:'Cerisier',        emoji:'🍒', waterNeed:2.5, label:'Verger',       family:'fruitiers', premium:false },
+  plum:        { name:'Prunier',         emoji:'🍑', waterNeed:2.5, label:'Verger',       family:'fruitiers', premium:false },
+  fig:         { name:'Figuier',         emoji:'🌳', waterNeed:1.5, label:'Verger',       family:'fruitiers', premium:false },
+  olive:       { name:'Olivier',         emoji:'🫒', waterNeed:1.0, label:'Verger',       family:'fruitiers', premium:false },
+  lemon:       { name:'Citronnier',      emoji:'🍋', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  grape:       { name:'Vigne',           emoji:'🍇', waterNeed:1.5, label:'Verger',       family:'fruitiers', premium:false },
+  peach:       { name:'Pêcher',          emoji:'🍑', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  strawberry:  { name:'Fraisier',        emoji:'🍓', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  raspberry:   { name:'Framboisier',     emoji:'🫐', waterNeed:4.0, label:'Verger',       family:'fruitiers', premium:false },
+  blackcurrant:{ name:'Cassis',          emoji:'🫐', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  redcurrant:  { name:'Groseillier',     emoji:'🔴', waterNeed:3.5, label:'Verger',       family:'fruitiers', premium:false },
+  blueberry:   { name:'Myrtillier',      emoji:'🫐', waterNeed:4.0, label:'Verger',       family:'fruitiers', premium:false },
+  kiwi:        { name:'Kiwi',            emoji:'🥝', waterNeed:4.5, label:'Verger',       family:'fruitiers', premium:false },
+  quince:      { name:'Cognassier',      emoji:'🍏', waterNeed:2.0, label:'Verger',       family:'fruitiers', premium:false },
+  walnut:      { name:'Noyer',           emoji:'🌰', waterNeed:3.0, label:'Verger',       family:'fruitiers', premium:false },
+  hazelnut:    { name:'Noisetier',       emoji:'🌰', waterNeed:2.5, label:'Verger',       family:'fruitiers', premium:false },
+  almond:      { name:'Amandier',        emoji:'🌸', waterNeed:1.5, label:'Verger',       family:'fruitiers', premium:false },
+  apricot:     { name:'Abricotier',      emoji:'🟠', waterNeed:2.5, label:'Verger',       family:'fruitiers', premium:false },
+  chestnut:    { name:'Châtaignier',     emoji:'🌰', waterNeed:3.0, label:'Verger',       family:'fruitiers', premium:false },
+  pomegranate: { name:'Grenadier',       emoji:'❤️', waterNeed:2.0, label:'Verger',       family:'fruitiers', premium:false },
+  // ── ARBUSTES & HAIES ─────────────────────────────────────────────────────
+  boxwood:     { name:'Buis',            emoji:'🌿', waterNeed:2.5, label:'Haie',         family:'arbustes', premium:false },
+  thuja:       { name:'Thuya',           emoji:'🌲', waterNeed:2.5, label:'Haie',         family:'arbustes', premium:false },
+  laurel:      { name:'Laurier palme',   emoji:'🌿', waterNeed:2.5, label:'Haie',         family:'arbustes', premium:false },
+  bamboo:      { name:'Bambou',          emoji:'🎋', waterNeed:5.0, label:'Jardin',       family:'arbustes', premium:false },
+  palm:        { name:'Palmier',         emoji:'🌴', waterNeed:2.5, label:'Jardin',       family:'arbustes', premium:false },
+  lilac:       { name:'Lilas',           emoji:'💜', waterNeed:1.5, label:'Jardin',       family:'arbustes', premium:false },
+  forsythia:   { name:'Forsythia',       emoji:'🌼', waterNeed:1.5, label:'Jardin',       family:'arbustes', premium:false },
+  spirea:      { name:'Spirée',          emoji:'🌸', waterNeed:2.5, label:'Massif',       family:'arbustes', premium:false },
+  viburnum:    { name:'Viorne',          emoji:'🌿', waterNeed:3.0, label:'Haie',         family:'arbustes', premium:false },
+  photinia:    { name:'Photinia',        emoji:'🌿', waterNeed:2.5, label:'Haie',         family:'arbustes', premium:false },
+  privet:      { name:'Troène',          emoji:'🌿', waterNeed:2.0, label:'Haie',         family:'arbustes', premium:false },
+  escallonia:  { name:'Escallonia',      emoji:'🌸', waterNeed:2.0, label:'Haie',         family:'arbustes', premium:false },
+  abelia:      { name:'Abélia',          emoji:'🌸', waterNeed:2.0, label:'Massif',       family:'arbustes', premium:false },
+  deutzia:     { name:'Deutzia',         emoji:'🌸', waterNeed:2.5, label:'Massif',       family:'arbustes', premium:false },
+  weigela:     { name:'Weigela',         emoji:'🌺', waterNeed:2.5, label:'Massif',       family:'arbustes', premium:false },
+  buddleia:    { name:'Buddleia',        emoji:'💜', waterNeed:2.0, label:'Massif',       family:'arbustes', premium:false },
+  potentilla:  { name:'Potentille',      emoji:'🌼', waterNeed:1.5, label:'Massif',       family:'arbustes', premium:false },
+  cotoneaster: { name:'Cotonéaster',     emoji:'🔴', waterNeed:2.0, label:'Haie',         family:'arbustes', premium:false },
+  berberis:    { name:'Berberis / Épine-vinette', emoji:'🌿', waterNeed:1.5, label:'Haie', family:'arbustes', premium:false },
+
+  // ── GAZON & PELOUSE ───────────────────────────────────────────────────────
+  lawn:        { name:'Gazon',           emoji:'🌿', waterNeed:4.5, label:'Pelouse',      family:'gazon',    premium:false },
+  meadow:      { name:'Prairie fleurie', emoji:'🌸', waterNeed:2.0, label:'Pelouse',      family:'gazon',    premium:false },
+  clover_lawn: { name:'Pelouse trèfle',  emoji:'🍀', waterNeed:2.5, label:'Pelouse',      family:'gazon',    premium:false },
+  // ── MÉDITERRANÉE & ARIDE ─────────────────────────────────────────────────
+  cactus:       { name:'Cactus',              emoji:'🌵', waterNeed:0.3, label:'Rocaille',        family:'mediterr', premium:false },
+  opuntia:      { name:'Figuier de Barbarie', emoji:'🌵', waterNeed:0.4, label:'Rocaille',        family:'mediterr', premium:false },
+  agave:        { name:'Agave',               emoji:'🌿', waterNeed:0.5, label:'Massif sec',      family:'mediterr', premium:false },
+  yucca:        { name:'Yucca',               emoji:'🌿', waterNeed:0.8, label:'Massif sec',      family:'mediterr', premium:false },
+  bougainvillea:{ name:'Bougainvillée',       emoji:'🌺', waterNeed:2.0, label:'Grimpante',       family:'mediterr', premium:false },
+  oleander:     { name:'Laurier-rose',        emoji:'🌸', waterNeed:2.5, label:'Haie',            family:'mediterr', premium:false },
+  phoenix:      { name:'Palmier dattier',     emoji:'🌴', waterNeed:3.0, label:'Jardin',          family:'mediterr', premium:false },
+  orange:       { name:'Oranger',             emoji:'🍊', waterNeed:3.5, label:'Verger',          family:'mediterr', premium:false },
+  mandarin:     { name:'Mandarinier',         emoji:'🍊', waterNeed:3.0, label:'Verger',          family:'mediterr', premium:false },
+  carob:        { name:'Caroubier',           emoji:'🌳', waterNeed:1.0, label:'Verger',          family:'mediterr', premium:false },
+  pistachio:    { name:'Pistachier',          emoji:'🌳', waterNeed:1.5, label:'Verger',          family:'mediterr', premium:false },
+  // ── TROPICAL & EXOTIQUE ──────────────────────────────────────────────────
+  banana:       { name:'Bananier',            emoji:'🍌', waterNeed:7.0, label:'Jardin tropical', family:'tropical', premium:false },
+  mango:        { name:'Manguier',            emoji:'🥭', waterNeed:5.0, label:'Verger tropical', family:'tropical', premium:false },
+  avocado:      { name:'Avocatier',           emoji:'🥑', waterNeed:4.5, label:'Verger tropical', family:'tropical', premium:false },
+  papaya:       { name:'Papayer',             emoji:'🍈', waterNeed:6.0, label:'Potager tropical',family:'tropical', premium:false },
+  pineapple:    { name:'Ananas',              emoji:'🍍', waterNeed:3.5, label:'Potager tropical',family:'tropical', premium:false },
+  hibiscus:     { name:'Hibiscus',            emoji:'🌺', waterNeed:4.5, label:'Massif',          family:'tropical', premium:false },
+  frangipani:   { name:'Frangipanier',        emoji:'🌸', waterNeed:3.0, label:'Jardin',          family:'tropical', premium:false },
+  ginger:       { name:'Gingembre',           emoji:'🌿', waterNeed:5.0, label:'Potager tropical',family:'tropical', premium:false },
+  lemongrass:   { name:'Citronnelle',         emoji:'🌿', waterNeed:4.0, label:'Aromatiques',     family:'tropical', premium:false },
+  turmeric:     { name:'Curcuma',             emoji:'🌿', waterNeed:4.5, label:'Potager tropical',family:'tropical', premium:false },
+  passionflower:{ name:'Passiflore',          emoji:'🌸', waterNeed:3.5, label:'Grimpante',       family:'tropical', premium:false },
+  strelitzia:   { name:'Strelitzia',          emoji:'🌺', waterNeed:3.0, label:'Massif',          family:'tropical', premium:false },
 };
 
 const SOIL_RETENTION = { argileux:1.3, limoneux:1.0, sableux:0.7, calcaire:0.85 };
 const EXPOSE_FACTOR  = { ombre:0.7, 'mi-ombre':0.9, soleil:1.15 };
+
+// ── TYPES DE CONTENANT ────────────────────────────────────────────────────────
+// drainage_factor : multiplicateur de vitesse de dessèchement vs pleine terre
+// capacity_effect : humidité max après arrosage (les petits pots se saturent vite mais sèchent vite)
+const CONTAINER_TYPES = {
+  ground:   { label:'Pleine terre',        emoji:'🌍', drainage:1.0,  desc:'Sol naturel, capillarité illimitée' },
+  large_pot:{ label:'Grande jardinière',   emoji:'🪴', drainage:1.4,  desc:'Bac >40L, balcon ou terrasse' },
+  medium_pot:{ label:'Pot moyen',          emoji:'🪣', drainage:1.9,  desc:'Pot 15–40L, rosier, arbuste' },
+  small_pot:{ label:'Petit pot',           emoji:'🫙', drainage:2.8,  desc:'Pot 5–15L, herbes, fleurs' },
+  tiny_pot: { label:'Très petit pot',      emoji:'🥤', drainage:4.0,  desc:'<5L, cactus, succulentes, semis' },
+  custom:   { label:'Volume personnalisé', emoji:'📐', drainage:null, desc:'Entrez le volume en litres' },
+};
+// Calcule le drainage factor depuis un volume en litres
+function drainageFromLiters(liters){
+  if(!liters||liters<=0) return 1.0;
+  if(liters>=40)  return 1.4;
+  if(liters>=15)  return 1.4 + (40-liters)/25 * 0.5; // interpolation 1.4→1.9
+  if(liters>=5)   return 1.9 + (15-liters)/10 * 0.9; // interpolation 1.9→2.8
+  return 4.0;
+}
+function getPlantDrainage(key){
+  const c = (state.plantContainers||{})[key];
+  if(!c || c.type === 'ground') return 1.0;
+  if(c.type === 'custom' && c.liters) return drainageFromLiters(c.liters);
+  return CONTAINER_TYPES[c.type] ? CONTAINER_TYPES[c.type].drainage : 1.0;
+}
+function getContainerLabel(key){
+  const c = (state.plantContainers||{})[key];
+  if(!c || c.type === 'ground' || !c.type) return '🌍 Pleine terre';
+  if(c.type === 'custom' && c.liters) return `📐 ${c.liters}L`;
+  return (CONTAINER_TYPES[c.type]||CONTAINER_TYPES.ground).emoji + ' ' + (CONTAINER_TYPES[c.type]||CONTAINER_TYPES.ground).label;
+}
 const FREE_PLANTS = Object.keys(PLANT_DB).filter(k => !PLANT_DB[k].premium);
 const ALL_PLANTS  = Object.keys(PLANT_DB);
 
@@ -2055,7 +2237,7 @@ let state = {
   city:'', lat:null, lon:null,
   surface:30, soil:'argileux', expose:'soleil',
   price:4.30, flow:10, autoVolume:80, reminder:'morning',
-  selectedPlants:[], plantMoisture:{},
+  selectedPlants:[], plantMoisture:{}, plantContainers:{},
   wateringHistory:[], autoSchedules:[],
   weather:null, forecast:[], precipHistory:[],
   precipLocalHistory:[], // {date:'YYYY-MM-DD', mm:float} — accumulé en local sur 12 mois
@@ -2168,18 +2350,117 @@ function wizardNext(){
 function wizardPrev(){if(wizardStep===1){goTo('landing');return;}wizardStep--;updateWizard();}
 
 function renderWizardPlants(){
-  const grid=document.getElementById('wizard-plant-grid');
-  if(!grid)return;
-  grid.innerHTML=FREE_PLANTS.map(k=>{
-    const p=PLANT_DB[k];
-    const sel=state.selectedPlants.includes(k)?'selected':'';
-    return `<div class="plant-card-wizard ${sel}" onclick="togglePlant(this,'${k}')">
-      <div class="plant-check">✓</div>
-      <div class="plant-icon">${p.emoji}</div>
-      <div class="plant-name">${p.name}</div>
-      <div class="plant-water">💧 ${p.waterNeed}mm/j</div>
-    </div>`;
+  const container = document.getElementById('wizard-plant-grid');
+  if(!container) return;
+
+  const CATS = [
+    { key:'potager',     name:'Potager',           icon:'🥦', bg:'#e8f5ec' },
+    { key:'aromatiques', name:'Aromatiques',        icon:'🌿', bg:'#f0f8ec' },
+    { key:'fleurs',      name:'Fleurs & Massifs',   icon:'🌸', bg:'#fde8f5' },
+    { key:'fruitiers',   name:'Fruitiers & Verger', icon:'🍎', bg:'#fef3e0' },
+    { key:'arbustes',    name:'Arbustes & Haies',   icon:'🌿', bg:'#e0f5e0' },
+    { key:'gazon',       name:'Gazon & Pelouse',    icon:'🟩', bg:'#e8f5ec' },
+    { key:'mediterr',    name:'Méditerranée & Aride', icon:'🌵', bg:'#fdf5e0' },
+    { key:'tropical',    name:'Tropical & Exotique', icon:'🌴', bg:'#e8f8f0' },
+  ];
+
+  const freeLimit = 3 + (state.bonusPlantSlots || 0);
+  const selected = state.selectedPlants;
+
+  // Counter sticky
+  const counterDots = [1,2,3].map(i => {
+    const plant = selected[i-1];
+    const filled = !!plant;
+    return `<div class="wizard-counter-dot ${filled?'filled':''}">${filled ? PLANT_DB[plant].emoji : ''}</div>`;
   }).join('');
+
+  let html = `<div class="wizard-plant-counter">
+    <div style="font-size:0.8rem;color:var(--text-mid);font-weight:600;">${selected.length}/3 plante${selected.length>1?'s':''} choisie${selected.length>1?'s':''}</div>
+    <div class="wizard-counter-dots">${counterDots}</div>
+  </div>`;
+
+  CATS.forEach(cat => {
+    const keys = Object.keys(PLANT_DB).filter(k => PLANT_DB[k].family === cat.key);
+    const selCount = keys.filter(k => selected.includes(k)).length;
+    const isOpen = cat.key === 'potager'; // potager ouvert par défaut
+    html += `<div class="wizard-cat-section" id="wcat-${cat.key}">
+      <div class="wizard-cat-header" onclick="toggleWizardCat('${cat.key}')">
+        <div class="wizard-cat-header-icon" style="background:${cat.bg};">${cat.icon}</div>
+        <div class="wizard-cat-header-name">${cat.name}</div>
+        ${selCount > 0 ? `<div class="wizard-cat-header-count">✓ ${selCount}</div>` : ''}
+        <div class="wizard-cat-header-arrow ${isOpen?'open':''}" id="wcat-arrow-${cat.key}">›</div>
+      </div>
+      <div class="wizard-cat-grid" id="wcat-grid-${cat.key}" style="display:${isOpen?'grid':'none'};">
+        ${keys.map(k => {
+          const p = PLANT_DB[k];
+          const sel = selected.includes(k);
+          const disabled = !sel && selected.length >= freeLimit && !isPremium();
+          return `<div class="plant-card-wizard ${sel?'selected':''} ${disabled?'disabled-card':''}"
+            onclick="togglePlantWizard('${k}')"
+            style="${disabled?'opacity:0.4;cursor:not-allowed;':''}">
+            <div class="plant-check">✓</div>
+            <div class="plant-icon">${p.emoji}</div>
+            <div class="plant-name">${p.name}</div>
+            <div class="plant-water">💧 ${p.waterNeed}mm/j</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+
+  // Banner Premium si 3 atteintes
+  if(selected.length >= freeLimit && !isPremium()){
+    html += `<div style="margin-top:8px;padding:14px;background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:12px;border:1px solid #c8b8ff;cursor:pointer;" onclick="openPremiumModal('plants_limit')">
+      <div style="font-size:0.82rem;font-weight:700;color:var(--premium);margin-bottom:4px;">✨ Limite de 3 plantes atteinte</div>
+      <div style="font-size:0.78rem;color:#5a3a9a;line-height:1.5;">Passez à Premium pour suivre autant de plantes que vous voulez. <span style="font-weight:700;">Essai 30j gratuit →</span></div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+let wizardContext = 'ground'; // 'ground' | 'pots'
+
+function setWizardContext(ctx, el){
+  wizardContext = ctx;
+  document.querySelectorAll('.wizard-context-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  const note = document.getElementById('wizard-context-note');
+  if(note) note.style.display = ctx==='pots' ? 'block' : 'none';
+}
+
+function applyWizardContext(){
+  // Appelé à la fin du wizard pour pré-initialiser les contenants
+  if(!state.plantContainers) state.plantContainers = {};
+  state.selectedPlants.forEach(k=>{
+    if(!state.plantContainers[k]){
+      state.plantContainers[k] = { type: wizardContext==='pots' ? 'medium_pot' : 'ground' };
+    }
+  });
+}
+
+function toggleWizardCat(catKey){
+  const grid = document.getElementById('wcat-grid-' + catKey);
+  const arrow = document.getElementById('wcat-arrow-' + catKey);
+  if(!grid) return;
+  const isOpen = grid.style.display !== 'none';
+  grid.style.display = isOpen ? 'none' : 'grid';
+  if(arrow) arrow.classList.toggle('open', !isOpen);
+}
+
+function togglePlantWizard(key){
+  const freeLimit = 3 + (state.bonusPlantSlots || 0);
+  const idx = state.selectedPlants.indexOf(key);
+  if(idx >= 0){
+    state.selectedPlants.splice(idx, 1);
+  } else {
+    if(!isPremium() && state.selectedPlants.length >= freeLimit){
+      openPremiumModal('plants_limit');
+      return;
+    }
+    state.selectedPlants.push(key);
+  }
+  renderWizardPlants();
 }
 
 // ── SOIL QUIZ (Wizard step 3) ─────────────────────────────────────────────────
@@ -2318,7 +2599,12 @@ function togglePlant(el,key){
     const freeLimit = 3 + (state.bonusPlantSlots || 0);
     if(!isPremium()&&state.selectedPlants.length>=freeLimit){openPremiumModal('plants_limit');return;}
     state.selectedPlants.push(key);el.classList.add('selected');
+    // Initialiser contenant par défaut
+    if(!state.plantContainers) state.plantContainers={};
+    if(!state.plantContainers[key]) state.plantContainers[key]={type:'ground'};
+    if(!state.plantMoisture[key]) state.plantMoisture[key]=65+Math.random()*20;
   }
+  saveState();updateHeroScore();renderPlantStrip();
 }
 function selectReminder(el,val){document.querySelectorAll('.reminder-opt').forEach(r=>r.classList.remove('selected'));el.classList.add('selected');state.reminder=val;}
 
@@ -2327,6 +2613,7 @@ function finalizeSetup(){
   state.flow=parseFloat(document.getElementById('flow-input').value)||10;
   if(state.selectedPlants.length===0) state.selectedPlants=['tomato','lawn'];
   state.selectedPlants.forEach(k=>{state.plantMoisture[k]=65+Math.random()*25;});
+  applyWizardContext(); // pré-initialise les contenants selon le contexte wizard
   initApp();
   goTo('app');
   fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
@@ -2346,11 +2633,12 @@ function daysUntilWatering(key){
   const plant=PLANT_DB[key];
   const retention=SOIL_RETENTION[state.soil]||1;
   const expose=EXPOSE_FACTOR[state.expose]||1;
-  const dailyLoss=plant.waterNeed*expose/retention;
+  const drainage=getPlantDrainage(key);
+  const soilRetentionFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
+  const dailyLoss=plant.waterNeed*expose*drainage/soilRetentionFactor;
+  const rainEff = drainage > 1.5 ? 0.2 : 0.7;
   let score=state.plantMoisture[key]||60;
-  const today=new Date().toISOString().slice(0,10);
   for(let i=0;i<14;i++){
-    // Pluie prévue pour ce jour
     let forecastRain=0;
     if(state.forecast&&state.forecast.time){
       const d=new Date();d.setDate(d.getDate()+i);
@@ -2358,7 +2646,7 @@ function daysUntilWatering(key){
       const fi=state.forecast.time.indexOf(ds);
       if(fi!==-1)forecastRain=(state.forecast.precipitation_sum[fi]||0);
     }
-    score=score-dailyLoss*0.8+forecastRain*0.7;
+    score=score-dailyLoss*0.8+forecastRain*rainEff;
     score=Math.min(100,Math.max(0,score));
     if(score<35){
       if(i===0)return'Ce soir !';
@@ -2481,12 +2769,16 @@ function computeMoisture(key){
   const plant=PLANT_DB[key];
   const retention=SOIL_RETENTION[state.soil]||1;
   const expose=EXPOSE_FACTOR[state.expose]||1;
+  const drainage=getPlantDrainage(key); // 1.0 pleine terre → 4.0 très petit pot
   let m=state.plantMoisture[key];
   if(m===undefined||m===null)m=60;
-  const et=plant.waterNeed*expose/retention;
+  // ET de base × exposition × drainage ÷ rétention sol (sol joue moins en pot)
+  const soilRetentionFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention; // sol a moins d'effet en pot
+  const et=plant.waterNeed*expose*drainage/soilRetentionFactor;
   const rain=getRainToday();
-  // Décroissance du jour + apport pluie du jour + calibration
-  let display=m - et*0.8 + rain*0.7;
+  // La pluie est moins efficace en pot (ruissellement, surface réduite)
+  const rainEff = drainage > 1.5 ? 0.2 : 0.7; // pots : pluie quasi-inefficace sauf arrosage manuel
+  let display=m - et*0.8 + rain*rainEff;
   display = display * state.calibration.soilMultiplier + state.calibration.offset;
   display=Math.min(100,Math.max(5,display));
   return display;
@@ -2561,11 +2853,14 @@ function renderPlantStrip(){
     if(banner) banner.style.display='none';
     // ── PREMIUM : affichage par catégorie ──
     const CATEGORY_META = {
-      potager:   { name:'Potager',   icon:'🥦', iconClass:'potager',  order:1 },
-      fleurs:    { name:'Fleurs',    icon:'🌸', iconClass:'fleurs',   order:2 },
-      fruitiers: { name:'Fruitiers', icon:'🍎', iconClass:'fruitiers',order:3 },
-      arbustes:  { name:'Arbustes',  icon:'🌿', iconClass:'arbustes', order:4 },
-      gazon:     { name:'Gazon',     icon:'🟩', iconClass:'gazon',    order:5 },
+      potager:     { name:'Potager',            icon:'🥦', iconClass:'potager',   order:1 },
+      aromatiques: { name:'Aromatiques',         icon:'🌿', iconClass:'potager',   order:2 },
+      fleurs:      { name:'Fleurs',              icon:'🌸', iconClass:'fleurs',    order:3 },
+      fruitiers:   { name:'Fruitiers',           icon:'🍎', iconClass:'fruitiers', order:4 },
+      arbustes:    { name:'Arbustes & Haies',    icon:'🌿', iconClass:'arbustes',  order:5 },
+      gazon:       { name:'Gazon & Pelouse',     icon:'🟩', iconClass:'gazon',     order:6 },
+      mediterr:    { name:'Méditerranée & Aride', icon:'🌵', iconClass:'gazon',     order:7 },
+      tropical:    { name:'Tropical & Exotique', icon:'🌴', iconClass:'fruitiers', order:8 },
     };
     // Group plants by family
     const groups = {};
@@ -2631,7 +2926,194 @@ function renderPlantStrip(){
   }
 }
 
-// ── CATEGORY DETAIL ────────────────────────────────────────────────────────────
+// ── ACTIVITÉ HEBDOMADAIRE & SÉRIE ─────────────────────────────────────────────
+// Toutes les actions "jardin" appellent cette fonction — elle alimente le streak
+function logWeeklyActivity(type){
+  if(!state.weeklyActivityLog) state.weeklyActivityLog = [];
+  state.weeklyActivityLog.push({ ts: new Date().toISOString(), type });
+  // Nettoyer > 52 semaines
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 365);
+  state.weeklyActivityLog = state.weeklyActivityLog.filter(e => new Date(e.ts) > cutoff);
+  saveState();
+  // Vérifier si alerte "fin de série" doit être annulée
+  if(state.streakAlertSent){
+    const week = getWeekKeyGlobal(new Date());
+    if(state.streakAlertSent === week) state.streakAlertSent = null;
+  }
+}
+
+function getWeekKeyGlobal(date){
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const day = d.getDay(); const monday = new Date(d);
+  monday.setDate(d.getDate() - (day===0?6:day-1));
+  return monday.toISOString().slice(0,10);
+}
+
+// Vérifie si la série est en danger (aucune activité cette semaine, on est jeudi ou +)
+function checkStreakAlert(){
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=dim, 1=lun ... 6=sam
+  // Alerter jeudi (4), vendredi (5), samedi (6), dimanche (0)
+  const isDangerDay = dayOfWeek === 0 || dayOfWeek >= 4;
+  if(!isDangerDay) return;
+
+  const thisWeek = getWeekKeyGlobal(now);
+  // Déjà alerté cette semaine ?
+  if(state.streakAlertSent === thisWeek) return;
+
+  // Y a-t-il de l'activité cette semaine ?
+  const allActivity = [
+    ...(state.weeklyActivityLog||[]),
+    ...(state.wateringHistory||[]).map(e=>({ts:e.ts})),
+    ...(state.journalEntries||[]).map(e=>({ts:e.ts})),
+  ];
+  const hasActivityThisWeek = allActivity.some(e => e.ts && getWeekKeyGlobal(new Date(e.ts)) === thisWeek);
+  if(hasActivityThisWeek) return;
+
+  // Série > 0 semaines ?
+  const streak = state.weeklyStreak || 0;
+  if(streak === 0) return;
+
+  // Envoyer la notification
+  state.streakAlertSent = thisWeek;
+  saveState();
+  const dayName = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][dayOfWeek];
+  showStreakAlert(streak, dayName);
+}
+
+function showStreakAlert(streak, dayName){
+  // Toast persistant + notification native si dispo
+  const msg = `🔥 Série de ${streak} sem. en danger ! Aucune activité cette semaine — notez quelque chose pour la garder.`;
+  // Toast long (5s)
+  const toast = document.getElementById('toast');
+  if(toast){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 6000);
+  }
+  // Notification système si accordée
+  if('Notification' in window && Notification.permission === 'granted'){
+    new Notification('🔥 GardenMinder — Série en danger !', {
+      body: `${streak} semaine${streak>1?'s':''} de suite sans interruption. Ajoutez une note aujourd'hui pour maintenir votre série !`,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌿</text></svg>'
+    });
+  }
+}
+
+// Demande la permission de notification (appelé lors du premier arrosage ou journal)
+function requestNotifPermission(){
+  if('Notification' in window && Notification.permission === 'default'){
+    Notification.requestPermission();
+  }
+}
+
+function openContainerSheet(){
+  if(!currentPlant) return;
+  const cur = (state.plantContainers[currentPlant]||{type:'ground'});
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:flex-end;';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+
+  const SPEED = { ground:'slow', large_pot:'medium', medium_pot:'medium', small_pot:'fast', tiny_pot:'fast', custom:'medium' };
+  const SPEED_LABEL = { slow:'Lent 🌍', medium:'Moyen 🪴', fast:'Rapide ⚡' };
+  const SPEED_CLS   = { slow:'slow', medium:'medium', fast:'fast' };
+
+  const optionsHtml = Object.entries(CONTAINER_TYPES).filter(([k])=>k!=='custom').map(([k,c])=>{
+    const spd = SPEED[k];
+    const drainTxt = k==='ground' ? '×1.0 — référence' : `×${c.drainage.toFixed(1)} plus rapide`;
+    return `<div class="container-option ${cur.type===k?'selected':''}" onclick="setPlantContainer('${k}',null,this)">
+      <div class="container-option-emoji">${c.emoji}</div>
+      <div class="container-option-info">
+        <div class="container-option-label">${c.label}</div>
+        <div class="container-option-desc">${c.desc} · ${drainTxt}</div>
+      </div>
+      <div class="container-option-badge ${SPEED_CLS[spd]}">${SPEED_LABEL[spd]}</div>
+    </div>`;
+  }).join('');
+
+  const customLiters = cur.type==='custom' ? cur.liters||'' : '';
+  overlay.innerHTML = `
+    <div style="background:var(--cream);border-radius:24px 24px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:20px 20px 44px;">
+      <div style="width:36px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 16px;"></div>
+      <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:600;color:var(--text-dark);margin-bottom:4px;">🪴 Type de plantation</div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:16px;">Choisissez comment est plantée <strong>${PLANT_DB[currentPlant].emoji} ${PLANT_DB[currentPlant].name}</strong>. La formule d'arrosage s'adapte automatiquement.</div>
+      ${optionsHtml}
+      <!-- Volume personnalisé -->
+      <div class="container-option ${cur.type==='custom'?'selected':''}" id="custom-container-opt" onclick="document.getElementById('custom-liters-row').style.display='block';setPlantContainer('custom',null,this)">
+        <div class="container-option-emoji">📐</div>
+        <div class="container-option-info">
+          <div class="container-option-label">Volume personnalisé</div>
+          <div class="container-option-desc">Entrez le volume exact de votre contenant</div>
+        </div>
+        <div class="container-option-badge medium">Manuel</div>
+      </div>
+      <div id="custom-liters-row" style="display:${cur.type==='custom'?'block':'none'};padding:12px 14px;background:white;border-radius:12px;border:2px solid var(--green-pale);margin-top:-6px;margin-bottom:8px;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--text-mid);margin-bottom:8px;">Volume du contenant</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="number" id="custom-liters-input" min="1" max="500" placeholder="Ex : 25" value="${customLiters}"
+            style="flex:1;padding:10px 12px;border:2px solid var(--green-pale);border-radius:10px;font-size:1rem;font-family:var(--ff-body);color:var(--text-dark);background:white;outline:none;"
+            oninput="setPlantContainer('custom',this.value,null)">
+          <span style="font-size:0.9rem;color:var(--text-mid);font-weight:600;">litres</span>
+        </div>
+      </div>
+      <button onclick="this.closest('div').parentElement.remove();updateContainerUI();"
+        style="margin-top:8px;width:100%;padding:15px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">
+        ✅ Confirmer
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function setPlantContainer(type, liters, clickedEl){
+  if(!currentPlant) return;
+  if(!state.plantContainers) state.plantContainers = {};
+  if(liters !== null){
+    const l = parseFloat(liters);
+    state.plantContainers[currentPlant] = { type, liters: isNaN(l)?null:l };
+  } else {
+    state.plantContainers[currentPlant] = { type };
+  }
+  // Highlight selection dans la sheet
+  if(clickedEl){
+    clickedEl.closest('div[style]').querySelectorAll('.container-option').forEach(o=>o.classList.remove('selected'));
+    clickedEl.classList.add('selected');
+  }
+  // Recalcul immédiat de l'humidité de cette plante
+  state.plantMoisture[currentPlant] = computeMoisture(currentPlant);
+  saveState();
+}
+
+function updateContainerUI(){
+  if(!currentPlant) return;
+  // Update label in detail card
+  const lbl = document.getElementById('detail-container-label');
+  if(lbl) lbl.textContent = getContainerLabel(currentPlant) + ' ›';
+  // Update impact text
+  updateContainerImpact(currentPlant);
+  // Refresh full plant detail
+  const pct = Math.round(state.plantMoisture[currentPlant]||60);
+  const fill = document.getElementById('detail-gauge-fill');
+  const pctEl = document.getElementById('detail-percent');
+  if(fill) fill.style.width = pct+'%';
+  if(pctEl) pctEl.textContent = pct+'%';
+  updateHeroScore(); renderPlantStrip();
+}
+
+function updateContainerImpact(key){
+  const el = document.getElementById('detail-container-impact');
+  if(!el) return;
+  const drainage = getPlantDrainage(key);
+  const c = (state.plantContainers||{})[key];
+  if(!c || c.type==='ground'){
+    el.innerHTML = '<span style="color:var(--green-mid);">✅ Formule standard — sol naturel avec capillarité</span>';
+    return;
+  }
+  const x = drainage.toFixed(1);
+  const times = drainage >= 3.5 ? '3–4×' : drainage >= 2.5 ? '2–3×' : drainage >= 1.7 ? '1.5–2×' : '1.3–1.5×';
+  const col = drainage >= 2.5 ? 'var(--danger)' : drainage >= 1.7 ? 'var(--warn)' : 'var(--ok)';
+  el.innerHTML = `<span style="color:${col};">⚡ Sèche ${times} plus vite qu'en pleine terre · ×${x}</span><br>
+    <span style="color:var(--text-light);">Pluie peu efficace — arrosage manuel recommandé</span>`;
+}
 let currentCategory = null;
 function openCategoryDetail(fam, keys, meta){
   currentCategory = { fam, keys, meta };
@@ -2726,7 +3208,7 @@ function openPlantDetail(key, fromScreen){
   fill.className='gauge-bar-fill '+lvl.cls;
   setTimeout(()=>{fill.style.width=pct+'%';},100);
   document.getElementById('detail-percent').textContent=pct+'%';
-  document.getElementById('detail-gauge-sub').textContent='Sol '+state.soil+' · Exposition '+state.expose+(state.calibration.offset!==0?' · Calibré':'');
+  document.getElementById('detail-gauge-sub').textContent='Sol '+state.soil+' · '+state.expose+' · '+getContainerLabel(key)+(state.calibration.offset!==0?' · Calibré':'');
   document.getElementById('detail-need').textContent=plant.waterNeed+'mm/j';
   // Pluie du jour = prévision (source unique)
   document.getElementById('detail-rain-today').textContent=getRainToday().toFixed(1)+'mm';
@@ -2755,6 +3237,11 @@ function openPlantDetail(key, fromScreen){
   else{wList.innerHTML=plantHistory.slice(0,5).map(e=>`<div class="watering-entry"><div class="watering-dot"></div><div class="watering-text">${e.date}</div><div class="watering-amount">${e.liters}L · ${((e.liters/1000)*state.price).toFixed(2)}€</div></div>`).join('');}
   // Load plant info card
   loadPlantInfoCard(key);
+  // ── Contenant : mise à jour de la carte ──────────────────────────────────
+  const containerLbl = document.getElementById('detail-container-label');
+  if(containerLbl) containerLbl.textContent = getContainerLabel(key) + ' ›';
+  updateContainerImpact(key);
+  // ──────────────────────────────────────────────────────────────────────────
   // ── Cooldown : mise à jour du bouton Arroser ──────────────────────────────
   const waterBtn = document.getElementById('detail-water-btn');
   if(waterBtn){
@@ -2837,6 +3324,7 @@ function savePlantInfo(){
   info.notes = document.getElementById('pinfo-notes').value;
   state.plantInfos[currentPlant] = info;
   updatePlantInfoSummary(currentPlant);
+  logWeeklyActivity('plant_info');
   // Award points on first save
   if(wasEmpty && (info.date||info.count||info.location||info.variety)){
     awardPoints(15,'Fiche plante renseignée ✏️');
@@ -2872,6 +3360,7 @@ function handlePlantPhoto(input){
     document.getElementById('plant-info-photo-placeholder').style.display='none';
     updatePlantInfoSummary(currentPlant);
     awardPoints(10,'Photo de plante ajoutée 📸');
+    logWeeklyActivity('photo');
     saveState();
     showToast('📸 Photo enregistrée ! +10 pts');
   };
@@ -2995,6 +3484,8 @@ function confirmWatering(){
   }
   const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
   state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:currentPlant});
+  logWeeklyActivity('watering');
+  requestNotifPermission();
   // Enregistrer le dernier arrosage par plante pour le cooldown
   if(!state.lastWatered) state.lastWatered = {};
   const targets=currentPlant?[currentPlant]:state.selectedPlants;
@@ -3336,9 +3827,9 @@ function renderSettingsTab(){
     } else {
       block.innerHTML=`<div class="premium-banner-card" style="margin-bottom:12px;">
       <div class="premium-banner-title">✨ Passer à Premium</div>
-      <div class="premium-banner-body">60+ plantes, zones multiples, alertes intelligentes, historique 12 mois.</div>
+      <div class="premium-banner-body">135+ plantes, zones multiples, alertes intelligentes, historique 12 mois.</div>
       <div class="premium-features" style="margin-bottom:14px;">
-        <div class="premium-feat">60+ plantes dans la bibliothèque</div>
+        <div class="premium-feat">135+ plantes dans la bibliothèque</div>
         <div class="premium-feat">Zones multiples de jardin</div>
         <div class="premium-feat">Alertes intelligentes contextuelles</div>
         <div class="premium-feat">Export PDF bilan mensuel</div>
@@ -3555,14 +4046,53 @@ function openEditModal(field){
   else if(field==='price') html=`<input class="input-field" id="edit-val" type="number" step="0.01" value="${state.price||4.30}"> <div style="font-size:0.82rem;color:var(--text-light);margin-top:6px;">€ / m³</div>`;
   else if(field==='flow') html=`<input class="input-field" id="edit-val" type="number" step="0.5" value="${state.flow||10}"> <div style="font-size:0.82rem;color:var(--text-light);margin-top:6px;">L / min</div>`;
   else if(field==='plants'){
-    const allKeys=isPremium()?ALL_PLANTS:FREE_PLANTS;
-    html=`<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:12px;">${isPremium()?'Toutes les plantes disponibles':'Version gratuite : 3 plantes max.'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      ${allKeys.map(k=>{const p=PLANT_DB[k];const sel=state.selectedPlants.includes(k);return`<div class="plant-card-wizard ${sel?'selected':''}" onclick="togglePlant(this,'${k}')" style="font-size:0.85rem;">
-        <div class="plant-check">✓</div><div style="font-size:24px;margin-bottom:4px;">${p.emoji}</div>
-        <div style="font-weight:600;">${p.name}</div><div style="font-size:0.72rem;color:var(--water);">${p.waterNeed}mm/j</div>
-      </div>`;}).join('')}
-    </div>`;
+    // Render categories directly into the modal
+    const freeLimit = 3 + (state.bonusPlantSlots || 0);
+    const CATS = [
+      { key:'potager',     name:'Potager',           icon:'🥦', bg:'#e8f5ec' },
+      { key:'aromatiques', name:'Aromatiques',        icon:'🌿', bg:'#f0f8ec' },
+      { key:'fleurs',      name:'Fleurs & Massifs',   icon:'🌸', bg:'#fde8f5' },
+      { key:'fruitiers',   name:'Fruitiers & Verger', icon:'🍎', bg:'#fef3e0' },
+      { key:'arbustes',    name:'Arbustes & Haies',   icon:'🌿', bg:'#e0f5e0' },
+        { key:'gazon',       name:'Gazon & Pelouse',    icon:'🟩', bg:'#e8f5ec' },
+      { key:'mediterr',    name:'Méditerranée & Aride', icon:'🌵', bg:'#fdf5e0' },
+      { key:'tropical',    name:'Tropical & Exotique', icon:'🌴', bg:'#e8f8f0' },
+    ];
+    const sel = state.selectedPlants;
+    const limitLabel = isPremium() ? 'Toutes les plantes disponibles' : `Version gratuite : ${sel.length}/${freeLimit} plante${freeLimit>1?'s':''}`;
+    let inner = `<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:10px;">${limitLabel}</div>`;
+    CATS.forEach(cat => {
+      const keys = Object.keys(PLANT_DB).filter(k => PLANT_DB[k].family === cat.key);
+      const selCount = keys.filter(k => sel.includes(k)).length;
+      inner += `<div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:6px 10px;background:${cat.bg};border-radius:8px;">
+          <span style="font-size:1rem;">${cat.icon}</span>
+          <span style="font-size:0.85rem;font-weight:700;color:var(--text-dark);flex:1;">${cat.name}</span>
+          ${selCount>0?`<span style="font-size:0.75rem;font-weight:600;color:var(--green-mid);">✓ ${selCount}</span>`:''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">
+          ${keys.map(k => {
+            const p = PLANT_DB[k];
+            const isSelected = sel.includes(k);
+            const disabled = !isSelected && sel.length >= freeLimit && !isPremium();
+            return `<div class="plant-card-wizard ${isSelected?'selected':''}" onclick="togglePlant(this,'${k}')"
+              style="font-size:0.85rem;${disabled?'opacity:0.4;cursor:not-allowed;pointer-events:none;':''}">
+              <div class="plant-check">✓</div>
+              <div style="font-size:22px;margin-bottom:4px;">${p.emoji}</div>
+              <div style="font-weight:600;">${p.name}</div>
+              <div style="font-size:0.72rem;color:var(--water);">${p.waterNeed}mm/j</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    });
+    if(sel.length >= freeLimit && !isPremium()){
+      inner += `<div style="padding:12px 14px;background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:10px;border:1px solid #c8b8ff;cursor:pointer;margin-top:4px;" onclick="document.getElementById('modal-edit').classList.remove('open');openPremiumModal('plants_limit')">
+        <div style="font-size:0.8rem;font-weight:700;color:var(--premium);">✨ Limite atteinte — Passer à Premium</div>
+        <div style="font-size:0.75rem;color:#5a3a9a;margin-top:2px;">Plantes illimitées · Essai 30j gratuit →</div>
+      </div>`;
+    }
+    html = inner;
   }
   else html=`<div style="font-size:0.9rem;color:var(--text-mid);">Modifiable dans le wizard.</div>`;
   document.getElementById('edit-modal-content').innerHTML=html;
@@ -3861,6 +4391,8 @@ function submitJournalEntry() {
     photo: _entryPhotoData || null,
   };
   state.journalEntries.unshift(entry);
+  logWeeklyActivity('journal');
+  requestNotifPermission();
   _lastSavedEntryId = entry.id;
   // Activer les boutons de partage
   ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
@@ -4433,7 +4965,7 @@ function renderMemoryTab() {
     }
   }
 
-  // ── Streak hebdomadaire : compte les semaines passées avec au moins 1 arrosage ou entrée journal
+  // ── Streak hebdomadaire : compte les semaines avec au moins 1 activité
   function getWeekKey(date){
     const d = new Date(date); d.setHours(0,0,0,0);
     const day = d.getDay(); const monday = new Date(d);
@@ -4441,8 +4973,10 @@ function renderMemoryTab() {
     return monday.toISOString().slice(0,10);
   }
   const activeWeeks = new Set();
-  (state.wateringHistory||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); else if(e.date) activeWeeks.add(getWeekKey(Date.now())); });
+  // Toutes les sources d'activité
+  (state.wateringHistory||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); });
   (state.journalEntries||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); });
+  (state.weeklyActivityLog||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); });
   // Compter les semaines consécutives en remontant depuis aujourd'hui
   let computedStreak = 0;
   const todayWeek = getWeekKey(new Date());
@@ -4465,7 +4999,14 @@ function renderMemoryTab() {
     }).join('');
   }
   const flameInfo = document.querySelector('#streak-weeks + .streak-flame .streak-flame-info span');
-  if(flameInfo) flameInfo.textContent = streak>0 ? `Jardin actif ${streak} semaine(s) de suite 🌱` : `Commencez à jardiner pour démarrer votre série !`;
+  // Activité cette semaine ?
+  const thisWeek = getWeekKey(new Date());
+  const activeThisWeek = activeWeeks.has(thisWeek);
+  if(flameInfo) flameInfo.textContent = streak>0
+    ? (activeThisWeek ? `Série active ! ${streak} semaine${streak>1?'s':''} de suite 🌱` : `⚠️ Aucune activité cette semaine — série en danger !`)
+    : `Commencez à jardiner pour démarrer votre série !`;
+  if(flameInfo) flameInfo.style.color = (!activeThisWeek && streak>0) ? 'var(--warn)' : '';
+  checkStreakAlert();
 
   // Badges
   checkBadges();
@@ -4632,12 +5173,16 @@ function renderAccountInHeader() {
   // Init new state fields if missing
   if (!state.journalEntries) state.journalEntries = [];
   if (!state.weeklyStreak) state.weeklyStreak = 0;
+  if (!state.weeklyActivityLog) state.weeklyActivityLog = [];
+  // Vérifier alerte série au démarrage
+  setTimeout(checkStreakAlert, 2000);
   if (!state.gardenPoints) state.gardenPoints = 0;
   if (!state.earnedBadges) state.earnedBadges = [];
   if (!state.plantInfos) state.plantInfos = {};
   if (!state.moistureHistory) state.moistureHistory = [];
   if (!state.lastWatered) state.lastWatered = {};
   if (!state.dailyPoints) state.dailyPoints = {};
+  if (!state.plantContainers) state.plantContainers = {};
 
   // Inject FAB for journal
   const fab = document.createElement('button');

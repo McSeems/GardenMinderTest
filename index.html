@@ -169,8 +169,78 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .btn-next:active{background:var(--green-deep);}
 .info-box{background:var(--green-mist);border-radius:10px;padding:14px;font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin-bottom:16px;}
 
-/* ── MAIN APP ── */
-#screen-app{background:var(--cream);}
+/* ── PROGRESSION TREE MODAL ── */
+.prog-tree-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
+.prog-tree-sheet{background:var(--cream);border-radius:24px 24px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:20px 20px 48px;animation:slideUp 0.3s ease;}
+.prog-node{display:flex;gap:14px;align-items:flex-start;margin-bottom:4px;cursor:pointer;transition:all 0.15s;}
+.prog-node:active{transform:scale(0.98);}
+.prog-node-line{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.prog-node-dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:3px solid transparent;flex-shrink:0;transition:all 0.2s;}
+.prog-node-dot.done{background:linear-gradient(135deg,var(--green-mid),var(--green-light));border-color:var(--green-pale);box-shadow:0 4px 12px rgba(45,92,63,0.3);}
+.prog-node-dot.current{background:linear-gradient(135deg,#fef9e7,#fde9a0);border-color:#f0c840;box-shadow:0 4px 16px rgba(240,200,64,0.4);animation:pulse-gold 2s infinite;}
+.prog-node-dot.locked{background:rgba(26,58,42,0.06);border-color:rgba(26,58,42,0.1);}
+@keyframes pulse-gold{0%,100%{box-shadow:0 4px 16px rgba(240,200,64,0.4);}50%{box-shadow:0 4px 24px rgba(240,200,64,0.7);}}
+.prog-connector{width:3px;flex:1;min-height:20px;margin:4px 0;}
+.prog-connector.done{background:linear-gradient(to bottom,var(--green-mid),var(--green-pale));}
+.prog-connector.locked{background:rgba(26,58,42,0.1);}
+.prog-node-info{flex:1;padding:10px 0 16px;}
+.prog-node-name{font-family:var(--ff-display);font-size:1rem;font-weight:600;margin-bottom:2px;}
+.prog-node-name.done{color:var(--green-deep);}
+.prog-node-name.current{color:#8b5e08;}
+.prog-node-name.locked{color:var(--text-light);}
+.prog-node-pts{font-size:0.78rem;color:var(--text-light);margin-bottom:6px;}
+.prog-node-reward{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#fef9e7,#fde9a0);border-radius:8px;padding:5px 10px;font-size:0.76rem;font-weight:600;color:#8b5e08;border:1px solid rgba(240,200,64,0.4);}
+.prog-node-reward.done{background:linear-gradient(135deg,var(--green-mist),var(--green-pale));color:var(--green-deep);border-color:var(--green-pale);}
+.prog-node-bar-wrap{height:4px;background:rgba(26,58,42,0.08);border-radius:2px;overflow:hidden;margin-top:6px;}
+.prog-node-bar-fill{height:100%;background:linear-gradient(90deg,var(--green-mid),var(--green-light));border-radius:2px;}
+
+.category-strip{padding:0 16px;display:flex;flex-direction:column;gap:10px;}
+.category-card{background:white;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 12px rgba(26,58,42,0.07);cursor:pointer;transition:all 0.18s;border:1px solid rgba(26,58,42,0.05);}
+.category-card:active{transform:scale(0.985);}
+.category-card-header{padding:14px 16px;display:flex;align-items:center;gap:14px;}
+.category-card-icon{font-size:26px;flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+.category-card-icon.potager{background:linear-gradient(135deg,#e8f5ec,#c8ecd4);}
+.category-card-icon.fleurs{background:linear-gradient(135deg,#fde8f5,#f5c0e0);}
+.category-card-icon.fruitiers{background:linear-gradient(135deg,#fef3e0,#fdd8a0);}
+.category-card-icon.arbustes{background:linear-gradient(135deg,#e0f5e0,#b8e4b8);}
+.category-card-icon.gazon{background:linear-gradient(135deg,#e8f5ec,#a8d5b5);}
+.category-card-info{flex:1;min-width:0;}
+.category-card-name{font-size:1rem;font-weight:700;color:var(--text-dark);}
+.category-card-sub{font-size:0.78rem;color:var(--text-light);margin-top:2px;}
+.category-card-gauge{padding:0 16px 14px;}
+.category-gauge-bar{height:6px;background:rgba(26,58,42,0.08);border-radius:3px;overflow:hidden;margin-bottom:4px;}
+.category-gauge-fill{height:100%;border-radius:3px;transition:width 0.5s ease;}
+.category-gauge-fill.green{background:var(--ok);}
+.category-gauge-fill.yellow{background:var(--warn);}
+.category-gauge-fill.red{background:var(--danger);}
+.category-gauge-labels{display:flex;align-items:center;justify-content:space-between;}
+.category-gauge-pct{font-size:0.82rem;font-weight:700;}
+.category-gauge-pct.green{color:var(--ok);}
+.category-gauge-pct.yellow{color:var(--warn);}
+.category-gauge-pct.red{color:var(--danger);}
+.category-gauge-next{font-size:0.74rem;color:var(--text-light);}
+.category-plant-pills{display:flex;gap:5px;flex-wrap:wrap;padding:0 16px 12px;}
+.category-plant-pill{font-size:0.72rem;background:var(--green-mist);color:var(--green-deep);border-radius:50px;padding:3px 9px;font-weight:500;}
+.category-arrow{font-size:1rem;color:var(--text-light);flex-shrink:0;}
+
+/* ── SCREEN CATEGORY ── */
+#screen-category{background:var(--cream);}
+.cat-detail-header{padding:52px 20px 16px;background:white;border-bottom:1px solid rgba(0,0,0,0.06);}
+.cat-back-btn{font-size:0.88rem;color:var(--green-mid);cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;font-weight:600;}
+.cat-hero{display:flex;align-items:center;gap:14px;}
+.cat-hero-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.cat-hero-name{font-family:var(--ff-display);font-size:1.5rem;font-weight:600;color:var(--text-dark);}
+.cat-hero-sub{font-size:0.82rem;color:var(--text-light);margin-top:2px;}
+.cat-hygro-card{margin:16px;background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:var(--radius);padding:16px 18px;}
+.cat-hygro-title{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.55);margin-bottom:8px;}
+.cat-hygro-bar-wrap{height:8px;background:rgba(255,255,255,0.18);border-radius:4px;overflow:hidden;margin-bottom:8px;}
+.cat-hygro-bar-fill{height:100%;border-radius:4px;transition:width 0.5s ease;}
+.cat-hygro-stats{display:flex;justify-content:space-between;}
+.cat-hygro-stat{text-align:center;}
+.cat-hygro-stat-val{font-size:1.2rem;font-weight:700;color:white;}
+.cat-hygro-stat-lbl{font-size:0.65rem;color:rgba(255,255,255,0.5);margin-top:1px;}
+.cat-plants-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+
 .app-header{padding:52px 20px 16px;background:white;border-bottom:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:space-between;}
 .app-logo{font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--green-deep);}
 .app-city{font-size:0.85rem;color:var(--text-light);display:flex;align-items:center;gap:4px;}
@@ -1126,8 +1196,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     </div>
 
     <!-- Plants strip -->
-    <div class="section-title">Mes plantes</div>
+    <div class="section-title" id="plants-section-title">Mes plantes</div>
     <div class="plant-strip" id="plant-strip"></div>
+    <div id="free-limit-banner" style="display:none;margin:8px 16px 0;background:linear-gradient(135deg,var(--green-mist),#d8f0e0);border-radius:12px;padding:12px 14px;border:1px dashed var(--green-pale);cursor:pointer;" onclick="openPremiumModal('plants_limit')">
+      <div style="font-size:0.82rem;font-weight:600;color:var(--green-deep);">🌿 Version gratuite — 3 plantes max</div>
+      <div style="font-size:0.75rem;color:var(--text-mid);margin-top:2px;">Passez à Premium pour suivre plus de plantes et accéder à l'affichage par catégorie.</div>
+    </div>
 
     <!-- Prévisions 7 jours -->
     <div class="section-title">Prévisions 7 jours</div>
@@ -1150,9 +1224,9 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="quick-btn-icon" style="background:#fef9e7;">⏰</div>
         <div class="quick-btn-label">Arrosages<br>auto</div>
       </button>
-      <button class="quick-btn" onclick="switchTab('memory',document.getElementById('nav-memory'))">
-        <div class="quick-btn-icon" style="background:#fde9a0;">🏆</div>
-        <div class="quick-btn-label">Mémoire<br>& badges</div>
+      <button class="quick-btn" onclick="openEditModal('plants')">
+        <div class="quick-btn-icon" style="background:linear-gradient(135deg,var(--green-mist),var(--green-pale));">🌱</div>
+        <div class="quick-btn-label">Ajouter<br>une plante</div>
       </button>
     </div>
 
@@ -1171,7 +1245,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 <!-- ══════════════════ SCREEN 5 : PLANT DETAIL ══════════════════ -->
 <div id="screen-plant" class="screen">
   <div class="plant-detail-header">
-    <button class="back-btn" onclick="goBack()">← Mes plantes</button>
+    <button class="back-btn" id="plant-back-btn" onclick="goBack()">← Retour</button>
     <div class="plant-detail-top">
       <div class="plant-detail-emoji" id="detail-emoji">🍅</div>
       <div class="plant-detail-info">
@@ -1266,7 +1340,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 
     <!-- Actions rapides -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-      <button class="btn-primary" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
+      <button class="btn-primary" id="detail-water-btn" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
       <button class="btn-secondary" onclick="openJournalFromPlant()" style="margin-bottom:0;padding:16px;border-radius:14px;border:2px solid var(--green-pale);background:white;color:var(--green-mid);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">📖 Journal</button>
     </div>
   </div>
@@ -1274,6 +1348,35 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="openJournalFromPlant()"><div class="nav-icon-wrap"><div class="nav-icon">📖</div></div><div class="nav-label">Journal</div></div>
     
+    <div class="nav-item" onclick="goBack();switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════ SCREEN : CATEGORY DETAIL ══════════════════ -->
+<div id="screen-category" class="screen">
+  <div class="cat-detail-header">
+    <div class="cat-back-btn" onclick="goBack()">← Mes plantes</div>
+    <div class="cat-hero">
+      <div class="cat-hero-icon" id="cat-hero-icon">🌿</div>
+      <div>
+        <div class="cat-hero-name" id="cat-hero-name">Catégorie</div>
+        <div class="cat-hero-sub" id="cat-hero-sub">— plantes</div>
+      </div>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:80px;">
+    <!-- Hygro card -->
+    <div class="cat-hygro-card" id="cat-hygro-card">
+      <div class="cat-hygro-title">💧 Hygrométrie de la catégorie</div>
+      <div class="cat-hygro-bar-wrap"><div class="cat-hygro-bar-fill" id="cat-hygro-fill" style="width:0%"></div></div>
+      <div class="cat-hygro-stats" id="cat-hygro-stats"></div>
+    </div>
+    <!-- Plants list -->
+    <div class="section-title" style="padding-top:16px;">Mes plantes</div>
+    <div class="cat-plants-list" id="cat-plants-list"></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
     <div class="nav-item" onclick="goBack();switchTab('settings',document.getElementById('nav-settings'))"><div class="nav-icon-wrap"><div class="nav-icon">⚙️</div></div><div class="nav-label">Réglages</div></div>
   </div>
 </div>
@@ -1338,7 +1441,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   </div>
   <div style="flex:1;overflow-y:auto;padding-bottom:80px;">
     <!-- Niveau jardin -->
-    <div class="garden-level-card">
+    <div class="garden-level-card" onclick="openProgressionTree()" style="cursor:pointer;">
       <div class="level-orb">
         <div id="level-orb-emoji" style="font-size:2.3rem;line-height:1;margin-bottom:2px;">🌱</div>
         <div class="level-num" id="garden-level-num" style="font-size:0.85rem;font-weight:700;color:white;">Niv. 1</div>
@@ -1350,7 +1453,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="level-bar-wrap"><div class="level-bar-fill" id="garden-level-bar" style="width:20%;"></div></div>
         <div class="level-bar-text" id="garden-level-pts">0 / 100 points</div>
         <div id="level-reward-info"></div>
-        <button onclick="shareGardenLevel()" style="margin-top:10px;display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.12);color:white;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:var(--ff-body);">📲 Partager mon niveau</button>
+        <button onclick="shareGardenLevel();event.stopPropagation();" style="margin-top:10px;display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.12);color:white;font-size:0.75rem;font-weight:600;cursor:pointer;font-family:var(--ff-body);">📲 Partager mon niveau</button>
+        <div style="margin-top:7px;font-size:0.68rem;color:rgba(255,255,255,0.38);">Appuyer sur la carte pour voir la progression →</div>
       </div>
     </div>
     <!-- Timelapse -->
@@ -1832,7 +1936,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="premium-modal-hero">
       <div class="premium-modal-hero-icon">🌿</div>
       <div class="premium-modal-hero-title">GardenMinder Premium</div>
-      <div class="premium-modal-hero-sub">Votre jardin mérite mieux qu'une estimation. Passez à la précision plante par plante.</div>
+      <div class="premium-modal-hero-sub">Votre jardin mérite mieux qu'une estimation. La version gratuite est limitée à 3 plantes — passez à Premium pour un suivi complet.</div>
     </div>
 
     <div class="premium-feature-list">
@@ -2010,7 +2114,15 @@ function goTo(id) {
   if(fab) fab.style.display = 'none';
   saveState();
 }
-function goBack() { goTo(prevScreen || 'app'); }
+function goBack() { 
+  if(prevScreen === 'category' && currentCategory){
+    // Restore category screen
+    const {fam,keys,meta}=currentCategory;
+    openCategoryDetail(fam,keys,meta);
+  } else {
+    goTo(prevScreen || 'app');
+  }
+}
 const TAB_IDS = ['history','alerts','settings','journal','memory'];
 function hideAllTabs() { TAB_IDS.forEach(t => { const el=document.getElementById('tab-'+t); if(el){ el.classList.add('hidden'); } }); }
 // First switchTab removed — the comprehensive one at line ~2985 handles all overlay tabs.
@@ -2204,7 +2316,7 @@ function togglePlant(el,key){
   if(idx>-1){state.selectedPlants.splice(idx,1);el.classList.remove('selected');}
   else{
     const freeLimit = 3 + (state.bonusPlantSlots || 0);
-    if(!isPremium()&&state.selectedPlants.length>=freeLimit){openPremiumModal('plants');return;}
+    if(!isPremium()&&state.selectedPlants.length>=freeLimit){openPremiumModal('plants_limit');return;}
     state.selectedPlants.push(key);el.classList.add('selected');
   }
 }
@@ -2386,6 +2498,22 @@ function refreshAllMoisture(){
   state.selectedPlants.forEach(k=>{
     state.plantMoisture[k]=computeMoisture(k);
   });
+  // Enregistrer un snapshot d'hygrométrie pour les graphiques historiques
+  if(state.selectedPlants.length > 0){
+    const avgMoisture = Math.round(state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/state.selectedPlants.length);
+    if(!state.moistureHistory) state.moistureHistory = [];
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0,10);
+    // Ne pas ajouter plus d'un point par heure
+    const lastEntry = state.moistureHistory[state.moistureHistory.length-1];
+    const lastHour = lastEntry ? new Date(lastEntry.ts).toISOString().slice(0,13) : null;
+    const thisHour = now.toISOString().slice(0,13);
+    if(lastHour !== thisHour){
+      state.moistureHistory.push({ date: todayStr, value: avgMoisture, ts: now.toISOString() });
+      // Garder max 400 entrées (~13 mois)
+      if(state.moistureHistory.length > 400) state.moistureHistory = state.moistureHistory.slice(-400);
+    }
+  }
 }
 function getMoistureLevel(pct){
   if(pct<35)return{label:'Arroser',cls:'red',action:'danger',badge:'🔴 Urgent'};
@@ -2426,20 +2554,126 @@ function updateHeroScore(){
 function renderPlantStrip(){
   const strip=document.getElementById('plant-strip');
   strip.innerHTML='';
-  state.selectedPlants.forEach(k=>{
+  const titleEl=document.getElementById('plants-section-title');
+  if(isPremium() && state.selectedPlants.length > 3){
+    if(titleEl) titleEl.textContent='Mes plantes · par catégorie';
+    const banner=document.getElementById('free-limit-banner');
+    if(banner) banner.style.display='none';
+    // ── PREMIUM : affichage par catégorie ──
+    const CATEGORY_META = {
+      potager:   { name:'Potager',   icon:'🥦', iconClass:'potager',  order:1 },
+      fleurs:    { name:'Fleurs',    icon:'🌸', iconClass:'fleurs',   order:2 },
+      fruitiers: { name:'Fruitiers', icon:'🍎', iconClass:'fruitiers',order:3 },
+      arbustes:  { name:'Arbustes',  icon:'🌿', iconClass:'arbustes', order:4 },
+      gazon:     { name:'Gazon',     icon:'🟩', iconClass:'gazon',    order:5 },
+    };
+    // Group plants by family
+    const groups = {};
+    state.selectedPlants.forEach(k=>{
+      const fam = PLANT_DB[k].family || 'potager';
+      if(!groups[fam]) groups[fam]=[];
+      groups[fam].push(k);
+    });
+    // Sort groups by order
+    const sortedFams = Object.keys(groups).sort((a,b)=>((CATEGORY_META[a]||{order:9}).order)-((CATEGORY_META[b]||{order:9}).order));
+    sortedFams.forEach(fam=>{
+      const keys = groups[fam];
+      const meta = CATEGORY_META[fam] || { name:fam, icon:'🌿', iconClass:'potager', order:9 };
+      // Compute avg moisture for category
+      const avgPct = Math.round(keys.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/keys.length);
+      const lvl = getMoistureLevel(avgPct);
+      // Find worst next watering
+      let worstNext = null;
+      keys.forEach(k=>{
+        const n = daysUntilWatering(k);
+        if(!worstNext || n==='Ce soir !'||(worstNext!=='Ce soir !'&&n<worstNext)) worstNext=n;
+      });
+      const card = document.createElement('div');
+      card.className='category-card';
+      card.onclick=()=>openCategoryDetail(fam, keys, meta);
+      card.innerHTML=`
+        <div class="category-card-header">
+          <div class="category-card-icon ${meta.iconClass}">${meta.icon}</div>
+          <div class="category-card-info">
+            <div class="category-card-name">${meta.name}</div>
+            <div class="category-card-sub">${keys.length} plante${keys.length>1?'s':''} · ${lvl.label}</div>
+          </div>
+          <div class="category-arrow">›</div>
+        </div>
+        <div class="category-card-gauge">
+          <div class="category-gauge-bar"><div class="category-gauge-fill ${lvl.cls}" style="width:${avgPct}%"></div></div>
+          <div class="category-gauge-labels">
+            <span class="category-gauge-pct ${lvl.cls}">${avgPct}% humidité</span>
+            <span class="category-gauge-next">⏳ ${worstNext||'—'}</span>
+          </div>
+        </div>
+        <div class="category-plant-pills">${keys.map(k=>`<span class="category-plant-pill">${PLANT_DB[k].emoji} ${PLANT_DB[k].name}</span>`).join('')}</div>`;
+      strip.appendChild(card);
+    });
+  } else {
+    if(titleEl) titleEl.textContent='Mes plantes';
+    // Show free limit banner for non-premium users at the limit
+    const banner=document.getElementById('free-limit-banner');
+    if(banner) banner.style.display=(!isPremium() && state.selectedPlants.length>=3)?'block':'none';
+    // ── MODE GRATUIT ou peu de plantes : liste simple ──
+    state.selectedPlants.forEach(k=>{
+      const plant=PLANT_DB[k];
+      const pct=Math.round(state.plantMoisture[k]||60);
+      const lvl=getMoistureLevel(pct);
+      const row=document.createElement('div');
+      row.className='plant-row';
+      row.onclick=()=>openPlantDetail(k);
+      row.innerHTML=`<div class="plant-row-icon">${plant.emoji}</div>
+        <div class="plant-row-info"><div class="plant-row-name">${plant.name}</div><div class="plant-row-sub">${plant.label} · ${pct}% · ${plant.waterNeed}mm/j</div></div>
+        <div class="plant-row-status"><div class="status-badge ${lvl.cls}">${lvl.label}</div><div class="plant-row-arrow">›</div></div>`;
+      strip.appendChild(row);
+    });
+  }
+}
+
+// ── CATEGORY DETAIL ────────────────────────────────────────────────────────────
+let currentCategory = null;
+function openCategoryDetail(fam, keys, meta){
+  currentCategory = { fam, keys, meta };
+  prevScreen = 'app';
+  // Header
+  const icon = document.getElementById('cat-hero-icon');
+  icon.textContent = meta.icon;
+  icon.className = 'cat-hero-icon ' + meta.iconClass;
+  document.getElementById('cat-hero-name').textContent = meta.name;
+  document.getElementById('cat-hero-sub').textContent = keys.length + ' plante' + (keys.length>1?'s':'');
+  // Hygro card
+  const avgPct = Math.round(keys.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/keys.length);
+  const minPct = Math.round(Math.min(...keys.map(k=>state.plantMoisture[k]||60)));
+  const maxPct = Math.round(Math.max(...keys.map(k=>state.plantMoisture[k]||60)));
+  const lvl = getMoistureLevel(avgPct);
+  const fill = document.getElementById('cat-hygro-fill');
+  fill.style.width='0%';
+  fill.style.background = lvl.cls==='red'?'var(--danger)':lvl.cls==='yellow'?'var(--warn)':'var(--ok)';
+  setTimeout(()=>{ fill.style.width=avgPct+'%'; }, 100);
+  document.getElementById('cat-hygro-stats').innerHTML=`
+    <div class="cat-hygro-stat"><div class="cat-hygro-stat-val">${avgPct}%</div><div class="cat-hygro-stat-lbl">Moyenne</div></div>
+    <div class="cat-hygro-stat"><div class="cat-hygro-stat-val">${minPct}%</div><div class="cat-hygro-stat-lbl">Min</div></div>
+    <div class="cat-hygro-stat"><div class="cat-hygro-stat-val">${maxPct}%</div><div class="cat-hygro-stat-lbl">Max</div></div>
+    <div class="cat-hygro-stat"><div class="cat-hygro-stat-val" style="color:${lvl.cls==='red'?'#ff8080':lvl.cls==='yellow'?'#ffd080':'#80e0a0'}">${lvl.label}</div><div class="cat-hygro-stat-lbl">État</div></div>`;
+  // Plants list
+  const list = document.getElementById('cat-plants-list');
+  list.innerHTML='';
+  keys.forEach(k=>{
     const plant=PLANT_DB[k];
-    // state.plantMoisture[k] est déjà calculé par refreshAllMoisture
     const pct=Math.round(state.plantMoisture[k]||60);
-    const lvl=getMoistureLevel(pct);
+    const l=getMoistureLevel(pct);
     const row=document.createElement('div');
     row.className='plant-row';
-    row.onclick=()=>openPlantDetail(k);
+    row.onclick=()=>{prevScreen='category';openPlantDetail(k);};
     row.innerHTML=`<div class="plant-row-icon">${plant.emoji}</div>
-      <div class="plant-row-info"><div class="plant-row-name">${plant.name}</div><div class="plant-row-sub">${plant.label} · ${pct}% · ${plant.waterNeed}mm/j</div></div>
-      <div class="plant-row-status"><div class="status-badge ${lvl.cls}">${lvl.label}</div><div class="plant-row-arrow">›</div></div>`;
-    strip.appendChild(row);
+      <div class="plant-row-info"><div class="plant-row-name">${plant.name}</div><div class="plant-row-sub">${pct}% · ${plant.waterNeed}mm/j · ${daysUntilWatering(k)||'—'}</div></div>
+      <div class="plant-row-status"><div class="status-badge ${l.cls}">${l.label}</div><div class="plant-row-arrow">›</div></div>`;
+    list.appendChild(row);
   });
+  goTo('category');
 }
+
 function renderForecast(){
   const row=document.getElementById('forecast-row');
   if(!row||!state.forecast||!state.forecast.time)return;
@@ -2473,8 +2707,13 @@ function updateStats(){
 }
 
 // ── PLANT DETAIL ─────────────────────────────────────────────────────────────
-function openPlantDetail(key){
-  currentPlant=key;prevScreen='app';
+function openPlantDetail(key, fromScreen){
+  currentPlant=key;
+  if(fromScreen) prevScreen=fromScreen;
+  else if(prevScreen!=='category') prevScreen='app';
+  // Update back button label
+  const backBtn=document.getElementById('plant-back-btn');
+  if(backBtn) backBtn.textContent = prevScreen==='category' ? '← Catégorie' : '← Mes plantes';
   const plant=PLANT_DB[key];
   // state.plantMoisture[key] est déjà synchronisé par refreshAllMoisture
   const pct=Math.round(state.plantMoisture[key]||60);
@@ -2516,6 +2755,35 @@ function openPlantDetail(key){
   else{wList.innerHTML=plantHistory.slice(0,5).map(e=>`<div class="watering-entry"><div class="watering-dot"></div><div class="watering-text">${e.date}</div><div class="watering-amount">${e.liters}L · ${((e.liters/1000)*state.price).toFixed(2)}€</div></div>`).join('');}
   // Load plant info card
   loadPlantInfoCard(key);
+  // ── Cooldown : mise à jour du bouton Arroser ──────────────────────────────
+  const waterBtn = document.getElementById('detail-water-btn');
+  if(waterBtn){
+    const COOLDOWN_MS = 6 * 60 * 60 * 1000;
+    const lastTs = state.lastWatered && state.lastWatered[key];
+    if(lastTs){
+      const elapsed = Date.now() - new Date(lastTs).getTime();
+      if(elapsed < COOLDOWN_MS){
+        const remainMins = Math.ceil((COOLDOWN_MS - elapsed) / 60000);
+        const h = Math.floor(remainMins/60), m = remainMins%60;
+        const waitStr = h>0 ? `${h}h${m>0?m+'min':''}` : `${m} min`;
+        waterBtn.textContent = `⏳ Arroser dans ${waitStr}`;
+        waterBtn.disabled = true;
+        waterBtn.style.opacity = '0.55';
+        waterBtn.style.cursor = 'not-allowed';
+      } else {
+        waterBtn.textContent = '💧 Arroser';
+        waterBtn.disabled = false;
+        waterBtn.style.opacity = '';
+        waterBtn.style.cursor = '';
+      }
+    } else {
+      waterBtn.textContent = '💧 Arroser';
+      waterBtn.disabled = false;
+      waterBtn.style.opacity = '';
+      waterBtn.style.cursor = '';
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
   goTo('plant');
 }
 
@@ -2694,6 +2962,25 @@ function toggleChrono(){
   }
 }
 function confirmWatering(){
+  // ── Cooldown 6h par plante ───────────────────────────────────────────────
+  const COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 heures
+  const now = new Date();
+  if(currentPlant){
+    if(!state.lastWatered) state.lastWatered = {};
+    const lastTs = state.lastWatered[currentPlant];
+    if(lastTs){
+      const elapsed = now.getTime() - new Date(lastTs).getTime();
+      if(elapsed < COOLDOWN_MS){
+        const remainMins = Math.ceil((COOLDOWN_MS - elapsed) / 60000);
+        const h = Math.floor(remainMins/60), m = remainMins%60;
+        const waitStr = h > 0 ? `${h}h${m>0?m+'min':''}` : `${m} min`;
+        showToast(`⏳ Arrosage déjà enregistré — réessayez dans ${waitStr}`);
+        document.getElementById('modal-watering').classList.remove('open');
+        return;
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
   let liters=0;
   const isLawn = currentPlant && PLANT_DB[currentPlant] && PLANT_DB[currentPlant].family==='gazon';
   if(!isLawn && currentPlant){
@@ -2706,10 +2993,13 @@ function confirmWatering(){
     else{liters=state.autoVolume;}
     if(liters<=0){alert('Veuillez entrer un volume.');return;}
   }
-  const now=new Date();const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
-  state.wateringHistory.unshift({date:dateStr,liters:Math.round(liters),plant:currentPlant});
+  const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+  state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:currentPlant});
+  // Enregistrer le dernier arrosage par plante pour le cooldown
+  if(!state.lastWatered) state.lastWatered = {};
   const targets=currentPlant?[currentPlant]:state.selectedPlants;
   targets.forEach(k=>{
+    state.lastWatered[k] = now.toISOString(); // cooldown 6h
     if(PLANT_DB[k] && PLANT_DB[k].family==='gazon'){
       // Gazon : calcul volumétrique surface-dépendant
       state.plantMoisture[k]=Math.min(100,(state.plantMoisture[k]||60)+liters/state.surface*8);
@@ -2747,6 +3037,11 @@ function removeSchedule(i){state.autoSchedules.splice(i,1);renderSchedules();}
 
 // ── PREMIUM ───────────────────────────────────────────────────────────────────
 function openPremiumModal(context){
+  if(context==='plants_limit'){
+    // Customise the modal hero text
+    const sub=document.querySelector('#modal-premium .premium-modal-hero-sub');
+    if(sub) sub.textContent='Vous avez atteint la limite de 3 plantes en version gratuite. Passez à Premium pour en ajouter autant que vous voulez !';
+  }
   document.getElementById('modal-premium').classList.add('open');
 }
 function startTrial(){
@@ -3023,7 +3318,7 @@ function renderSettingsTab(){
         badge.style.color = '#8b5e08';
       } else {
         badge.className = 'free-badge';
-        badge.textContent = `Gratuit ${used}/3`;
+      badge.textContent = `Gratuit ${used}/3 · 3 plantes max`;
       }
     }
     if(state.premium.type==='trial'){
@@ -3261,7 +3556,7 @@ function openEditModal(field){
   else if(field==='flow') html=`<input class="input-field" id="edit-val" type="number" step="0.5" value="${state.flow||10}"> <div style="font-size:0.82rem;color:var(--text-light);margin-top:6px;">L / min</div>`;
   else if(field==='plants'){
     const allKeys=isPremium()?ALL_PLANTS:FREE_PLANTS;
-    html=`<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:12px;">${isPremium()?'Toutes les plantes disponibles':'Version gratuite : 5 plantes max.'}</div>
+    html=`<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:12px;">${isPremium()?'Toutes les plantes disponibles':'Version gratuite : 3 plantes max.'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       ${allKeys.map(k=>{const p=PLANT_DB[k];const sel=state.selectedPlants.includes(k);return`<div class="plant-card-wizard ${sel?'selected':''}" onclick="togglePlant(this,'${k}')" style="font-size:0.85rem;">
         <div class="plant-check">✓</div><div style="font-size:24px;margin-bottom:4px;">${p.emoji}</div>
@@ -3541,6 +3836,19 @@ function submitJournalEntry() {
   const plantEl = document.querySelector('.plant-chip-pick.selected');
   const plant = plantEl ? plantEl.textContent.trim() : '🌱 Jardin';
   const now = new Date();
+
+  // ── Plafond 50 pts/jour ──────────────────────────────────────────────────
+  const todayStr = now.toISOString().slice(0,10);
+  if(!state.dailyPoints) state.dailyPoints = {};
+  const usedToday = state.dailyPoints[todayStr] || 0;
+  const DAILY_CAP = 50;
+  if(usedToday >= DAILY_CAP){
+    showToast('⏳ Limite de ' + DAILY_CAP + ' pts/jour atteinte — revenez demain !');
+    setTimeout(() => closeEntrySheet(), 800);
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const entry = {
     id: Date.now(),
     type: currentEntryType,
@@ -3561,14 +3869,23 @@ function submitJournalEntry() {
   });
   const hint = document.querySelector('.share-hint-msg');
   if(hint) hint.textContent = '✅ Entrée enregistrée — vous pouvez maintenant partager';
-  // Add garden points + bonus for photo
+  // Add garden points + bonus for photo (plafonné au reste de la limite journalière)
   const pts = { action:5, note:3, harvest:10, problem:4, treatment:6, taille:7 };
   const prevPoints = state.gardenPoints || 0;
   let earnedPts = pts[currentEntryType] || 5;
   if(entry.photo) earnedPts += 3;
+  const remaining = DAILY_CAP - usedToday;
+  earnedPts = Math.min(earnedPts, remaining);
+  state.dailyPoints[todayStr] = usedToday + earnedPts;
+  // Nettoyer les vieux jours (garder seulement les 7 derniers)
+  const keys = Object.keys(state.dailyPoints).sort();
+  if(keys.length > 7) keys.slice(0, keys.length-7).forEach(k => delete state.dailyPoints[k]);
   state.gardenPoints = prevPoints + earnedPts;
+  const newUsed = state.dailyPoints[todayStr];
+  const leftToday = DAILY_CAP - newUsed;
+  const capMsg = leftToday <= 0 ? ' · Limite du jour atteinte 🏁' : ` · ${leftToday} pts restants aujourd'hui`;
   saveState();
-  showToast('✅ Entrée ajoutée au journal ! +' + earnedPts + ' pts');
+  showToast('✅ Entrée ajoutée ! +' + earnedPts + ' pts' + capMsg);
   checkBadges();
   checkLevelUp(prevPoints);
   renderJournalTab();
@@ -3910,6 +4227,90 @@ function shareGardenLevel() {
   _showShareSheet(text);
 }
 
+function openProgressionTree(){
+  const pts = state.gardenPoints || 0;
+  const levelIdx = getLevelIdx(pts);
+  const currentLvl = GARDEN_LEVELS[levelIdx];
+  const progress = Math.round(((pts - currentLvl.min) / Math.max(1,currentLvl.max - currentLvl.min)) * 100);
+
+  const FULL_LEVELS = [
+    { ...GARDEN_LEVELS[0], pts:0,   nextPts:100, reward:null,                               how:'Enregistrez vos premiers arrosages et entrées journal' },
+    { ...GARDEN_LEVELS[1], pts:100, nextPts:250, reward:'+1 emplacement plante gratuit',     how:'Arrosages, notes, récoltes — 5 pts à 10 pts par action' },
+    { ...GARDEN_LEVELS[2], pts:250, nextPts:500, reward:'+1 emplacement plante gratuit',     how:'Ajoutez des photos à vos entrées journal (+3 pts)' },
+    { ...GARDEN_LEVELS[3], pts:500, nextPts:900, reward:'+2 emplacements plantes gratuits',  how:'Calibrez votre sol, utilisez le mode avancé' },
+    { ...GARDEN_LEVELS[4], pts:900, nextPts:null,reward:'+3 emplacements plantes gratuits',  how:'Devenez le maître de votre jardin 🏆' },
+  ];
+
+  const pointsTable = [
+    { icon:'💧', label:'Arrosage enregistré', pts:'+5 pts' },
+    { icon:'📖', label:'Entrée journal', pts:'+3–10 pts' },
+    { icon:'🌾', label:'Entrée Récolte', pts:'+10 pts' },
+    { icon:'📸', label:'Photo ajoutée', pts:'+3 pts bonus' },
+    { icon:'✂️', label:'Entrée Taille', pts:'+7 pts' },
+    { icon:'💊', label:'Entrée Traitement', pts:'+6 pts' },
+    { icon:'🎯', label:'Calibration sol', pts:'+15 pts' },
+  ];
+
+  const nodesHtml = FULL_LEVELS.map((lvl, i) => {
+    const isDone = i < levelIdx;
+    const isCurrent = i === levelIdx;
+    const isLocked = i > levelIdx;
+    const cls = isDone ? 'done' : isCurrent ? 'current' : 'locked';
+    const rewardCls = isDone ? 'done' : '';
+    const ptsRange = lvl.nextPts ? `${lvl.pts} → ${lvl.nextPts} pts` : `${lvl.pts}+ pts`;
+    const progressBar = isCurrent ? `<div class="prog-node-bar-wrap"><div class="prog-node-bar-fill" style="width:${progress}%"></div></div><div style="font-size:0.7rem;color:var(--green-mid);margin-top:3px;">${pts - currentLvl.min} / ${currentLvl.max - currentLvl.min} pts (${progress}%)</div>` : '';
+    const checkmark = isDone ? ' ✅' : '';
+    const connector = i < FULL_LEVELS.length-1 ? `<div class="prog-connector ${isDone?'done':'locked'}"></div>` : '';
+    return `
+      <div class="prog-node">
+        <div class="prog-node-line">
+          <div class="prog-node-dot ${cls}">${isLocked ? '🔒' : lvl.emoji}</div>
+          ${connector}
+        </div>
+        <div class="prog-node-info">
+          <div class="prog-node-name ${cls}">Niveau ${i+1} — ${lvl.name}${checkmark}</div>
+          <div class="prog-node-pts">${ptsRange}</div>
+          ${lvl.reward ? `<div class="prog-node-reward ${rewardCls}">🎁 ${lvl.reward}</div>` : '<div style="font-size:0.76rem;color:var(--text-light);font-style:italic;">Niveau de départ</div>'}
+          ${isCurrent ? progressBar : ''}
+          ${isCurrent ? `<div style="font-size:0.74rem;color:var(--text-mid);margin-top:5px;font-style:italic;">💡 ${lvl.how}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  const pointsTableHtml = pointsTable.map(r => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--green-mist);">
+      <span style="font-size:0.88rem;color:var(--text-dark);">${r.icon} ${r.label}</span>
+      <span style="font-size:0.82rem;font-weight:700;color:var(--green-mid);">${r.pts}</span>
+    </div>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'prog-tree-overlay';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="prog-tree-sheet">
+      <div style="width:36px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 18px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-family:var(--ff-display);font-size:1.3rem;font-weight:600;color:var(--text-dark);">🌳 Arbre de progression</div>
+        <button onclick="this.closest('.prog-tree-overlay').remove()" style="background:var(--green-mist);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:20px;">Vous avez <strong style="color:var(--green-mid);">${pts} points</strong> — Niveau ${levelIdx+1} sur 5</div>
+
+      <!-- Arbre -->
+      <div style="padding:0 4px;">
+        ${nodesHtml}
+      </div>
+
+      <!-- Comment gagner des points -->
+      <div style="background:white;border-radius:14px;padding:16px;margin-top:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">⚡ Comment gagner des points</div>
+        ${pointsTableHtml}
+      </div>
+
+      <button onclick="this.closest('.prog-tree-overlay').remove()" style="margin-top:16px;width:100%;padding:15px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">Continuer à jardiner 🌱</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 function _showShareSheet(text, onShared) {
   // Essayer l'API Web Share native (mobile)
   if(navigator.share) {
@@ -4032,16 +4433,39 @@ function renderMemoryTab() {
     }
   }
 
-  // Streak
+  // ── Streak hebdomadaire : compte les semaines passées avec au moins 1 arrosage ou entrée journal
+  function getWeekKey(date){
+    const d = new Date(date); d.setHours(0,0,0,0);
+    const day = d.getDay(); const monday = new Date(d);
+    monday.setDate(d.getDate() - (day===0?6:day-1));
+    return monday.toISOString().slice(0,10);
+  }
+  const activeWeeks = new Set();
+  (state.wateringHistory||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); else if(e.date) activeWeeks.add(getWeekKey(Date.now())); });
+  (state.journalEntries||[]).forEach(e => { if(e.ts) activeWeeks.add(getWeekKey(e.ts)); });
+  // Compter les semaines consécutives en remontant depuis aujourd'hui
+  let computedStreak = 0;
+  const todayWeek = getWeekKey(new Date());
+  for(let i=0; i<52; i++){
+    const d = new Date(); d.setDate(d.getDate() - i*7);
+    const wk = getWeekKey(d);
+    if(activeWeeks.has(wk)){ computedStreak++; }
+    else if(i>0) break; // si on manque une semaine passée, on arrête (pas la semaine en cours)
+  }
+  state.weeklyStreak = computedStreak;
+
   const streak = state.weeklyStreak || 0;
   sid('streak-num', `🔥 ${streak}`);
   const weeksEl = document.getElementById('streak-weeks');
   if (weeksEl) {
-    weeksEl.innerHTML = Array.from({length:8},(_,i) => {
+    const displayCount = Math.max(8, streak+1);
+    weeksEl.innerHTML = Array.from({length:Math.min(displayCount,8)},(_,i) => {
       const cls = i < streak ? 'done' : i === streak ? 'current' : 'empty';
       return `<div class="week-dot ${cls}">S${i+1}</div>`;
     }).join('');
   }
+  const flameInfo = document.querySelector('#streak-weeks + .streak-flame .streak-flame-info span');
+  if(flameInfo) flameInfo.textContent = streak>0 ? `Jardin actif ${streak} semaine(s) de suite 🌱` : `Commencez à jardiner pour démarrer votre série !`;
 
   // Badges
   checkBadges();
@@ -4211,6 +4635,9 @@ function renderAccountInHeader() {
   if (!state.gardenPoints) state.gardenPoints = 0;
   if (!state.earnedBadges) state.earnedBadges = [];
   if (!state.plantInfos) state.plantInfos = {};
+  if (!state.moistureHistory) state.moistureHistory = [];
+  if (!state.lastWatered) state.lastWatered = {};
+  if (!state.dailyPoints) state.dailyPoints = {};
 
   // Inject FAB for journal
   const fab = document.createElement('button');

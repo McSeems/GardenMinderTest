@@ -1842,10 +1842,41 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="settings-row" onclick="openAutoSchedule()"><div class="settings-row-icon">🕐</div><div class="settings-row-text"><div class="settings-row-label">Arrosages automatiques</div><div class="settings-row-val" id="set-auto">Aucun configuré</div></div><div class="settings-row-arrow">›</div></div>
     </div>
 
+    <!-- Fonctionnalités Premium -->
+    <div class="settings-section" id="settings-premium-features-block"></div>
+
+    <!-- Notifications (partiellement gratuit) -->
+    <div class="settings-section">
+      <div class="settings-section-title">Notifications</div>
+      <div class="settings-row" onclick="requestNotifPermission();showToast('🔔 Notifications activées !')"><div class="settings-row-icon">🔔</div><div class="settings-row-text"><div class="settings-row-label">Alertes arrosage</div><div class="settings-row-val">Gratuit</div></div><div class="settings-row-arrow">›</div></div>
+      <div class="settings-row" onclick="isPremium()?openSmartAlertsSettings():openPremiumModal('alerts')" style="position:relative;">
+        <div class="settings-row-icon">🧠</div>
+        <div class="settings-row-text">
+          <div class="settings-row-label">Alertes intelligentes</div>
+          <div class="settings-row-val" id="set-smart-alerts-val">Pluie, chaleur, gel — Premium</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.6rem;font-weight:700;padding:2px 6px;background:var(--premium-light);color:var(--premium);border-radius:4px;">✨</span>
+          <div class="settings-row-arrow">›</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Application -->
     <div class="settings-section">
       <div class="settings-section-title">Application</div>
       <div class="settings-row" onclick="openChangeCityWithWarning()"><div class="settings-row-icon">🏡</div><div class="settings-row-text"><div class="settings-row-label">Changer de jardin</div><div class="settings-row-val" id="set-garden-count">1 jardin (Gratuit)</div></div><div class="settings-row-arrow">›</div></div>
+      <div class="settings-row" onclick="isPremium()?openMultiZoneSettings():openPremiumModal('zones')" style="position:relative;">
+        <div class="settings-row-icon">🗺️</div>
+        <div class="settings-row-text">
+          <div class="settings-row-label">Zones multiples</div>
+          <div class="settings-row-val" id="set-zones-val">Potager, pelouse, terrasse… — Premium</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.6rem;font-weight:700;padding:2px 6px;background:var(--premium-light);color:var(--premium);border-radius:4px;">✨</span>
+          <div class="settings-row-arrow">›</div>
+        </div>
+      </div>
     </div>
 
     <!-- Bandeau Pro -->
@@ -2038,6 +2069,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 
     <button class="btn-buy-now" onclick="purchasePremium()">✨ Acheter Premium — 9,99€</button>
     <button class="btn-start-trial" onclick="startTrial()">🎁 Essayer 30 jours gratuitement</button>
+    <button onclick="openBetaCodeModal()" style="width:100%;padding:11px;border-radius:12px;border:1px dashed #c8b8ff;cursor:pointer;background:transparent;color:#8a6aaa;font-family:var(--ff-body);font-size:0.82rem;font-weight:500;margin-top:6px;transition:all 0.2s;">🎟️ J'ai un code bêta</button>
     <div class="premium-legal">Achat unique sans abonnement. Moins cher qu'un sac de terreau.<br>Aucune CB pour l'essai. Annulation en 2 clics.</div>
   </div>
 </div>
@@ -3571,6 +3603,284 @@ function purchasePremium(){
   renderPlantStrip();
 }
 
+// ── CODE BÊTA ─────────────────────────────────────────────────────────────────
+function openBetaCodeModal() {
+  const existing = document.getElementById('modal-beta-code');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'modal-beta-code';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.25s ease;padding:24px;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:2.5rem;margin-bottom:8px;">🎟️</div>
+        <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:600;color:var(--text-dark);">Code d'accès bêta</div>
+        <div style="font-size:0.82rem;color:var(--text-mid);margin-top:6px;line-height:1.5;">Entrez votre code pour activer Premium gratuitement.</div>
+      </div>
+      <input id="beta-code-input" class="input-field" placeholder="Ex : GMBETA" style="text-align:center;font-size:1.1rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px;" oninput="this.value=this.value.toUpperCase()">
+      <div id="beta-code-error" style="display:none;color:var(--danger);font-size:0.8rem;text-align:center;margin-bottom:10px;"></div>
+      <button onclick="submitBetaCode()" style="width:100%;padding:15px;background:var(--green-mid);color:white;border:none;border-radius:14px;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;margin-bottom:8px;">Activer →</button>
+      <button onclick="document.getElementById('modal-beta-code').remove()" style="width:100%;padding:12px;background:transparent;color:var(--text-light);border:none;font-family:var(--ff-body);font-size:0.9rem;cursor:pointer;">Annuler</button>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { const inp = document.getElementById('beta-code-input'); if(inp) inp.focus(); }, 100);
+}
+
+function submitBetaCode() {
+  const code = (document.getElementById('beta-code-input').value || '').trim().toUpperCase();
+  const VALID_CODES = ['GMBETA', 'GMBETA2', 'JARDIN2024', 'BETATEST'];
+  if(VALID_CODES.includes(code)) {
+    document.getElementById('modal-beta-code').remove();
+    const pm = document.getElementById('modal-premium');
+    if(pm) pm.classList.remove('open');
+    state.premium.purchased = true;
+    state.premium.type = 'purchased';
+    state.premium.active = true;
+    state.premium.betaCode = code;
+    if(!state.earnedBadges) state.earnedBadges = [];
+    if(!state.earnedBadges.includes('premium_supporter')) state.earnedBadges.push('premium_supporter');
+    saveState();
+    document.getElementById('premium-header-badge').style.display='block';
+    document.getElementById('premium-header-badge').textContent='✨ Premium';
+    const nudge = document.getElementById('trial-nudge-bar');
+    if(nudge) nudge.style.display='none';
+    renderSettingsTab();
+    renderPlantStrip();
+    showToast('🎉 Code valide — Premium bêta activé !');
+  } else {
+    const err = document.getElementById('beta-code-error');
+    if(err) { err.textContent = 'Code incorrect. Vérifiez et réessayez.'; err.style.display='block'; }
+  }
+}
+
+// ── TOGGLE PLANT WITH CONTAINER CHOICE ────────────────────────────────────────
+function togglePlantWithContainer(card, key) {
+  const sel = state.selectedPlants;
+  const idx = sel.indexOf(key);
+  if(idx !== -1) {
+    // Deselect
+    sel.splice(idx, 1);
+    card.classList.remove('selected');
+    saveState();
+    renderSettingsTab();
+    return;
+  }
+  // Need to add — ask for container type first
+  const freeLimit = 3 + (state.bonusPlantSlots || 0);
+  if(!isPremium() && sel.length >= freeLimit) { openPremiumModal('plants_limit'); return; }
+  const p = PLANT_DB[key];
+  const containerModal = document.createElement('div');
+  containerModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s ease;';
+  containerModal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;box-shadow:0 -8px 32px rgba(0,0,0,0.15);">
+      <div style="width:32px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 18px;"></div>
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:2.5rem;margin-bottom:6px;">${p.emoji}</div>
+        <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:600;color:var(--text-dark);">Comment cultivez-vous vos ${p.name} ?</div>
+        <div style="font-size:0.8rem;color:var(--text-mid);margin-top:4px;">Cela affecte les besoins en eau</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button onclick="addPlantWithContainer('${key}','pot',this)" class="container-option">
+          <div class="container-option-emoji">🪴</div>
+          <div class="container-option-info">
+            <div class="container-option-label">En pot</div>
+            <div class="container-option-desc">Terrasse, balcon, intérieur — sèche plus vite</div>
+          </div>
+          <div class="container-option-badge fast">+20% eau</div>
+        </button>
+        <button onclick="addPlantWithContainer('${key}','terre',this)" class="container-option">
+          <div class="container-option-emoji">🌱</div>
+          <div class="container-option-info">
+            <div class="container-option-label">En pleine terre</div>
+            <div class="container-option-desc">Jardin, potager, massif — sol retient l'eau</div>
+          </div>
+          <div class="container-option-badge slow">Besoins standards</div>
+        </button>
+      </div>
+      <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:12px;background:transparent;color:var(--text-light);border:none;font-family:var(--ff-body);font-size:0.9rem;cursor:pointer;margin-top:8px;">Annuler</button>
+    </div>`;
+  containerModal.onclick = e => { if(e.target===containerModal) containerModal.remove(); };
+  document.body.appendChild(containerModal);
+}
+
+function addPlantWithContainer(key, containerType, btn) {
+  if(!state.plantContainers) state.plantContainers = {};
+  state.plantContainers[key] = containerType;
+  if(!state.selectedPlants.includes(key)) state.selectedPlants.push(key);
+  if(!state.plantMoisture[key]) state.plantMoisture[key] = 60;
+  saveState();
+  // Remove container modal
+  btn.closest('div').parentElement.remove();
+  // Re-render the edit modal plants section
+  openEditModal('plants');
+}
+
+// ── PREMIUM FEATURES ─────────────────────────────────────────────────────────
+
+// ── MULTI-ZONE (Premium) ──────────────────────────────────────────────────────
+function openMultiZoneSettings() {
+  if(!state.gardenZones) state.gardenZones = [{ id:'main', name:'Jardin principal', emoji:'🌱', plants: state.selectedPlants.slice() }];
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.25s ease;';
+  const zonesHtml = state.gardenZones.map((z,i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:white;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <div style="font-size:1.8rem;">${z.emoji}</div>
+      <div style="flex:1;">
+        <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">${z.name}</div>
+        <div style="font-size:0.75rem;color:var(--text-mid);">${z.plants.length} plante(s)</div>
+      </div>
+      ${i>0?`<button onclick="removeZone(${i})" style="background:#fde8e8;border:none;border-radius:8px;padding:6px 10px;color:var(--danger);font-size:0.75rem;cursor:pointer;">Suppr.</button>`:'<span style="font-size:0.7rem;color:var(--text-light);">Principale</span>'}
+    </div>`).join('');
+  modal.innerHTML = `
+    <div style="background:var(--cream);border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;">
+      <div style="width:32px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 18px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:600;color:var(--text-dark);">🗺️ Zones du jardin</div>
+        <button onclick="this.closest('div').parentElement.remove()" style="background:var(--green-mist);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;">✕</button>
+      </div>
+      <div id="zones-list">${zonesHtml}</div>
+      <div style="background:white;border-radius:14px;padding:16px;margin-top:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--text-mid);margin-bottom:10px;">Ajouter une zone</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          ${[{e:'🥬',n:'Potager'},{e:'🌿',n:'Massif'},{e:'🌾',n:'Pelouse'},{e:'🌸',n:'Fleurs'},{e:'🍋',n:'Fruitiers'},{e:'🌵',n:'Terrasse'}].map(z=>`
+            <button onclick="addZone('${z.e}','${z.n}')" style="padding:10px 8px;border-radius:10px;border:2px solid var(--green-pale);background:white;cursor:pointer;font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:6px;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--green-mid)'" onmouseout="this.style.borderColor='var(--green-pale)'">
+              <span style="font-size:1.2rem;">${z.e}</span>${z.n}
+            </button>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function addZone(emoji, name) {
+  if(!state.gardenZones) state.gardenZones = [];
+  state.gardenZones.push({ id: 'zone_'+Date.now(), name, emoji, plants: [] });
+  saveState();
+  showToast('✅ Zone "'+name+'" ajoutée !');
+  document.querySelector('[style*="border-radius:24px 24px 0 0"]')?.remove();
+  openMultiZoneSettings();
+}
+
+function removeZone(idx) {
+  if(!state.gardenZones || idx === 0) return;
+  state.gardenZones.splice(idx, 1);
+  saveState();
+  showToast('🗑️ Zone supprimée');
+  document.querySelector('[style*="border-radius:24px 24px 0 0"]')?.remove();
+  openMultiZoneSettings();
+}
+
+// ── SMART ALERTS (Premium) ────────────────────────────────────────────────────
+function openSmartAlertsSettings() {
+  if(!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
+  const alerts = [
+    { key:'rain',  emoji:'🌧️', label:'Pluie prévue', desc:'Évite d\'arroser si pluie >5mm dans 24h' },
+    { key:'heat',  emoji:'🌡️', label:'Forte chaleur', desc:'Arrosage conseillé si >32°C' },
+    { key:'frost', emoji:'❄️', label:'Gel prévu', desc:'Alertes protection des plantes sensibles' },
+    { key:'wind',  emoji:'💨', label:'Vent fort', desc:'Préconisation d\'arrosage du soir si >30km/h' },
+  ];
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.25s ease;';
+  const alertsHtml = alerts.map(a => `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--green-mist);">
+      <div style="font-size:1.6rem;width:36px;text-align:center;">${a.emoji}</div>
+      <div style="flex:1;">
+        <div style="font-size:0.92rem;font-weight:600;color:var(--text-dark);">${a.label}</div>
+        <div style="font-size:0.75rem;color:var(--text-mid);">${a.desc}</div>
+      </div>
+      <div onclick="toggleSmartAlert('${a.key}',this)" style="width:46px;height:26px;border-radius:13px;background:${(state.smartAlerts||{})[a.key]?'var(--green-mid)':'#e0e0e0'};cursor:pointer;transition:all 0.3s;position:relative;flex-shrink:0;">
+        <div style="width:22px;height:22px;border-radius:50%;background:white;position:absolute;top:2px;left:${(state.smartAlerts||{})[a.key]?'22px':'2px'};transition:left 0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></div>
+      </div>
+    </div>`).join('');
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;">
+      <div style="width:32px;height:4px;background:rgba(0,0,0,0.1);border-radius:2px;margin:0 auto 18px;"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:600;color:var(--text-dark);">🧠 Alertes intelligentes</div>
+        <button onclick="this.closest('div').parentElement.remove()" style="background:var(--green-mist);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:16px;">Les alertes croisent météo en temps réel + état de vos plantes.</div>
+      <div>${alertsHtml}</div>
+      <button onclick="saveSmartAlerts()" style="width:100%;padding:14px;background:var(--green-mid);color:white;border:none;border-radius:14px;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;margin-top:18px;">Enregistrer →</button>
+    </div>`;
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function toggleSmartAlert(key, toggle) {
+  if(!state.smartAlerts) state.smartAlerts = {};
+  state.smartAlerts[key] = !state.smartAlerts[key];
+  const on = state.smartAlerts[key];
+  toggle.style.background = on ? 'var(--green-mid)' : '#e0e0e0';
+  toggle.querySelector('div').style.left = on ? '22px' : '2px';
+}
+
+function saveSmartAlerts() {
+  saveState();
+  document.querySelector('[style*="border-radius:24px 24px 0 0"]')?.remove();
+  showToast('✅ Alertes intelligentes sauvegardées !');
+  renderSettingsTab();
+}
+
+// ── HISTORY 12 MONTHS (Premium teaser) ───────────────────────────────────────
+function openHistory12Months() {
+  if(!isPremium()) { openPremiumModal('history12'); return; }
+  switchTab('history', null);
+}
+
+// ── RENDER PREMIUM FEATURES in settings ──────────────────────────────────────
+function renderPremiumFeaturesBlock() {
+  const block = document.getElementById('settings-premium-features-block');
+  if(!block) return;
+
+  const featDef = [
+    { id:'multizone', emoji:'🗺️', title:'Zones multiples', desc:'Potager, pelouse, terrasse… chaque zone avec son propre score.', freeLabel:'1 jardin', premiumLabel: state.gardenZones ? state.gardenZones.length+' zone(s)' : '1 zone', action:'openMultiZoneSettings()' },
+    { id:'history12', emoji:'📊', title:'Historique 12 mois', desc:'Graphiques d\'arrosage et de pluviométrie sur un an. Export PDF.', freeLabel:'7 jours inclus', premiumLabel:'12 mois + export', action:'switchTab(\'history\',null)' },
+    { id:'smartalerts', emoji:'🧠', title:'Alertes intelligentes', desc:'Gel, canicule, pluie prévue : alertes contextuelles selon vos plantes.', freeLabel:'Alertes basiques', premiumLabel: state.smartAlerts ? Object.values(state.smartAlerts).filter(Boolean).length+' alertes actives' : 'Configurées', action:'openSmartAlertsSettings()' },
+  ];
+
+  if(isPremium()) {
+    block.innerHTML = `<div style="margin-bottom:8px;">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);letter-spacing:0.8px;text-transform:uppercase;padding:8px 4px 6px;">Fonctionnalités Premium</div>
+      ${featDef.map(f=>`
+        <div style="background:white;border-radius:12px;margin-bottom:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div onclick="${f.action}" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <div style="font-size:1.4rem;width:36px;text-align:center;">${f.emoji}</div>
+            <div style="flex:1;">
+              <div style="font-size:0.9rem;font-weight:600;color:var(--text-dark);">${f.title}</div>
+              <div style="font-size:0.75rem;color:var(--green-mid);font-weight:600;">${f.premiumLabel}</div>
+            </div>
+            <div style="color:var(--text-light);font-size:18px;">›</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } else {
+    // Show locked previews visible to all
+    block.innerHTML = `<div style="margin-bottom:8px;">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);letter-spacing:0.8px;text-transform:uppercase;padding:8px 4px 6px;">Fonctionnalités Premium ✨</div>
+      ${featDef.map(f=>`
+        <div style="background:white;border-radius:12px;margin-bottom:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);opacity:0.85;" onclick="openPremiumModal('${f.id}')">
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;">
+            <div style="font-size:1.4rem;width:36px;text-align:center;filter:grayscale(0.3);">${f.emoji}</div>
+            <div style="flex:1;">
+              <div style="font-size:0.9rem;font-weight:600;color:var(--text-dark);">${f.title}</div>
+              <div style="font-size:0.75rem;color:var(--text-mid);">${f.desc}</div>
+              <div style="display:flex;gap:8px;margin-top:4px;align-items:center;">
+                <span style="font-size:0.65rem;padding:2px 7px;background:var(--green-mist);color:var(--green-mid);border-radius:4px;font-weight:600;">✓ Gratuit : ${f.freeLabel}</span>
+                <span style="font-size:0.65rem;padding:2px 7px;background:var(--premium-light);color:var(--premium);border-radius:4px;font-weight:700;">✨ Premium : ${f.premiumLabel}</span>
+              </div>
+            </div>
+            <div style="background:var(--premium-light);border-radius:8px;padding:4px 8px;font-size:0.65rem;color:var(--premium);font-weight:700;flex-shrink:0;">🔒</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+}
+
+// Hook into renderSettingsTab to also render premium features block
+const _origRenderSettings = typeof renderSettingsTab !== 'undefined' ? renderSettingsTab : null;
+
 // ── HISTORY TAB ───────────────────────────────────────────────────────────────
 // Périodes indépendantes par tableau
 let chartPeriods = { precip:'7j', humidity:'7j', water:'7j' };
@@ -3789,6 +4099,20 @@ function renderAlertsTab(){
 
 // ── SETTINGS TAB ──────────────────────────────────────────────────────────────
 function renderSettingsTab(){
+  // Render premium features block
+  renderPremiumFeaturesBlock();
+  // Update zones and smart alerts display in settings rows
+  const zonesVal = document.getElementById('set-zones-val');
+  if(zonesVal) {
+    if(isPremium()) {
+      zonesVal.textContent = state.gardenZones ? state.gardenZones.length+' zone(s) configurée(s)' : '1 zone active';
+    }
+  }
+  const smartVal = document.getElementById('set-smart-alerts-val');
+  if(smartVal && isPremium() && state.smartAlerts) {
+    const on = Object.values(state.smartAlerts).filter(Boolean).length;
+    smartVal.textContent = on+' alerte(s) active(s)';
+  }
   // Premium block
   const block=document.getElementById('settings-premium-block');
   if(state.premium.purchased){
@@ -3802,14 +4126,21 @@ function renderSettingsTab(){
     const used  = state.selectedPlants.length;
     const badge = document.getElementById('plants-badge');
     if(badge) {
-      if(bonus > 0) {
+      if(state.premium.type==='trial' && trialDaysLeft()>0) {
+        badge.className = 'premium-badge';
+        badge.textContent = `✨ Essai — Plantes illimitées`;
+        badge.style.background = 'linear-gradient(135deg,var(--premium-light),#d8ccff)';
+        badge.style.color = 'var(--premium)';
+      } else if(bonus > 0) {
         badge.className = 'free-badge';
         badge.textContent = `Gratuit ${used}/${limit} · +${bonus} bonus 🎁`;
         badge.style.background = 'linear-gradient(135deg,#fef9e7,#fde9a0)';
         badge.style.color = '#8b5e08';
       } else {
         badge.className = 'free-badge';
-      badge.textContent = `Gratuit ${used}/3 · 3 plantes max`;
+        badge.style.background = '';
+        badge.style.color = '';
+        badge.textContent = `Gratuit ${used}/3 · 3 plantes max`;
       }
     }
     if(state.premium.type==='trial'){
@@ -3836,6 +4167,7 @@ function renderSettingsTab(){
       </div>
       <button class="btn-premium-buy" onclick="openPremiumModal('settings')">Acheter — 9,99€ (achat unique)</button>
       <button class="btn-trial" onclick="startTrial()">🎁 Essayer 30 jours gratuits</button>
+      <button onclick="openBetaCodeModal()" style="width:100%;padding:10px;border-radius:12px;border:1px dashed rgba(255,255,255,0.3);cursor:pointer;background:transparent;color:rgba(255,255,255,0.6);font-family:var(--ff-body);font-size:0.78rem;font-weight:500;margin-top:6px;">🎟️ J'ai un code bêta</button>
 
     </div>`;
     }
@@ -4075,12 +4407,15 @@ function openEditModal(field){
             const p = PLANT_DB[k];
             const isSelected = sel.includes(k);
             const disabled = !isSelected && sel.length >= freeLimit && !isPremium();
-            return `<div class="plant-card-wizard ${isSelected?'selected':''}" onclick="togglePlant(this,'${k}')"
+            const ct = state.plantContainers && state.plantContainers[k];
+            const ctLabel = ct === 'pot' ? '🪴 Pot' : ct === 'terre' ? '🌱 Pleine terre' : '';
+            return `<div class="plant-card-wizard ${isSelected?'selected':''}" onclick="togglePlantWithContainer(this,'${k}')"
               style="font-size:0.85rem;${disabled?'opacity:0.4;cursor:not-allowed;pointer-events:none;':''}">
               <div class="plant-check">✓</div>
               <div style="font-size:22px;margin-bottom:4px;">${p.emoji}</div>
               <div style="font-weight:600;">${p.name}</div>
               <div style="font-size:0.72rem;color:var(--water);">${p.waterNeed}mm/j</div>
+              ${ctLabel ? `<div style="font-size:0.65rem;color:var(--green-mid);margin-top:2px;font-weight:600;">${ctLabel}</div>` : ''}
             </div>`;
           }).join('')}
         </div>
@@ -5183,6 +5518,8 @@ function renderAccountInHeader() {
   if (!state.lastWatered) state.lastWatered = {};
   if (!state.dailyPoints) state.dailyPoints = {};
   if (!state.plantContainers) state.plantContainers = {};
+  if (!state.gardenZones) state.gardenZones = [];
+  if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
 
   // Inject FAB for journal
   const fab = document.createElement('button');

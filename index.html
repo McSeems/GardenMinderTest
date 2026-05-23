@@ -94,12 +94,13 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 
 /* ── WIZARD ── */
 #screen-wizard{background:var(--cream);}
-.wizard-header{padding:56px 24px 16px;background:white;border-bottom:1px solid rgba(0,0,0,0.06);}
+#screen-wizard.active{display:flex;flex-direction:column;}
+.wizard-header{padding:52px 24px 14px;background:white;border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:10;}
 .wizard-progress-bar{height:3px;background:var(--green-mist);border-radius:2px;margin-bottom:20px;overflow:hidden;}
 .wizard-progress-fill{height:100%;background:var(--green-mid);border-radius:2px;transition:width 0.4s ease;}
 .wizard-step-label{font-size:0.8rem;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;}
 .wizard-step-title{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600;color:var(--text-dark);}
-.wizard-body{flex:1;overflow-y:auto;padding:24px;}
+.wizard-body{flex:1;overflow-y:auto;padding:20px 24px 24px;}
 .wizard-step{display:none;}
 .wizard-step.active{display:block;}
 .field-label{font-size:0.85rem;font-weight:600;color:var(--text-mid);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;}
@@ -992,7 +993,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
   <div class="wizard-body">
 
     <!-- Step 1 : Location -->
-    <div class="wizard-step active" id="wstep-1">
+    <div class="wizard-step" id="wstep-1">
       <button class="gps-btn" id="gps-btn" onclick="useGPS()">📍 Utiliser ma position GPS</button>
       <div class="divider-text">— ou saisissez votre ville —</div>
       <div class="field-group mt8" style="position:relative;">
@@ -1001,46 +1002,96 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
-    <!-- Step 2 : Garden -->
+    <!-- Step 2 : Garden + Sol (fusionné) -->
     <div class="wizard-step" id="wstep-2">
       <div class="field-group">
         <div class="field-label">Surface arrosée (m²)</div>
         <input class="input-field" id="surface-input" type="number" placeholder="Ex : 30" min="1" max="5000">
       </div>
+      <!-- Sol : 2 modes (cartes rapides / quiz) -->
       <div class="field-group">
         <div class="field-label">Type de sol</div>
-        <div class="soil-grid">
-          <div class="soil-card selected" onclick="selectSoil(this,'argileux')">
-            <div style="height:52px;background:linear-gradient(135deg,#7a4f2c,#9a6040);display:flex;align-items:center;justify-content:center;font-size:22px;">🏔️</div>
-            <div style="padding:10px 12px;">
-              <div class="soil-card-name">Argileux</div>
-              <div class="soil-card-desc">Lourd, retient bien l'eau</div>
-              <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#e8f5ee;color:var(--ok);">💧 Rétention élevée</span>
+        <!-- Toggle rapide / quiz -->
+        <div style="display:flex;background:var(--green-mist);border-radius:10px;padding:3px;margin-bottom:12px;">
+          <div id="soil-tab-cards" onclick="switchSoilMode('cards')" style="flex:1;text-align:center;padding:8px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;background:white;color:var(--green-deep);box-shadow:0 2px 6px rgba(0,0,0,0.08);transition:all 0.2s;">✅ Je connais mon sol</div>
+          <div id="soil-tab-quiz" onclick="switchSoilMode('quiz')" style="flex:1;text-align:center;padding:8px;border-radius:8px;font-size:0.83rem;font-weight:500;cursor:pointer;color:var(--text-mid);transition:all 0.2s;">🔍 M'aider à l'identifier</div>
+        </div>
+        <!-- Mode cartes -->
+        <div id="soil-mode-cards">
+          <div class="soil-grid">
+            <div class="soil-card selected" onclick="selectSoil(this,'argileux')">
+              <div style="height:52px;background:linear-gradient(135deg,#7a4f2c,#9a6040);display:flex;align-items:center;justify-content:center;font-size:22px;">🏔️</div>
+              <div style="padding:10px 12px;">
+                <div class="soil-card-name">Argileux</div>
+                <div class="soil-card-desc">Lourd, retient bien l'eau</div>
+                <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#e8f5ee;color:var(--ok);">💧 Rétention élevée</span>
+              </div>
+            </div>
+            <div class="soil-card" onclick="selectSoil(this,'limoneux')">
+              <div style="height:52px;background:linear-gradient(135deg,#9b7a4a,#b8955e);display:flex;align-items:center;justify-content:center;font-size:22px;">🌍</div>
+              <div style="padding:10px 12px;">
+                <div class="soil-card-name">Limoneux</div>
+                <div class="soil-card-desc">Sol idéal de potager</div>
+                <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fef3e2;color:var(--warn);">💧 Rétention moyenne</span>
+              </div>
+            </div>
+            <div class="soil-card" onclick="selectSoil(this,'sableux')">
+              <div style="height:52px;background:linear-gradient(135deg,#c8a96e,#e0c080);display:flex;align-items:center;justify-content:center;font-size:22px;">🏖️</div>
+              <div style="padding:10px 12px;">
+                <div class="soil-card-name">Sableux</div>
+                <div class="soil-card-desc">Sèche très vite</div>
+                <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fde8e8;color:var(--danger);">💧 Rétention faible</span>
+              </div>
+            </div>
+            <div class="soil-card" onclick="selectSoil(this,'calcaire')">
+              <div style="height:52px;background:linear-gradient(135deg,#c8c0b0,#ddd8cc);display:flex;align-items:center;justify-content:center;font-size:22px;">⬜</div>
+              <div style="padding:10px 12px;">
+                <div class="soil-card-name">Calcaire</div>
+                <div class="soil-card-desc">Caillouteux, pH basique</div>
+                <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fef3e2;color:var(--warn);">💧 Rétention variable</span>
+              </div>
             </div>
           </div>
-          <div class="soil-card" onclick="selectSoil(this,'limoneux')">
-            <div style="height:52px;background:linear-gradient(135deg,#9b7a4a,#b8955e);display:flex;align-items:center;justify-content:center;font-size:22px;">🌍</div>
-            <div style="padding:10px 12px;">
-              <div class="soil-card-name">Limoneux</div>
-              <div class="soil-card-desc">Sol idéal de potager</div>
-              <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fef3e2;color:var(--warn);">💧 Rétention moyenne</span>
+        </div>
+        <!-- Mode quiz (masqué par défaut) -->
+        <div id="soil-mode-quiz" style="display:none;">
+          <div class="info-box" style="margin-bottom:12px;">🪨 Répondez à ce que vous savez — chaque question a une option "Je ne sais pas".</div>
+          <div class="field-group">
+            <div class="field-label">Prenez une poignée de terre humide. Quel est son aspect ?</div>
+            <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q1">
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','argile')">🏔️ Elle colle, se roule en boudin — Sol argileux</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','limon')">🌍 Elle tient bien mais ne colle pas — Sol limoneux</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','sable')">🏖️ Elle s'émiette, ne tient pas — Sol sableux</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','calcaire')">⬜ Blanche/grise et caillouteuse — Sol calcaire</button>
+              <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'texture',null)">🤷 Je ne sais pas</button>
             </div>
           </div>
-          <div class="soil-card" onclick="selectSoil(this,'sableux')">
-            <div style="height:52px;background:linear-gradient(135deg,#c8a96e,#e0c080);display:flex;align-items:center;justify-content:center;font-size:22px;">🏖️</div>
-            <div style="padding:10px 12px;">
-              <div class="soil-card-name">Sableux</div>
-              <div class="soil-card-desc">Sèche très vite</div>
-              <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fde8e8;color:var(--danger);">💧 Rétention faible</span>
+          <div class="field-group">
+            <div class="field-label">Après une forte pluie, que se passe-t-il ?</div>
+            <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q2">
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','lent')">🐢 L'eau reste longtemps en surface</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','normal')">✅ L'eau s'absorbe en quelques minutes</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','rapide')">⚡ L'eau disparaît très vite en quelques heures</button>
+              <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'retention',null)">🤷 Je ne l'ai pas observé</button>
             </div>
           </div>
-          <div class="soil-card" onclick="selectSoil(this,'calcaire')">
-            <div style="height:52px;background:linear-gradient(135deg,#c8c0b0,#ddd8cc);display:flex;align-items:center;justify-content:center;font-size:22px;">⬜</div>
-            <div style="padding:10px 12px;">
-              <div class="soil-card-name">Calcaire</div>
-              <div class="soil-card-desc">Caillouteux, pH basique</div>
-              <span style="display:inline-block;margin-top:4px;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:#fef3e2;color:var(--warn);">💧 Rétention variable</span>
+          <div class="field-group">
+            <div class="field-label">Couleur de votre terre en profondeur (5-10 cm) ?</div>
+            <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q3">
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','fonce')">🟤 Noire ou très foncée — Sol riche en humus</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','brun')">🪵 Brun moyen classique — Sol standard</button>
+              <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','clair')">🟡 Beige/jaune/caillouteux — Sol pauvre ou calcaire</button>
+              <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'couleur',null)">🤷 Je ne sais pas</button>
             </div>
+          </div>
+          <!-- Résultat quiz dynamique -->
+          <div id="soil-quiz-result" style="display:none;margin-top:4px;padding:14px;background:linear-gradient(135deg,var(--green-mist),#d0eedd);border-radius:12px;border:1px solid var(--green-pale);">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎯 Sol détecté — sélection automatique</div>
+            <div id="soil-quiz-result-text" style="font-size:0.9rem;color:var(--text-dark);font-weight:600;"></div>
+            <div id="soil-quiz-result-desc" style="font-size:0.8rem;color:var(--text-mid);margin-top:4px;line-height:1.5;"></div>
+          </div>
+          <div style="margin-top:10px;padding:10px 14px;background:rgba(138,170,148,0.15);border-radius:10px;font-size:0.78rem;color:var(--text-mid);line-height:1.5;">
+            💡 Vous pourrez affiner dans les Réglages → Calibration sol.
           </div>
         </div>
       </div>
@@ -1054,57 +1105,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
-    <!-- Step 3 : Soil Quiz -->
-    <div class="wizard-step" id="wstep-3">
-      <div class="info-box">🪨 Quelques questions pour identifier votre type de sol et calibrer le modèle. <strong>Répondez à ce que vous savez</strong> — chaque question a une sortie "Je ne sais pas".</div>
-
-      <!-- Q1 : Texture -->
-      <div class="field-group">
-        <div class="field-label">Prenez une poignée de terre humide. Quel est son aspect ?</div>
-        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q1">
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','argile')">🏔️ Elle colle, se roule facilement en boudin — Sol argileux</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','limon')">🌍 Elle tient bien mais ne colle pas — Sol limoneux (idéal)</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','sable')">🏖️ Elle s'émiette, ne tient pas — Sol sableux</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'texture','calcaire')">⬜ Elle est blanche/grise et caillouteuse — Sol calcaire</button>
-          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'texture',null)">🤷 Je ne sais pas</button>
-        </div>
-      </div>
-
-      <!-- Q2 : Rétention eau -->
-      <div class="field-group">
-        <div class="field-label">Après une forte pluie, que se passe-t-il ?</div>
-        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q2">
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','lent')">🐢 L'eau reste longtemps en surface, le sol met du temps à sécher</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','normal')">✅ L'eau s'absorbe en quelques minutes, le sol sèche normalement</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'retention','rapide')">⚡ L'eau disparaît très vite, le sol sèche en quelques heures</button>
-          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'retention',null)">🤷 Je ne sais pas / Je ne l'ai pas observé</button>
-        </div>
-      </div>
-
-      <!-- Q3 : Couleur -->
-      <div class="field-group">
-        <div class="field-label">Quelle est la couleur de votre terre en profondeur (5-10 cm) ?</div>
-        <div style="display:flex;flex-direction:column;gap:8px;" id="soil-q3">
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','fonce')">🟤 Terre noire ou très foncée — Sol riche en humus</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','brun')">🪵 Brun moyen classique — Sol standard</button>
-          <button class="soil-quiz-btn" onclick="selectSoilQuiz(this,'couleur','clair')">🟡 Beige/jaune/rougeâtre ou caillouteux — Sol pauvre ou calcaire</button>
-          <button class="soil-quiz-btn skip" onclick="selectSoilQuiz(this,'couleur',null)">🤷 Je ne sais pas</button>
-        </div>
-      </div>
-
-      <!-- Résultat dynamique -->
-      <div id="soil-quiz-result" style="display:none;margin-top:4px;padding:14px;background:linear-gradient(135deg,var(--green-mist),#d0eedd);border-radius:12px;border:1px solid var(--green-pale);">
-        <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎯 Sol détecté</div>
-        <div id="soil-quiz-result-text" style="font-size:0.9rem;color:var(--text-dark);font-weight:600;"></div>
-        <div id="soil-quiz-result-desc" style="font-size:0.8rem;color:var(--text-mid);margin-top:4px;line-height:1.5;"></div>
-      </div>
-
-      <div style="margin-top:12px;padding:12px 14px;background:rgba(138,170,148,0.15);border-radius:10px;font-size:0.8rem;color:var(--text-mid);line-height:1.5;">
-        💡 Pas de réponse parfaite ? Ce n'est pas grave. Vous pourrez affiner la calibration dans les réglages une fois l'app lancée.
-      </div>
-    </div>
-
-    <!-- Step 4 : Plants -->
+    <!-- Step 3 : Plants (ex-étape 4) -->
     <div class="wizard-step" id="wstep-4">
       <!-- Contexte jardin : pleine terre ou balcon -->
       <div style="background:white;border-radius:14px;padding:14px 16px;margin-bottom:14px;border:1px solid var(--green-pale);">
@@ -1616,7 +1617,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="mini-period-tabs">
           <div class="mini-period-tab active" onclick="setChartPeriod(this,'precip','7j')">7J</div>
           <div class="mini-period-tab" onclick="setChartPeriod(this,'precip','30j')">30J</div>
-          <div class="mini-period-tab" onclick="setChartPeriod(this,'precip','12m')">12M</div>
+          <div class="mini-period-tab" onclick="isPremium()?setChartPeriod(this,'precip','12m'):openPremiumModal('history12')" style="opacity:0.7;">12M ✨</div>
         </div>
       </div>
       <div class="chart-area" id="history-chart-precip"></div>
@@ -1630,7 +1631,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="mini-period-tabs">
           <div class="mini-period-tab active" onclick="setChartPeriod(this,'humidity','7j')">7J</div>
           <div class="mini-period-tab" onclick="setChartPeriod(this,'humidity','30j')">30J</div>
-          <div class="mini-period-tab" onclick="setChartPeriod(this,'humidity','12m')">12M</div>
+          <div class="mini-period-tab" onclick="isPremium()?setChartPeriod(this,'humidity','12m'):openPremiumModal('history12')" style="opacity:0.7;">12M ✨</div>
         </div>
       </div>
       <div class="chart-area" id="history-chart-humidity"></div>
@@ -1643,7 +1644,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="mini-period-tabs">
           <div class="mini-period-tab active" onclick="setChartPeriod(this,'water','7j')">7J</div>
           <div class="mini-period-tab" onclick="setChartPeriod(this,'water','30j')">30J</div>
-          <div class="mini-period-tab" onclick="setChartPeriod(this,'water','12m')">12M</div>
+          <div class="mini-period-tab" onclick="isPremium()?setChartPeriod(this,'water','12m'):openPremiumModal('history12')" style="opacity:0.7;">12M ✨</div>
         </div>
       </div>
       <div class="chart-area" id="history-chart-water"></div>
@@ -1832,6 +1833,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="settings-row" onclick="openEditModal('plants')"><div class="settings-row-icon">🌿</div><div class="settings-row-text"><div class="settings-row-label">Mes plantes <span id="plants-badge" class="free-badge">Gratuit 5/5</span></div><div class="settings-row-val" id="set-plants">—</div></div><div class="settings-row-arrow">›</div></div>
       <div class="settings-row" onclick="openEditModal('soil')"><div class="settings-row-icon">🪨</div><div class="settings-row-text"><div class="settings-row-label">Type de sol</div><div class="settings-row-val" id="set-soil">—</div></div><div class="settings-row-arrow">›</div></div>
       <div class="settings-row" onclick="openEditModal('expose')"><div class="settings-row-icon">☀️</div><div class="settings-row-text"><div class="settings-row-label">Exposition</div><div class="settings-row-val" id="set-expose">—</div></div><div class="settings-row-arrow">›</div></div>
+      <div class="settings-row" onclick="relaunchWizard()"><div class="settings-row-icon">🔄</div><div class="settings-row-text"><div class="settings-row-label">Reconfigurer le jardin</div><div class="settings-row-val">Relancer l'assistant de démarrage</div></div><div class="settings-row-arrow">›</div></div>
     </div>
 
     <!-- Arrosage -->
@@ -1842,9 +1844,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="settings-row" onclick="openAutoSchedule()"><div class="settings-row-icon">🕐</div><div class="settings-row-text"><div class="settings-row-label">Arrosages automatiques</div><div class="settings-row-val" id="set-auto">Aucun configuré</div></div><div class="settings-row-arrow">›</div></div>
     </div>
 
-    <!-- Fonctionnalités Premium -->
-    <div class="settings-section" id="settings-premium-features-block"></div>
-
     <!-- Notifications (partiellement gratuit) -->
     <div class="settings-section">
       <div class="settings-section-title">Notifications</div>
@@ -1854,23 +1853,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="settings-row-text">
           <div class="settings-row-label">Alertes intelligentes</div>
           <div class="settings-row-val" id="set-smart-alerts-val">Pluie, chaleur, gel — Premium</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:0.6rem;font-weight:700;padding:2px 6px;background:var(--premium-light);color:var(--premium);border-radius:4px;">✨</span>
-          <div class="settings-row-arrow">›</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Application -->
-    <div class="settings-section">
-      <div class="settings-section-title">Application</div>
-      <div class="settings-row" onclick="openChangeCityWithWarning()"><div class="settings-row-icon">🏡</div><div class="settings-row-text"><div class="settings-row-label">Changer de jardin</div><div class="settings-row-val" id="set-garden-count">1 jardin (Gratuit)</div></div><div class="settings-row-arrow">›</div></div>
-      <div class="settings-row" onclick="isPremium()?openMultiZoneSettings():openPremiumModal('zones')" style="position:relative;">
-        <div class="settings-row-icon">🗺️</div>
-        <div class="settings-row-text">
-          <div class="settings-row-label">Zones multiples</div>
-          <div class="settings-row-val" id="set-zones-val">Potager, pelouse, terrasse… — Premium</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:0.6rem;font-weight:700;padding:2px 6px;background:var(--premium-light);color:var(--premium);border-radius:4px;">✨</span>
@@ -2277,6 +2259,7 @@ let state = {
   calibration:{ offset:0, soilMultiplier:1.0, notes:'' },
   premium:{ active:false, type:null, trialStart:null, purchased:false },
   alertsReceived: 0,
+  lastMoistureDate: null, // ISO date YYYY-MM-DD de la dernière application refreshAllMoisture
 };
 let currentEditField = null;
 let currentPlant = null;
@@ -2323,6 +2306,8 @@ function goTo(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-'+id);
   if(target) target.classList.add('active');
+  // Initialiser le wizard quand on y entre
+  if(id === 'wizard') { wizardStep = 1; updateWizard(); }
   // Hide journal FAB whenever we leave overlay tabs
   const fab = document.getElementById('journal-fab');
   if(fab) fab.style.display = 'none';
@@ -2356,30 +2341,67 @@ function introNext() {
 
 // ── WIZARD ───────────────────────────────────────────────────────────────────
 let wizardStep=1;
-const WIZARD_STEPS_TOTAL=5;
-const WIZARD_TITLES=['','Où est votre jardin ?','Votre jardin','Quel est votre sol ?','Mes plantes','Derniers réglages'];
+const WIZARD_STEPS_TOTAL=4;
+const WIZARD_TITLES=['','Où est votre jardin ?','Votre jardin & Sol','Mes plantes','Derniers réglages'];
+// Mapping étape JS → ID HTML (l'ancienne étape 3 quiz est maintenant dans wstep-2, les autres décalent)
+const WIZARD_STEP_IDS=[null,'wstep-1','wstep-2','wstep-4','wstep-5'];
 let soilQuizAnswers={texture:null,retention:null,couleur:null};
+let soilMode = 'cards'; // 'cards' ou 'quiz'
+function switchSoilMode(mode) {
+  soilMode = mode;
+  const isCards = mode === 'cards';
+  document.getElementById('soil-mode-cards').style.display = isCards ? '' : 'none';
+  document.getElementById('soil-mode-quiz').style.display = isCards ? 'none' : '';
+  const tabCards = document.getElementById('soil-tab-cards');
+  const tabQuiz = document.getElementById('soil-tab-quiz');
+  if(tabCards) {
+    tabCards.style.background = isCards ? 'white' : 'transparent';
+    tabCards.style.color = isCards ? 'var(--green-deep)' : 'var(--text-mid)';
+    tabCards.style.fontWeight = isCards ? '600' : '500';
+    tabCards.style.boxShadow = isCards ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
+  }
+  if(tabQuiz) {
+    tabQuiz.style.background = !isCards ? 'white' : 'transparent';
+    tabQuiz.style.color = !isCards ? 'var(--green-deep)' : 'var(--text-mid)';
+    tabQuiz.style.fontWeight = !isCards ? '600' : '500';
+    tabQuiz.style.boxShadow = !isCards ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
+  }
+}
 function updateWizard(){
+  const wizScreen = document.getElementById('screen-wizard');
+  if(!wizScreen) return;
   document.getElementById('wizard-progress').style.width=((wizardStep-1)/(WIZARD_STEPS_TOTAL-1)*100)+'%';
   document.getElementById('wizard-step-label').textContent='Étape '+wizardStep+' sur '+WIZARD_STEPS_TOTAL;
   document.getElementById('wizard-step-title').textContent=WIZARD_TITLES[wizardStep];
-  document.querySelectorAll('.wizard-step').forEach(s=>s.classList.remove('active'));
-  document.getElementById('wstep-'+wizardStep).classList.add('active');
+  wizScreen.querySelectorAll('.wizard-step').forEach(s=>s.classList.remove('active'));
+  const stepId = WIZARD_STEP_IDS[wizardStep];
+  if(stepId) document.getElementById(stepId).classList.add('active');
   document.getElementById('wizard-back').style.display=wizardStep===1?'none':'';
   document.getElementById('wizard-next').textContent=wizardStep===WIZARD_STEPS_TOTAL?'Commencer 🌱':'Continuer →';
-  if(wizardStep===4) renderWizardPlants();
-  if(wizardStep===3) renderSoilQuizResult();
+  if(wizardStep===3) renderWizardPlants();
+  if(wizardStep===2) renderSoilQuizResult();
 }
 // Appel différé — évite de bloquer le JS si le DOM n'est pas encore prêt
-document.addEventListener('DOMContentLoaded', () => { try { updateWizard(); } catch(e) {} });
+// updateWizard est appelé uniquement via goTo('wizard') ou wizardNext/wizardPrev
 function wizardNext(){
   if(wizardStep===WIZARD_STEPS_TOTAL){finalizeSetup();return;}
   if(wizardStep===1){const c=document.getElementById('city-input').value.trim();if(!c&&!state.city){alert('Veuillez entrer votre ville.');return;}if(c)state.city=c;}
-  if(wizardStep===2){const s=document.getElementById('surface-input').value;if(s)state.surface=parseFloat(s);}
-  if(wizardStep===3){applySoilQuizResult();}
+  if(wizardStep===2){
+    const s=document.getElementById('surface-input').value;
+    if(s)state.surface=parseFloat(s);
+    // Si on était en mode quiz, appliquer le résultat
+    if(soilMode==='quiz') applySoilQuizResult();
+  }
   wizardStep++;updateWizard();
 }
-function wizardPrev(){if(wizardStep===1){goTo('landing');return;}wizardStep--;updateWizard();}
+function relaunchWizard() {
+  if(confirm('Relancer l\'assistant de configuration ? Vos plantes et historiques seront conservés.')) {
+    wizardStep = 1;
+    goTo('wizard');
+  }
+}
+
+
 
 function renderWizardPlants(){
   const container = document.getElementById('wizard-plant-grid');
@@ -2796,48 +2818,116 @@ function initApp(){
   } catch(e) { console.warn('initApp error:', e); }
 }
 
-// Calcule l'humidité affichée d'une plante (lecture seule, n'écrit PAS dans state)
-function computeMoisture(key){
-  const plant=PLANT_DB[key];
-  const retention=SOIL_RETENTION[state.soil]||1;
-  const expose=EXPOSE_FACTOR[state.expose]||1;
-  const drainage=getPlantDrainage(key); // 1.0 pleine terre → 4.0 très petit pot
-  let m=state.plantMoisture[key];
-  if(m===undefined||m===null)m=60;
-  // ET de base × exposition × drainage ÷ rétention sol (sol joue moins en pot)
-  const soilRetentionFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention; // sol a moins d'effet en pot
-  const et=plant.waterNeed*expose*drainage/soilRetentionFactor;
-  const rain=getRainToday();
-  // La pluie est moins efficace en pot (ruissellement, surface réduite)
-  const rainEff = drainage > 1.5 ? 0.2 : 0.7; // pots : pluie quasi-inefficace sauf arrosage manuel
-  let display=m - et*0.8 + rain*rainEff;
-  display = display * state.calibration.soilMultiplier + state.calibration.offset;
-  display=Math.min(100,Math.max(5,display));
-  return display;
+// Retourne la pluie pour une date ISO donnée (historique local + forecast)
+function getRainForDate(dateStr){
+  // D'abord l'historique local (le plus fiable)
+  if(state.precipLocalHistory){
+    const entry = state.precipLocalHistory.find(e=>e.date===dateStr);
+    if(entry) return entry.mm||0;
+  }
+  // Sinon forecast Open-Meteo
+  if(state.forecast&&state.forecast.time){
+    const idx = state.forecast.time.indexOf(dateStr);
+    if(idx!==-1) return state.forecast.precipitation_sum[idx]||0;
+  }
+  return 0;
 }
 
-// Applique computeMoisture et ÉCRIT le résultat dans state — à appeler une fois par refresh météo
-// C'est la seule fonction qui modifie state.plantMoisture (hors arrosage manuel)
+// Retourne la température max pour une date ISO donnée
+function getTempMaxForDate(dateStr){
+  if(state.forecast&&state.forecast.time){
+    const idx = state.forecast.time.indexOf(dateStr);
+    if(idx!==-1) return state.forecast.temperature_2m_max[idx]||20;
+  }
+  return 20; // défaut 20°C si pas de données
+}
+
+// Calcule le facteur de chaleur : au-dessus de 25°C, l'ET augmente (~+5% par degré)
+function heatFactor(tempMax){
+  if(tempMax <= 25) return 1.0;
+  return 1.0 + (tempMax - 25) * 0.05; // +5% par °C au-dessus de 25°C → 35°C = +50%
+}
+
+// Calcule l'humidité d'une plante en appliquant l'ET jour par jour depuis lastMoistureDate
+// Tient compte de la température réelle chaque jour
+function computeMoisture(key){
+  const plant = PLANT_DB[key];
+  if(!plant) return 60;
+  const retention = SOIL_RETENTION[state.soil]||1;
+  const expose = EXPOSE_FACTOR[state.expose]||1;
+  const drainage = getPlantDrainage(key);
+  let score = state.plantMoisture[key];
+  if(score===undefined||score===null) score = 65;
+
+  const todayStr = new Date().toISOString().slice(0,10);
+  const lastDate = state.lastMoistureDate;
+
+  // Pas de date de référence → premier boot, retourner le score initial tel quel
+  if(!lastDate) return Math.min(100, Math.max(5, score));
+
+  // Calculer le nb de jours à simuler
+  const daysDiff = Math.round((new Date(todayStr) - new Date(lastDate)) / 86400000);
+  if(daysDiff <= 0) return Math.min(100, Math.max(5, score));
+
+  // Facteur sol (moins important en pot)
+  const soilFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
+  // ET de base journalière (mm/jour) — divisé par 10 pour donner un % d'humidité
+  const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 10;
+  const rainEff = drainage > 1.5 ? 0.15 : 0.65;
+
+  // Simuler chaque jour écoulé avec sa propre température et pluie
+  for(let d = 1; d <= daysDiff; d++){
+    const date = new Date(lastDate);
+    date.setDate(date.getDate() + d);
+    const dateStr = date.toISOString().slice(0,10);
+
+    const tempMax = getTempMaxForDate(dateStr);
+    const heat = heatFactor(tempMax);
+    const rain = getRainForDate(dateStr);
+
+    // ET du jour = base × chaleur
+    const et = baseET * heat;
+    score = score - et + rain * rainEff;
+    score = Math.min(100, Math.max(2, score));
+  }
+
+  // Appliquer la calibration
+  score = score * (state.calibration.soilMultiplier||1) + (state.calibration.offset||0);
+  return Math.min(100, Math.max(2, score));
+}
+
+// Applique computeMoisture et ÉCRIT dans state — une fois par jour max
 function refreshAllMoisture(){
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  // Si déjà exécuté aujourd'hui ET que les valeurs sont en mémoire → ne rien faire
+  // (évite la baisse à chaque ouverture de l'app dans la même journée)
+  if(state.lastMoistureDate === todayStr && state.selectedPlants.every(k=>state.plantMoisture[k]!==undefined)){
+    return; // déjà à jour aujourd'hui
+  }
+
+  // Calculer et écrire les nouvelles valeurs
   state.selectedPlants.forEach(k=>{
-    state.plantMoisture[k]=computeMoisture(k);
+    const newVal = computeMoisture(k);
+    state.plantMoisture[k] = Math.round(newVal);
   });
-  // Enregistrer un snapshot d'hygrométrie pour les graphiques historiques
+
+  // Mettre à jour la date de référence
+  state.lastMoistureDate = todayStr;
+
+  // Snapshot historique (max 1 par jour)
   if(state.selectedPlants.length > 0){
-    const avgMoisture = Math.round(state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/state.selectedPlants.length);
     if(!state.moistureHistory) state.moistureHistory = [];
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0,10);
-    // Ne pas ajouter plus d'un point par heure
+    const avg = Math.round(
+      state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0) / state.selectedPlants.length
+    );
     const lastEntry = state.moistureHistory[state.moistureHistory.length-1];
-    const lastHour = lastEntry ? new Date(lastEntry.ts).toISOString().slice(0,13) : null;
-    const thisHour = now.toISOString().slice(0,13);
-    if(lastHour !== thisHour){
-      state.moistureHistory.push({ date: todayStr, value: avgMoisture, ts: now.toISOString() });
-      // Garder max 400 entrées (~13 mois)
+    if(!lastEntry || lastEntry.date !== todayStr){
+      state.moistureHistory.push({ date: todayStr, value: avg, ts: new Date().toISOString() });
       if(state.moistureHistory.length > 400) state.moistureHistory = state.moistureHistory.slice(-400);
     }
   }
+  saveState();
 }
 function getMoistureLevel(pct){
   if(pct<35)return{label:'Arroser',cls:'red',action:'danger',badge:'🔴 Urgent'};
@@ -3829,58 +3919,6 @@ function openHistory12Months() {
   switchTab('history', null);
 }
 
-// ── RENDER PREMIUM FEATURES in settings ──────────────────────────────────────
-function renderPremiumFeaturesBlock() {
-  const block = document.getElementById('settings-premium-features-block');
-  if(!block) return;
-
-  const featDef = [
-    { id:'multizone', emoji:'🗺️', title:'Zones multiples', desc:'Potager, pelouse, terrasse… chaque zone avec son propre score.', freeLabel:'1 jardin', premiumLabel: state.gardenZones ? state.gardenZones.length+' zone(s)' : '1 zone', action:'openMultiZoneSettings()' },
-    { id:'history12', emoji:'📊', title:'Historique 12 mois', desc:'Graphiques d\'arrosage et de pluviométrie sur un an. Export PDF.', freeLabel:'7 jours inclus', premiumLabel:'12 mois + export', action:'switchTab(\'history\',null)' },
-    { id:'smartalerts', emoji:'🧠', title:'Alertes intelligentes', desc:'Gel, canicule, pluie prévue : alertes contextuelles selon vos plantes.', freeLabel:'Alertes basiques', premiumLabel: state.smartAlerts ? Object.values(state.smartAlerts).filter(Boolean).length+' alertes actives' : 'Configurées', action:'openSmartAlertsSettings()' },
-  ];
-
-  if(isPremium()) {
-    block.innerHTML = `<div style="margin-bottom:8px;">
-      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);letter-spacing:0.8px;text-transform:uppercase;padding:8px 4px 6px;">Fonctionnalités Premium</div>
-      ${featDef.map(f=>`
-        <div style="background:white;border-radius:12px;margin-bottom:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div onclick="${f.action}" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;">
-            <div style="font-size:1.4rem;width:36px;text-align:center;">${f.emoji}</div>
-            <div style="flex:1;">
-              <div style="font-size:0.9rem;font-weight:600;color:var(--text-dark);">${f.title}</div>
-              <div style="font-size:0.75rem;color:var(--green-mid);font-weight:600;">${f.premiumLabel}</div>
-            </div>
-            <div style="color:var(--text-light);font-size:18px;">›</div>
-          </div>
-        </div>`).join('')}
-    </div>`;
-  } else {
-    // Show locked previews visible to all
-    block.innerHTML = `<div style="margin-bottom:8px;">
-      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);letter-spacing:0.8px;text-transform:uppercase;padding:8px 4px 6px;">Fonctionnalités Premium ✨</div>
-      ${featDef.map(f=>`
-        <div style="background:white;border-radius:12px;margin-bottom:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);opacity:0.85;" onclick="openPremiumModal('${f.id}')">
-          <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;">
-            <div style="font-size:1.4rem;width:36px;text-align:center;filter:grayscale(0.3);">${f.emoji}</div>
-            <div style="flex:1;">
-              <div style="font-size:0.9rem;font-weight:600;color:var(--text-dark);">${f.title}</div>
-              <div style="font-size:0.75rem;color:var(--text-mid);">${f.desc}</div>
-              <div style="display:flex;gap:8px;margin-top:4px;align-items:center;">
-                <span style="font-size:0.65rem;padding:2px 7px;background:var(--green-mist);color:var(--green-mid);border-radius:4px;font-weight:600;">✓ Gratuit : ${f.freeLabel}</span>
-                <span style="font-size:0.65rem;padding:2px 7px;background:var(--premium-light);color:var(--premium);border-radius:4px;font-weight:700;">✨ Premium : ${f.premiumLabel}</span>
-              </div>
-            </div>
-            <div style="background:var(--premium-light);border-radius:8px;padding:4px 8px;font-size:0.65rem;color:var(--premium);font-weight:700;flex-shrink:0;">🔒</div>
-          </div>
-        </div>`).join('')}
-    </div>`;
-  }
-}
-
-// Hook into renderSettingsTab to also render premium features block
-const _origRenderSettings = typeof renderSettingsTab !== 'undefined' ? renderSettingsTab : null;
-
 // ── HISTORY TAB ───────────────────────────────────────────────────────────────
 // Périodes indépendantes par tableau
 let chartPeriods = { precip:'7j', humidity:'7j', water:'7j' };
@@ -3943,9 +3981,11 @@ function buildDayBuckets(records, field, numDays) {
   const counts  = new Array(numDays).fill(0);
   const now = new Date(); now.setHours(0,0,0,0);
   records.forEach(r => {
-    const ts = r.date || r.ts;
+    // Priorité à ts (ISO), sinon date seulement si c'est un format YYYY-MM-DD
+    const ts = r.ts || (r.date && /^\d{4}-\d{2}-\d{2}/.test(r.date) ? r.date : null);
     if(!ts) return;
     const d = new Date(ts); d.setHours(0,0,0,0);
+    if(isNaN(d.getTime())) return;
     const diff = Math.round((now - d) / 86400000);
     if(diff >= 0 && diff < numDays) {
       const idx = numDays - 1 - diff;
@@ -3957,16 +3997,33 @@ function buildDayBuckets(records, field, numDays) {
 }
 
 function getMoistureData(period) {
-  // Moisture: only real state.moistureHistory entries
-  if(!state.moistureHistory || !state.moistureHistory.length)
-    return { values: [], labels: [], hasData: false };
-
   const numDays = period === '7j' ? 7 : period === '30j' ? 30 : 365;
-  const { buckets, counts } = buildDayBuckets(state.moistureHistory, 'value', numDays);
+  const labels = buildLabels(period, numDays);
 
-  // For moisture: average per day
-  const values = buckets.map((v,i) => v !== null ? Math.round(v / counts[i]) : null);
-  const labels = buildLabels(period, values.length);
+  // Si pas d'historique mais on a un score actuel, créer un jeu de données minimal
+  if(!state.moistureHistory || !state.moistureHistory.length) {
+    const curScore = state.selectedPlants.length > 0
+      ? Math.round(state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/state.selectedPlants.length)
+      : null;
+    if(!curScore) return { values: [], labels, hasData: false };
+    // Remplir seulement aujourd'hui
+    const values = new Array(numDays).fill(null);
+    values[numDays-1] = curScore;
+    return { values, labels, hasData: true };
+  }
+
+  const { buckets, counts } = buildDayBuckets(state.moistureHistory, 'value', numDays);
+  // Moyenne par jour pour les jours avec données
+  const raw = buckets.map((v,i) => v !== null ? Math.round(v / Math.max(1, counts[i])) : null);
+
+  // Forward-fill : propager la dernière valeur connue pour les jours sans données
+  // (rend le graphique lisible même en début d'utilisation)
+  let lastKnown = null;
+  const values = raw.map(v => {
+    if(v !== null) { lastKnown = v; return v; }
+    return lastKnown; // null si aucune valeur précédente
+  });
+
   return { values, labels, hasData: values.some(v=>v!==null) };
 }
 
@@ -4099,15 +4156,7 @@ function renderAlertsTab(){
 
 // ── SETTINGS TAB ──────────────────────────────────────────────────────────────
 function renderSettingsTab(){
-  // Render premium features block
-  renderPremiumFeaturesBlock();
-  // Update zones and smart alerts display in settings rows
-  const zonesVal = document.getElementById('set-zones-val');
-  if(zonesVal) {
-    if(isPremium()) {
-      zonesVal.textContent = state.gardenZones ? state.gardenZones.length+' zone(s) configurée(s)' : '1 zone active';
-    }
-  }
+  // Update smart alerts display
   const smartVal = document.getElementById('set-smart-alerts-val');
   if(smartVal && isPremium() && state.smartAlerts) {
     const on = Object.values(state.smartAlerts).filter(Boolean).length;
@@ -5519,6 +5568,7 @@ function renderAccountInHeader() {
   if (!state.dailyPoints) state.dailyPoints = {};
   if (!state.plantContainers) state.plantContainers = {};
   if (!state.gardenZones) state.gardenZones = [];
+  if (!state.lastMoistureDate) state.lastMoistureDate = null;
   if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
 
   // Inject FAB for journal
@@ -5535,10 +5585,13 @@ function renderAccountInHeader() {
     fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
     return;
   }
-  if (restored && state.account && !isSetupDone()) {
-    goTo('wizard'); return;
+  if (restored && !isSetupDone()) {
+    // Première installation ou config incomplète → lancer le wizard
+    wizardStep = 1;
+    goTo('wizard');
+    return;
   }
-  // else: landing page active by default
+  // else: landing page active by default (pas encore de state sauvegardé)
 })();
 </script>
 

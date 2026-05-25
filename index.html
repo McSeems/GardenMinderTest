@@ -2882,7 +2882,7 @@ function computeMoisture(key){
   if(!lastDate){
     // Premier boot : appliquer une journée d'ET pour avoir une valeur réaliste
     const soilF = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-    const baseET = (plant.waterNeed * expose * drainage / soilF) / 10;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 2.0;
     const heat = heatFactor(getTempMaxForDate(todayStr));
     score = score - baseET * heat;
     return Math.min(100, Math.max(2, score));
@@ -2894,7 +2894,7 @@ function computeMoisture(key){
     // Même jour : appliquer une fraction d'ET (évaporation depuis le dernier calcul)
     // On applique 0.4× l'ET journalière pour représenter ~10h d'évaporation
     const soilF = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-    const baseET = (plant.waterNeed * expose * drainage / soilF) / 10;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 2.0;
     const heat = heatFactor(getTempMaxForDate(todayStr));
     score = score - baseET * heat * 0.4;
     return Math.min(100, Math.max(2, Math.round(score)));
@@ -2902,7 +2902,7 @@ function computeMoisture(key){
 
   // Simuler chaque jour écoulé avec sa propre météo
   const soilFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-  const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 10;
+  const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 2.0;
   const rainEff = drainage > 1.5 ? 0.15 : 0.65;
 
   for(let d = 1; d <= daysDiff; d++){

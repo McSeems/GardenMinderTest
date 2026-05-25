@@ -1880,6 +1880,13 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <!-- Reset -->
     <div style="padding:0 0 8px;">
       <div style="background:white;border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetMoisture()">
+          <div style="font-size:18px;width:32px;text-align:center;">💧</div>
+          <div style="flex:1;">
+            <div style="font-size:0.92rem;font-weight:500;color:var(--text-dark);">Recalculer l'hygrométrie</div>
+            <div style="font-size:0.75rem;color:var(--text-light);margin-top:2px;">Remet les taux à 70% et recalcule selon la météo</div>
+          </div>
+        </div>
         <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetApp()">
           <div style="font-size:18px;width:32px;text-align:center;">🗑️</div>
           <div style="flex:1;font-size:0.92rem;color:var(--danger);font-weight:500;">Réinitialiser l'application</div>
@@ -2393,6 +2400,14 @@ function wizardNext(){
     if(soilMode==='quiz') applySoilQuizResult();
   }
   wizardStep++;updateWizard();
+}
+function resetMoisture(){
+  state.selectedPlants.forEach(k=>{ state.plantMoisture[k] = 70; });
+  state.lastMoistureDate = null;
+  refreshAllMoisture(true);
+  updateHeroScore();
+  renderPlantStrip();
+  showToast('💧 Hygrométrie recalculée !');
 }
 function relaunchWizard() {
   if(confirm('Relancer l\'assistant de configuration ? Vos plantes et historiques seront conservés.')) {
@@ -5584,6 +5599,42 @@ function renderAccountInHeader() {
   if (!state.gardenZones) state.gardenZones = [];
   if (!state.lastMoistureDate) state.lastMoistureDate = null;
   if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
+
+  // ── CORRECTIF ANTI-CORRUPTION ─────────────────────────────────────────────
+  let needsReset = false;
+  if(state.plantMoisture){
+    Object.keys(state.plantMoisture).forEach(k=>{
+      const v = state.plantMoisture[k];
+      // Valeur hors bornes
+      if(v > 100 || v < 0 || isNaN(v)){
+        state.plantMoisture[k] = 70;
+        needsReset = true;
+      }
+    });
+  }
+  // Détecter le cas "toutes les plantes à 95–100% depuis >2 jours sans arrosage récent"
+  // = signe que refreshAllMoisture est bloqué
+  if(!needsReset && state.selectedPlants && state.selectedPlants.length > 0 && state.lastMoistureDate){
+    const todayCheck = new Date().toISOString().slice(0,10);
+    const daysSinceRefresh = Math.round((new Date(todayCheck) - new Date(state.lastMoistureDate)) / 86400000);
+    const allHigh = state.selectedPlants.every(k => (state.plantMoisture[k]||0) >= 95);
+    const lastWateredRecently = state.lastWatered && state.selectedPlants.some(k => {
+      const lw = state.lastWatered[k];
+      if(!lw) return false;
+      const daysSince = (Date.now() - new Date(lw).getTime()) / 86400000;
+      return daysSince < 1; // arrosé il y a moins de 24h
+    });
+    if(allHigh && daysSinceRefresh >= 1 && !lastWateredRecently){
+      // Humidité bloquée haute sans arrosage récent → recalcul forcé
+      state.selectedPlants.forEach(k=>{ state.plantMoisture[k] = 70; });
+      needsReset = true;
+      console.warn('GardenMinder: humidité bloquée haute détectée, recalcul forcé');
+    }
+  }
+  if(needsReset){
+    state.lastMoistureDate = null;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Inject FAB for journal
   const fab = document.createElement('button');

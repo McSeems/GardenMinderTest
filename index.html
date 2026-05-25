@@ -2666,8 +2666,10 @@ function finalizeSetup(){
   state.price=parseFloat(document.getElementById('price-input').value)||4.30;
   state.flow=parseFloat(document.getElementById('flow-input').value)||10;
   if(state.selectedPlants.length===0) state.selectedPlants=['tomato','lawn'];
-  state.selectedPlants.forEach(k=>{state.plantMoisture[k]=65+Math.random()*25;});
-  applyWizardContext(); // pré-initialise les contenants selon le contexte wizard
+  // Init moisture à 70% (plantes bien hydratées mais pas au max)
+  state.selectedPlants.forEach(k=>{ state.plantMoisture[k]=70; });
+  state.lastMoistureDate = null; // forcer computeMoisture au prochain initApp
+  applyWizardContext();
   initApp();
   goTo('app');
   fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
@@ -2848,79 +2850,88 @@ function heatFactor(tempMax){
   return 1.0 + (tempMax - 25) * 0.05; // +5% par °C au-dessus de 25°C → 35°C = +50%
 }
 
-// Calcule l'humidité d'une plante en appliquant l'ET jour par jour depuis lastMoistureDate
-// Tient compte de la température réelle chaque jour
+// Calcule l'humidité d'une plante jour par jour depuis lastMoistureDate
 function computeMoisture(key){
   const plant = PLANT_DB[key];
   if(!plant) return 60;
   const retention = SOIL_RETENTION[state.soil]||1;
   const expose = EXPOSE_FACTOR[state.expose]||1;
   const drainage = getPlantDrainage(key);
-  let score = state.plantMoisture[key];
-  if(score===undefined||score===null) score = 65;
+
+  // Score de départ — JAMAIS au-dessus de 100
+  let score = Math.min(100, state.plantMoisture[key]||65);
 
   const todayStr = new Date().toISOString().slice(0,10);
   const lastDate = state.lastMoistureDate;
 
-  // Pas de date de référence → premier boot, retourner le score initial tel quel
-  if(!lastDate) return Math.min(100, Math.max(5, score));
+  if(!lastDate){
+    // Premier boot : appliquer une journée d'ET pour avoir une valeur réaliste
+    const soilF = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 10;
+    const heat = heatFactor(getTempMaxForDate(todayStr));
+    score = score - baseET * heat;
+    return Math.min(100, Math.max(2, score));
+  }
 
-  // Calculer le nb de jours à simuler
   const daysDiff = Math.round((new Date(todayStr) - new Date(lastDate)) / 86400000);
-  if(daysDiff <= 0) return Math.min(100, Math.max(5, score));
 
-  // Facteur sol (moins important en pot)
+  if(daysDiff <= 0){
+    // Même jour : appliquer une fraction d'ET (évaporation depuis le dernier calcul)
+    // On applique 0.4× l'ET journalière pour représenter ~10h d'évaporation
+    const soilF = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 10;
+    const heat = heatFactor(getTempMaxForDate(todayStr));
+    score = score - baseET * heat * 0.4;
+    return Math.min(100, Math.max(2, Math.round(score)));
+  }
+
+  // Simuler chaque jour écoulé avec sa propre météo
   const soilFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-  // ET de base journalière (mm/jour) — divisé par 10 pour donner un % d'humidité
   const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 10;
   const rainEff = drainage > 1.5 ? 0.15 : 0.65;
 
-  // Simuler chaque jour écoulé avec sa propre température et pluie
   for(let d = 1; d <= daysDiff; d++){
     const date = new Date(lastDate);
     date.setDate(date.getDate() + d);
     const dateStr = date.toISOString().slice(0,10);
-
     const tempMax = getTempMaxForDate(dateStr);
     const heat = heatFactor(tempMax);
     const rain = getRainForDate(dateStr);
-
-    // ET du jour = base × chaleur
-    const et = baseET * heat;
-    score = score - et + rain * rainEff;
+    score = score - baseET * heat + rain * rainEff;
     score = Math.min(100, Math.max(2, score));
   }
 
-  // Appliquer la calibration
   score = score * (state.calibration.soilMultiplier||1) + (state.calibration.offset||0);
   return Math.min(100, Math.max(2, score));
 }
 
-// Applique computeMoisture et ÉCRIT dans state — une fois par jour max
-function refreshAllMoisture(){
+// Applique computeMoisture et ÉCRIT dans state
+// Appelé : au boot (une fois/jour), ET après chaque arrosage pour recalculer depuis today
+function refreshAllMoisture(forceToday){
   const todayStr = new Date().toISOString().slice(0,10);
 
-  // Si déjà exécuté aujourd'hui ET que les valeurs sont en mémoire → ne rien faire
-  // (évite la baisse à chaque ouverture de l'app dans la même journée)
-  if(state.lastMoistureDate === todayStr && state.selectedPlants.every(k=>state.plantMoisture[k]!==undefined)){
-    return; // déjà à jour aujourd'hui
+  // Garde : si déjà fait aujourd'hui et pas de forceToday, on ne recalcule pas
+  // EXCEPTION : si une valeur dépasse 100 (bug), on force quand même
+  const hasOverflow = state.selectedPlants.some(k=>(state.plantMoisture[k]||0) > 100);
+  if(!forceToday && !hasOverflow && state.lastMoistureDate === todayStr &&
+     state.selectedPlants.every(k=>state.plantMoisture[k]!==undefined)){
+    return;
   }
 
-  // Calculer et écrire les nouvelles valeurs
+  // Calculer ET écrire, avec clamp strict 0–100
   state.selectedPlants.forEach(k=>{
     const newVal = computeMoisture(k);
-    state.plantMoisture[k] = Math.round(newVal);
+    state.plantMoisture[k] = Math.min(100, Math.max(2, Math.round(newVal)));
   });
 
-  // Mettre à jour la date de référence
   state.lastMoistureDate = todayStr;
 
   // Snapshot historique (max 1 par jour)
   if(state.selectedPlants.length > 0){
     if(!state.moistureHistory) state.moistureHistory = [];
-    const avg = Math.round(
+    const avg = Math.min(100, Math.round(
       state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0) / state.selectedPlants.length
-    );
+    ));
     const lastEntry = state.moistureHistory[state.moistureHistory.length-1];
     if(!lastEntry || lastEntry.date !== todayStr){
       state.moistureHistory.push({ date: todayStr, value: avg, ts: new Date().toISOString() });
@@ -3612,15 +3623,18 @@ function confirmWatering(){
   if(!state.lastWatered) state.lastWatered = {};
   const targets=currentPlant?[currentPlant]:state.selectedPlants;
   targets.forEach(k=>{
-    state.lastWatered[k] = now.toISOString(); // cooldown 6h
+    state.lastWatered[k] = now.toISOString();
     if(PLANT_DB[k] && PLANT_DB[k].family==='gazon'){
-      // Gazon : calcul volumétrique surface-dépendant
       state.plantMoisture[k]=Math.min(100,(state.plantMoisture[k]||60)+liters/state.surface*8);
     } else {
-      // Autres plantes : un arrosage = hydratation complète
-      state.plantMoisture[k]=100;
+      state.plantMoisture[k]=100; // arrosage = hydratation complète
     }
+    // Clamp strict
+    state.plantMoisture[k] = Math.min(100, Math.max(2, state.plantMoisture[k]));
   });
+  // Forcer recalcul ET du jour partiel (évite le blocage à 100% jusqu'au lendemain)
+  state.lastMoistureDate = null; // reset pour que computeMoisture applique l'ET d'aujourd'hui
+  refreshAllMoisture(true);
   document.getElementById('modal-watering').classList.remove('open');
   awardPoints(5, 'Arrosage enregistré 💧');
   showToast('✅ Arrosage de '+Math.round(liters)+'L enregistré ! +5 pts');

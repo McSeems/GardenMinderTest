@@ -1397,6 +1397,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <button class="btn-primary" id="detail-water-btn" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
       <button class="btn-secondary" onclick="openJournalFromPlant()" style="margin-bottom:0;padding:16px;border-radius:14px;border:2px solid var(--green-pale);background:white;color:var(--green-mid);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">📖 Journal</button>
     </div>
+    <!-- Graphique prévisionnel plante -->
+    <div id="plant-forecast-chart" style="background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:16px;"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
@@ -1428,6 +1430,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <!-- Plants list -->
     <div class="section-title" style="padding-top:16px;">Mes plantes</div>
     <div class="cat-plants-list" id="cat-plants-list"></div>
+    <!-- Graphique prévisionnel -->
+    <div id="cat-forecast-chart" style="margin:16px;background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
@@ -2953,13 +2957,19 @@ function getMoistureLevel(pct){
   return{label:'OK',cls:'green',action:'ok',badge:'🟢 OK'};
 }
 function updateHeroScore(){
-  // state.plantMoisture est déjà synchronisé par refreshAllMoisture()
-  let minMoisture=100, worstPlant=null;
+  if(!state.selectedPlants.length) return;
+  // Moyenne de toutes les plantes (cohérent avec openCategoryDetail)
+  const scores = state.selectedPlants.map(k => Math.min(100, Math.max(2, state.plantMoisture[k]||60)));
+  const avg = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+  const pct = Math.min(100, avg);
+
+  // Pire plante (pour l'indicateur)
+  let worstPlant = null, worstScore = Infinity;
   state.selectedPlants.forEach(k=>{
-    const m=state.plantMoisture[k]||60;
-    if(m<minMoisture){minMoisture=m;worstPlant=k;}
+    const m = Math.min(100, state.plantMoisture[k]||60);
+    if(m < worstScore){ worstScore = m; worstPlant = k; }
   });
-  const pct=Math.round(minMoisture);
+
   const lvl=getMoistureLevel(pct);
   const arcEl=document.getElementById('gauge-arc');
   if(arcEl){const total=301;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());}
@@ -3264,10 +3274,10 @@ function openCategoryDetail(fam, keys, meta){
   icon.className = 'cat-hero-icon ' + meta.iconClass;
   document.getElementById('cat-hero-name').textContent = meta.name;
   document.getElementById('cat-hero-sub').textContent = keys.length + ' plante' + (keys.length>1?'s':'');
-  // Hygro card
-  const avgPct = Math.round(keys.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/keys.length);
-  const minPct = Math.round(Math.min(...keys.map(k=>state.plantMoisture[k]||60)));
-  const maxPct = Math.round(Math.max(...keys.map(k=>state.plantMoisture[k]||60)));
+  // Hygro card — clamp strict à 100
+  const avgPct = Math.min(100, Math.round(keys.reduce((s,k)=>s+(Math.min(100,state.plantMoisture[k]||60)),0)/keys.length));
+  const minPct = Math.min(100, Math.round(Math.min(...keys.map(k=>Math.min(100,state.plantMoisture[k]||60)))));
+  const maxPct = Math.min(100, Math.round(Math.max(...keys.map(k=>Math.min(100,state.plantMoisture[k]||60)))));
   const lvl = getMoistureLevel(avgPct);
   const fill = document.getElementById('cat-hygro-fill');
   fill.style.width='0%';
@@ -3283,7 +3293,7 @@ function openCategoryDetail(fam, keys, meta){
   list.innerHTML='';
   keys.forEach(k=>{
     const plant=PLANT_DB[k];
-    const pct=Math.round(state.plantMoisture[k]||60);
+    const pct=Math.min(100,Math.round(state.plantMoisture[k]||60));
     const l=getMoistureLevel(pct);
     const row=document.createElement('div');
     row.className='plant-row';
@@ -3293,7 +3303,135 @@ function openCategoryDetail(fam, keys, meta){
       <div class="plant-row-status"><div class="status-badge ${l.cls}">${l.label}</div><div class="plant-row-arrow">›</div></div>`;
     list.appendChild(row);
   });
+  // ── Graphique prévisionnel 15 jours ──────────────────────────────────────
+  renderForecastMoistureChart(keys, meta.name, 'cat-forecast-chart');
   goTo('category');
+}
+
+// ── GRAPHIQUE PRÉVISIONNEL HYGROMÉTRIE 15 JOURS ──────────────────────────────
+function renderForecastMoistureChart(plantKeys, categoryName, containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  const DAYS = 15;
+  const retention = SOIL_RETENTION[state.soil]||1;
+  const expose = EXPOSE_FACTOR[state.expose]||1;
+  const rainEff = 0.65;
+
+  // Simuler chaque plante sur 15 jours
+  const series = plantKeys.map(k=>{
+    const plant = PLANT_DB[k];
+    if(!plant) return null;
+    const drainage = getPlantDrainage(k);
+    const soilF = drainage > 1.0 ? 1.0+(retention-1.0)*0.3 : retention;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 2.0;
+    let score = Math.min(100, state.plantMoisture[k]||65);
+    const vals = [Math.round(score)];
+    for(let d=1; d<=DAYS; d++){
+      const date = new Date(); date.setDate(date.getDate()+d);
+      const dateStr = date.toISOString().slice(0,10);
+      const tempMax = getTempMaxForDate(dateStr);
+      const heat = heatFactor(tempMax);
+      const rain = getRainForDate(dateStr);
+      score = score - baseET*heat + rain*rainEff;
+      score = Math.min(100, Math.max(2, score));
+      vals.push(Math.round(score));
+    }
+    return { key: k, name: plant.name, emoji: plant.emoji, vals };
+  }).filter(Boolean);
+
+  if(!series.length){ container.innerHTML=''; return; }
+
+  // Moyenne jardin
+  const avgSeries = [];
+  for(let d=0; d<=DAYS; d++){
+    avgSeries.push(Math.round(series.reduce((s,p)=>s+p.vals[d],0)/series.length));
+  }
+
+  // Trouver le jour d'alerte jaune et rouge pour la moyenne
+  const alertYellow = avgSeries.findIndex(v=>v<60);
+  const alertRed    = avgSeries.findIndex(v=>v<35);
+
+  // Labels
+  const labels = [];
+  for(let d=0; d<=DAYS; d++){
+    if(d===0){ labels.push("Auj."); continue; }
+    const date = new Date(); date.setDate(date.getDate()+d);
+    labels.push('J+'+d);
+  }
+
+  // Couleurs par plante
+  const COLORS = ['#52a86a','#e05a3a','#4a90c8','#c8883a','#9c27b0','#e91e8c'];
+
+  // SVG chart
+  const W=320, H=160, PL=36, PR=12, PT=16, PB=28;
+  const cW=W-PL-PR, cH=H-PT-PB;
+  const xStep = cW/DAYS;
+  const yScale = v => PT + cH - (v/100)*cH;
+
+  // Zones de couleur (fond)
+  const redY  = PT + cH - (35/100)*cH;
+  const warnY = PT + cH - (60/100)*cH;
+
+  let svgPaths = '';
+  // Fond rouge/orange/vert
+  svgPaths += `<rect x="${PL}" y="${warnY}" width="${cW}" height="${redY-warnY}" fill="#fff8e0" opacity="0.6"/>`;
+  svgPaths += `<rect x="${PL}" y="${redY}" width="${cW}" height="${PT+cH-redY}" fill="#ffe0e0" opacity="0.6"/>`;
+
+  // Lignes de seuil
+  svgPaths += `<line x1="${PL}" y1="${warnY}" x2="${PL+cW}" y2="${warnY}" stroke="#e0b000" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>`;
+  svgPaths += `<line x1="${PL}" y1="${redY}" x2="${PL+cW}" y2="${redY}" stroke="#e05a3a" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>`;
+
+  // Courbe moyenne jardin (plus épaisse)
+  const avgPath = avgSeries.map((v,i)=>`${i===0?'M':'L'}${PL+i*xStep},${yScale(v)}`).join(' ');
+  svgPaths += `<path d="${avgPath}" fill="none" stroke="#1a3a2a" stroke-width="2.5" opacity="0.35"/>`;
+
+  // Courbes par plante
+  series.forEach((s,si)=>{
+    const col = COLORS[si % COLORS.length];
+    const path = s.vals.map((v,i)=>`${i===0?'M':'L'}${PL+i*xStep},${yScale(v)}`).join(' ');
+    svgPaths += `<path d="${path}" fill="none" stroke="${col}" stroke-width="1.8" opacity="0.85"/>`;
+    // Point final
+    const lastV = s.vals[DAYS];
+    svgPaths += `<circle cx="${PL+DAYS*xStep}" cy="${yScale(lastV)}" r="3" fill="${col}"/>`;
+    svgPaths += `<text x="${PL+DAYS*xStep+5}" y="${yScale(lastV)+4}" font-size="9" fill="${col}" font-family="sans-serif">${lastV}%</text>`;
+  });
+
+  // Axes Y
+  [0,35,60,100].forEach(v=>{
+    const y = yScale(v);
+    svgPaths += `<text x="${PL-3}" y="${y+3}" font-size="9" fill="#888" text-anchor="end" font-family="sans-serif">${v}%</text>`;
+  });
+
+  // Labels X (tous les 3 jours)
+  for(let d=0; d<=DAYS; d+=3){
+    const x = PL+d*xStep;
+    const lbl = d===0 ? 'Auj.' : 'J+'+d;
+    svgPaths += `<text x="${x}" y="${PT+cH+14}" font-size="9" fill="#888" text-anchor="middle" font-family="sans-serif">${lbl}</text>`;
+  }
+
+  // Légende
+  const legendItems = series.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--text-mid);">
+      <div style="width:16px;height:3px;background:${COLORS[i%COLORS.length]};border-radius:2px;flex-shrink:0;"></div>
+      ${s.emoji} ${s.name} → <strong style="color:${COLORS[i%COLORS.length]}">${s.vals[DAYS]}%</strong>
+    </div>`).join('');
+
+  // Message d'alerte
+  let alertMsg = '';
+  if(alertRed > 0 && alertRed <= DAYS){
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#ffe0e0;border-radius:8px;font-size:0.78rem;color:#c0392b;font-weight:600;">⚠️ Arrosage critique requis autour de J+${alertRed} si pas de pluie</div>`;
+  } else if(alertYellow > 0 && alertYellow <= DAYS){
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#fff8e0;border-radius:8px;font-size:0.78rem;color:#e0a000;font-weight:600;">👁️ Surveiller vers J+${alertYellow} — prévoyez un arrosage</div>`;
+  } else {
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:#2e7d52;font-weight:600;">✅ Jardin hydraté pour les 15 prochains jours</div>`;
+  }
+
+  container.innerHTML = `
+    <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📈 Prévision 15 jours · sans arrosage</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${svgPaths}</svg>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${legendItems}</div>
+    ${alertMsg}`;
 }
 
 function renderForecast(){
@@ -3411,6 +3549,8 @@ function openPlantDetail(key, fromScreen){
     }
   }
   // ──────────────────────────────────────────────────────────────────────────
+  // Graphique prévisionnel pour cette plante
+  renderForecastMoistureChart([key], PLANT_DB[key]?.name || key, 'plant-forecast-chart');
   goTo('plant');
 }
 

@@ -2709,26 +2709,32 @@ function daysUntilWatering(key){
   const retention=SOIL_RETENTION[state.soil]||1;
   const expose=EXPOSE_FACTOR[state.expose]||1;
   const drainage=getPlantDrainage(key);
-  const soilRetentionFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-  const dailyLoss=plant.waterNeed*expose*drainage/soilRetentionFactor;
-  const rainEff = drainage > 1.5 ? 0.2 : 0.7;
-  let score=state.plantMoisture[key]||60;
-  for(let i=0;i<14;i++){
-    let forecastRain=0;
+  const soilF = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
+  // CORRIGÉ : même formule que computeMoisture avec /2.0
+  const baseET = (plant.waterNeed * expose * drainage / soilF) / 0.8;
+  const rainEff = drainage > 1.5 ? 0.15 : 0.65;
+  let score = Math.min(100, state.plantMoisture[key]||60);
+  for(let i=0; i<30; i++){
+    let forecastRain=0, tempMax=22;
     if(state.forecast&&state.forecast.time){
-      const d=new Date();d.setDate(d.getDate()+i);
+      const d=new Date(); d.setDate(d.getDate()+i);
       const ds=d.toISOString().slice(0,10);
       const fi=state.forecast.time.indexOf(ds);
-      if(fi!==-1)forecastRain=(state.forecast.precipitation_sum[fi]||0);
+      if(fi!==-1){
+        forecastRain=(state.forecast.precipitation_sum[fi]||0);
+        tempMax=(state.forecast.temperature_2m_max[fi]||22);
+      }
     }
-    score=score-dailyLoss*0.8+forecastRain*rainEff;
-    score=Math.min(100,Math.max(0,score));
-    if(score<35){
-      if(i===0)return'Ce soir !';
-      return'Dans '+i+'j';
+    const heat = tempMax <= 25 ? 1.0 : 1.0 + (tempMax-25)*0.05;
+    score = score - baseET*heat + forecastRain*rainEff;
+    score = Math.min(100, Math.max(0, score));
+    if(score < 70){ // alerte = début zone surveillance (nouveau seuil)
+      if(i===0) return 'Ce soir !';
+      if(i===1) return 'Demain';
+      return 'Dans '+i+'j';
     }
   }
-  return'+14j';
+  return '+30j';
 }
 
 // Stocke les précipitations reçues depuis Open-Meteo en local (jusqu'à 12 mois)
@@ -2829,7 +2835,12 @@ function initApp(){
     if(days>0&&days<=7){if(nudge)nudge.style.display='flex';if(daysEl)daysEl.textContent=days;}
     else if(days===0){goTo('trial-end');return;}
   }
-  refreshAllMoisture();
+  // refreshAllMoisture uniquement si pas déjà fait aujourd'hui
+  // Empêche la remontée du taux à chaque goTo('app')
+  const todayForInit = new Date().toISOString().slice(0,10);
+  if(state.lastMoistureDate !== todayForInit) {
+    refreshAllMoisture();
+  }
   updateHeroScore();
   renderPlantStrip();
   renderForecast();
@@ -2898,7 +2909,7 @@ function computeMoisture(key){
 
   // Simuler chaque jour écoulé avec sa propre météo
   const soilFactor = drainage > 1.0 ? 1.0 + (retention-1.0)*0.3 : retention;
-  const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 2.0;
+  const baseET = (plant.waterNeed * expose * drainage / soilFactor) / 0.8;
   const rainEff = drainage > 1.5 ? 0.15 : 0.65;
 
   for(let d = 1; d <= daysDiff; d++){
@@ -2952,23 +2963,20 @@ function refreshAllMoisture(forceToday){
   saveState();
 }
 function getMoistureLevel(pct){
-  if(pct<35)return{label:'Arroser',cls:'red',action:'danger',badge:'🔴 Urgent'};
-  if(pct<60)return{label:'Surveiller',cls:'yellow',action:'warn',badge:'🟡 Surveiller'};
-  return{label:'OK',cls:'green',action:'ok',badge:'🟢 OK'};
+  if(pct<30)return{label:'Urgence',   cls:'red',    action:'danger', badge:'🔴 Urgence survie'};
+  if(pct<50)return{label:'Arroser',   cls:'red',    action:'danger', badge:'🔴 Arroser maintenant'};
+  if(pct<70)return{label:'Surveiller',cls:'yellow', action:'warn',   badge:'🟡 À surveiller'};
+  return          {label:'OK',        cls:'green',  action:'ok',     badge:'🟢 Bien hydraté'};
 }
 function updateHeroScore(){
   if(!state.selectedPlants.length) return;
-  // Moyenne de toutes les plantes (cohérent avec openCategoryDetail)
-  const scores = state.selectedPlants.map(k => Math.min(100, Math.max(2, state.plantMoisture[k]||60)));
-  const avg = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
-  const pct = Math.min(100, avg);
-
-  // Pire plante (pour l'indicateur)
-  let worstPlant = null, worstScore = Infinity;
+  // Minimum = pire plante (le jardin est aussi bien que sa plante la plus fragile)
+  let worstScore = 100, worstPlant = null;
   state.selectedPlants.forEach(k=>{
-    const m = Math.min(100, state.plantMoisture[k]||60);
+    const m = Math.min(100, Math.max(2, state.plantMoisture[k]||60));
     if(m < worstScore){ worstScore = m; worstPlant = k; }
   });
+  const pct = Math.round(worstScore);
 
   const lvl=getMoistureLevel(pct);
   const arcEl=document.getElementById('gauge-arc');
@@ -2978,7 +2986,7 @@ function updateHeroScore(){
   const scoreEl=document.getElementById('hero-score');
   if(scoreEl)scoreEl.innerHTML=pct+'<span style="font-size:1.3rem;color:rgba(255,255,255,0.6);">%</span>';
   const statusEl=document.getElementById('hero-status-label');
-  if(statusEl)statusEl.textContent=lvl.label==='OK'?'Bien hydraté':lvl.label==='Surveiller'?'À surveiller':'Arrosage requis';
+  if(statusEl)statusEl.textContent=pct>=70?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
   const indicator=document.getElementById('hero-plant-indicator');
   if(indicator&&worstPlant)indicator.textContent='Pire : '+PLANT_DB[worstPlant].emoji+' '+PLANT_DB[worstPlant].name;
   const alertText=document.getElementById('hero-alert-text');
@@ -2987,9 +2995,10 @@ function updateHeroScore(){
   if(worstPlant&&alertText){
     const p=PLANT_DB[worstPlant];
     const nextWater=daysUntilWatering(worstPlant);
-    if(pct<35){if(alertIcon)alertIcon.textContent='⚠️';alertText.textContent=p.emoji+' '+p.name+' — arrosage recommandé ce soir.';}
-    else if(pct<60){if(alertIcon)alertIcon.textContent='👁️';alertText.textContent=p.emoji+' '+p.name+' à surveiller. Vérification dans 24h.';}
-    else{if(alertIcon)alertIcon.textContent='✅';alertText.textContent='Jardin en bonne santé. Prochain arrosage : '+nextWater+'.';}
+    if(pct<30){if(alertIcon)alertIcon.textContent='🆘';alertText.textContent=p.emoji+' '+p.name+' — urgence ! Sol presque sec, arrosez immédiatement.';}
+    else if(pct<50){if(alertIcon)alertIcon.textContent='⚠️';alertText.textContent=p.emoji+' '+p.name+' — arrosage requis aujourd\'hui.';}
+    else if(pct<70){if(alertIcon)alertIcon.textContent='👁️';alertText.textContent=p.emoji+' '+p.name+' commence à manquer d\'eau. Arrosage prévu '+nextWater+'.';}
+    else{if(alertIcon)alertIcon.textContent='✅';alertText.textContent='Jardin bien hydraté. Prochain arrosage : '+nextWater+'.';}
     if(_nw)_nw.textContent=nextWater;
   }
 }
@@ -3324,7 +3333,7 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
     if(!plant) return null;
     const drainage = getPlantDrainage(k);
     const soilF = drainage > 1.0 ? 1.0+(retention-1.0)*0.3 : retention;
-    const baseET = (plant.waterNeed * expose * drainage / soilF) / 2.0;
+    const baseET = (plant.waterNeed * expose * drainage / soilF) / 0.8;
     let score = Math.min(100, state.plantMoisture[k]||65);
     const vals = [Math.round(score)];
     for(let d=1; d<=DAYS; d++){
@@ -3349,8 +3358,8 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   }
 
   // Trouver le jour d'alerte jaune et rouge pour la moyenne
-  const alertYellow = avgSeries.findIndex(v=>v<60);
-  const alertRed    = avgSeries.findIndex(v=>v<35);
+  const alertYellow = avgSeries.findIndex(v=>v<70);
+  const alertRed    = avgSeries.findIndex(v=>v<50);
 
   // Labels
   const labels = [];
@@ -3420,11 +3429,11 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   // Message d'alerte
   let alertMsg = '';
   if(alertRed > 0 && alertRed <= DAYS){
-    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#ffe0e0;border-radius:8px;font-size:0.78rem;color:#c0392b;font-weight:600;">⚠️ Arrosage critique requis autour de J+${alertRed} si pas de pluie</div>`;
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#ffe0e0;border-radius:8px;font-size:0.78rem;color:#c0392b;font-weight:600;">⚠️ Arrosage requis autour de J+${alertRed} si pas de pluie</div>`;
   } else if(alertYellow > 0 && alertYellow <= DAYS){
-    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#fff8e0;border-radius:8px;font-size:0.78rem;color:#e0a000;font-weight:600;">👁️ Surveiller vers J+${alertYellow} — prévoyez un arrosage</div>`;
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#fff8e0;border-radius:8px;font-size:0.78rem;color:#e0a000;font-weight:600;">👁️ Commencera à manquer d'eau vers J+${alertYellow} — prévoyez un arrosage</div>`;
   } else {
-    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:#2e7d52;font-weight:600;">✅ Jardin hydraté pour les 15 prochains jours</div>`;
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:#2e7d52;font-weight:600;">✅ Jardin bien hydraté pour les 15 prochains jours</div>`;
   }
 
   container.innerHTML = `
@@ -3498,9 +3507,31 @@ function openPlantDetail(key, fromScreen){
   const ac=document.getElementById('detail-action-card');
   ac.className='action-card '+lvl.action;
   const nextWaterTxt=daysUntilWatering(key);
-  if(pct<35){document.getElementById('detail-action-title').textContent='⚠️ Arrosage recommandé aujourd\'hui';document.getElementById('detail-action-body').textContent=plant.name+' sont à '+pct+'% d\'humidité. Apportez environ '+Math.round(plant.waterNeed*state.surface/100)+'L ce soir.';}
-  else if(pct<60){document.getElementById('detail-action-title').textContent='👁️ À surveiller';document.getElementById('detail-action-body').textContent=plant.name+' sont correctement hydratés. Arrosage prévu '+nextWaterTxt+' si pas de pluie.';}
-  else{document.getElementById('detail-action-title').textContent='✅ Jardin en bonne santé';document.getElementById('detail-action-body').textContent=plant.name+' n\'ont pas besoin d\'eau pour l\'instant. Prochain arrosage : '+nextWaterTxt+'.';}
+  // Plan de récupération actif ?
+  const plan = state.recoveryPlan && state.recoveryPlan[key];
+  if(pct<30){
+    document.getElementById('detail-action-title').textContent='🆘 Urgence — sol presque sec';
+    const sessionsLeft = plan ? (plan.sessions - plan.done) : 5;
+    const gain = 15;
+    document.getElementById('detail-action-body').textContent=
+      plant.name+' sont à '+pct+'% — absorption très lente. Plan récupération : '+
+      (plan ? sessionsLeft+' arrosage'+(sessionsLeft>1?'s':'') : '5 arrosages')+
+      ' à répartir sur 5 jours (+'+gain+'% par session). Ne pas tout donner d\'un coup — risque d\'asphyxie racinaire.';
+  } else if(pct<50){
+    document.getElementById('detail-action-title').textContent='⚠️ Stress visible — arrosage intensif';
+    const sessionsLeft = plan ? (plan.sessions - plan.done) : 3;
+    document.getElementById('detail-action-body').textContent=
+      plant.name+' sont à '+pct+'%. '+
+      (plan ? 'Plan en cours : encore '+sessionsLeft+' session'+(sessionsLeft>1?'s':'')+'.' :
+       'Arrosage intensif : 3 sessions recommandées sur 3 jours consécutifs (+20%/session).')+
+      ' La récupération complète prend 3-5 jours (littérature agronomique FAO).';
+  } else if(pct<70){
+    document.getElementById('detail-action-title').textContent='👁️ À surveiller — arrosage bientôt';
+    document.getElementById('detail-action-body').textContent=plant.name+' commencent à manquer d\'eau ('+pct+'%). Prochain arrosage recommandé '+nextWaterTxt+'.';
+  } else {
+    document.getElementById('detail-action-title').textContent='✅ Bien hydraté';
+    document.getElementById('detail-action-body').textContent=plant.name+' sont en bonne santé ('+pct+'%). Prochain arrosage : '+nextWaterTxt+'.';
+  }
   const chart=document.getElementById('detail-chart');
   const labels=document.getElementById('detail-chart-labels');
   const days7=['J-6','J-5','J-4','J-3','J-2','Hier','Auj.'];
@@ -3771,12 +3802,27 @@ function confirmWatering(){
   const targets=currentPlant?[currentPlant]:state.selectedPlants;
   targets.forEach(k=>{
     state.lastWatered[k] = now.toISOString();
+    const currentScore = state.plantMoisture[k] || 60;
+
     if(PLANT_DB[k] && PLANT_DB[k].family==='gazon'){
-      // Gazon : volume proportionnel à la surface (max 100%)
+      // Gazon : volume proportionnel à la surface
       const gain = Math.min(40, liters / Math.max(1, state.surface) * 8);
-      state.plantMoisture[k] = Math.min(100, (state.plantMoisture[k]||60) + gain);
+      state.plantMoisture[k] = Math.min(100, currentScore + gain);
+    } else if(currentScore < 30){
+      // URGENCE (<30%) : récupération très progressive — +15% max par arrosage
+      // Sol très sec = absorption lente, risque asphyxie si trop d'eau d'un coup
+      state.plantMoisture[k] = Math.min(45, currentScore + 15);
+      if(!state.recoveryPlan) state.recoveryPlan = {};
+      state.recoveryPlan[k] = { sessions: 5, done: 1, startScore: currentScore, startDate: now.toISOString() };
+    } else if(currentScore < 50){
+      // STRESS VISIBLE (30-50%) : récupération progressive — +20% par arrosage
+      state.plantMoisture[k] = Math.min(70, currentScore + 20);
+      if(!state.recoveryPlan) state.recoveryPlan = {};
+      state.recoveryPlan[k] = { sessions: 3, done: 1, startScore: currentScore, startDate: now.toISOString() };
     } else {
+      // OK ou surveillance : arrosage normal → 100%
       state.plantMoisture[k] = 100;
+      if(state.recoveryPlan) delete state.recoveryPlan[k];
     }
     state.plantMoisture[k] = Math.min(100, Math.max(2, state.plantMoisture[k]));
   });
@@ -3784,9 +3830,17 @@ function confirmWatering(){
   // (évite que computeMoisture ne fasse baisser le score juste après l'arrosage)
   state.lastMoistureDate = new Date().toISOString().slice(0,10);
   saveState();
+  // Construire le message toast
+  let toastMsg = '✅ Arrosage de '+Math.round(liters)+'L enregistré ! +5 pts';
+  const firstTarget = targets[0];
+  if(state.recoveryPlan && state.recoveryPlan[firstTarget]){
+    const plan = state.recoveryPlan[firstTarget];
+    const remaining = plan.sessions - plan.done;
+    toastMsg = '💧 Arrosage enregistré — plan récupération : encore '+remaining+' session'+(remaining>1?'s':'');
+  }
   document.getElementById('modal-watering').classList.remove('open');
   awardPoints(5, 'Arrosage enregistré 💧');
-  showToast('✅ Arrosage de '+Math.round(liters)+'L enregistré ! +5 pts');
+  showToast(toastMsg);
   chronoSecs=0;chronoRunning=false;clearInterval(chronoInterval);
   document.getElementById('chrono-display').textContent='00:00';
   updateHeroScore();renderPlantStrip();updateStats();

@@ -1211,6 +1211,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
           <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;">
             <div id="hero-score" style="font-family:'Fraunces',serif;font-size:2.8rem;font-weight:300;color:white;line-height:1;">72<span style="font-size:1.3rem;color:rgba(255,255,255,0.6);">%</span></div>
             <div id="hero-status-label" style="font-size:0.85rem;color:var(--green-pale);font-weight:500;margin-top:2px;">Bien hydraté</div>
+            <div id="hero-avg-label" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:3px;display:none;">Moyenne jardin : —</div>
           </div>
         </div>
         <div id="hero-plant-indicator" style="font-size:0.78rem;color:rgba(255,255,255,0.45);margin-top:4px;"></div>
@@ -2785,19 +2786,12 @@ async function fetchWeather(){
     state.forecast=d.daily;
     state.precipHistory=(d.daily&&d.daily.precipitation_sum)?d.daily.precipitation_sum.slice(0,7):[];
     mergePrecipToLocal(d.daily&&d.daily.time, d.daily&&d.daily.precipitation_sum);
-    applyWindFactor();
   } catch(e) {
     if(!state.lat){state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
     state.weather={temperature_2m:22,windspeed_10m:15,precipitation:0};
     state.forecast={time:[],precipitation_sum:[0,2,0,0,5,1,0],temperature_2m_max:[24,22,25,27,20,21,23],weathercode:[1,61,1,1,80,2,1]};
     state.precipHistory=[3,0,8,2,0,1,0];
   }
-}
-function applyWindFactor(){
-  if(!state.weather)return;
-  const wind=state.weather.windspeed_10m||0;
-  const factor=Math.min(1.5,Math.max(0.9,1+(wind-10)*0.008));
-  state.selectedPlants.forEach(k=>{state.plantMoisture[k]=Math.max(10,(state.plantMoisture[k]||70)/factor);});
 }
 const WX_ICONS={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',51:'🌦️',61:'🌧️',71:'🌨️',80:'🌩️',95:'⛈️'};
 function wxIcon(code){return WX_ICONS[code]||WX_ICONS[Math.floor(code/10)*10]||'🌤️';}
@@ -2970,13 +2964,12 @@ function getMoistureLevel(pct){
 }
 function updateHeroScore(){
   if(!state.selectedPlants.length) return;
-  // Minimum = pire plante (le jardin est aussi bien que sa plante la plus fragile)
-  let worstScore = 100, worstPlant = null;
-  state.selectedPlants.forEach(k=>{
-    const m = Math.min(100, Math.max(2, state.plantMoisture[k]||60));
-    if(m < worstScore){ worstScore = m; worstPlant = k; }
-  });
-  const pct = Math.round(worstScore);
+  const scores = state.selectedPlants.map(k => Math.min(100, Math.max(2, state.plantMoisture[k]||60)));
+  // Score principal = MINIMUM (pire plante dicte l'état du jardin)
+  const pct = Math.round(Math.min(...scores));
+  const avg = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+  let worstPlant = null;
+  scores.forEach((m,i)=>{ if(m===pct) worstPlant=state.selectedPlants[i]; });
 
   const lvl=getMoistureLevel(pct);
   const arcEl=document.getElementById('gauge-arc');
@@ -2987,6 +2980,16 @@ function updateHeroScore(){
   if(scoreEl)scoreEl.innerHTML=pct+'<span style="font-size:1.3rem;color:rgba(255,255,255,0.6);">%</span>';
   const statusEl=document.getElementById('hero-status-label');
   if(statusEl)statusEl.textContent=pct>=70?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
+  // Afficher la moyenne seulement si >1 plante et si elle diffère du min
+  const avgEl=document.getElementById('hero-avg-label');
+  if(avgEl){
+    if(scores.length > 1 && avg !== pct){
+      avgEl.textContent='Moyenne jardin : '+avg+'%';
+      avgEl.style.display='block';
+    } else {
+      avgEl.style.display='none';
+    }
+  }
   const indicator=document.getElementById('hero-plant-indicator');
   if(indicator&&worstPlant)indicator.textContent='Pire : '+PLANT_DB[worstPlant].emoji+' '+PLANT_DB[worstPlant].name;
   const alertText=document.getElementById('hero-alert-text');
@@ -3002,6 +3005,7 @@ function updateHeroScore(){
     if(_nw)_nw.textContent=nextWater;
   }
 }
+
 function renderPlantStrip(){
   const strip=document.getElementById('plant-strip');
   strip.innerHTML='';
@@ -4324,18 +4328,20 @@ function renderBarChart(containerId, data, colorActive, colorNormal, unit) {
   const nonNull = values.filter(v=>v!==null && v>0);
   const max = nonNull.length ? Math.max(...nonNull) : 1;
   const n = values.length;
-  let html = '<div style="display:flex;align-items:flex-end;gap:1px;height:100%;width:100%;">';
+  // Afficher les valeurs si ≤ 14 barres (lisible), sinon les masquer
+  const showVals = n <= 14;
+  let html = '<div style="display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;">';
   values.forEach((v, i) => {
     const empty = v===null || v===0;
-    const pct = empty ? 0 : Math.max(6,(v/max)*100);
+    const pct = empty ? 0 : Math.max(8, (v/max)*100);
     const isLast = i===n-1;
     const barBg = empty ? 'rgba(0,0,0,0.05)' : (isLast ? colorActive : colorNormal);
-    const valTxt = (!empty) ? (unit==='%'?Math.round(v)+'%':unit==='L'?v+'L':v.toFixed(1)) : '';
+    const valTxt = (!empty && showVals) ? (unit==='%'?Math.round(v)+'%':unit==='L'?v+'L':v.toFixed(1)) : '';
     const lbl = labels[i]||'';
     html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;">';
-    if(valTxt) html += '<div style="font-size:0.48rem;color:var(--text-light);margin-bottom:1px;white-space:nowrap;">'+valTxt+'</div>';
-    html += '<div style="width:100%;border-radius:2px 2px 0 0;height:'+pct+'%;background:'+barBg+';min-height:3px;transition:height 0.35s ease;"></div>';
-    if(lbl) html += '<div style="font-size:0.5rem;color:var(--text-light);margin-top:2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">'+lbl+'</div>';
+    if(valTxt) html += '<div style="font-size:0.58rem;font-weight:600;color:var(--text-mid);margin-bottom:2px;white-space:nowrap;letter-spacing:-0.2px;">'+valTxt+'</div>';
+    html += '<div style="width:100%;border-radius:3px 3px 0 0;height:'+pct+'%;background:'+barBg+';min-height:4px;transition:height 0.35s ease;"></div>';
+    if(lbl) html += '<div style="font-size:0.55rem;color:var(--text-light);margin-top:3px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">'+lbl+'</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -4351,7 +4357,8 @@ function renderAlertsTab(){
   const alerts=[];
   state.selectedPlants.forEach(k=>{
     const pct=Math.round(state.plantMoisture[k]||60);const p=PLANT_DB[k];
-    if(pct<35)alerts.push({type:'urgent',icon:p.emoji,title:p.name+' assoiffés — '+pct+'%',body:'Le niveau d\'humidité est critique. Arrosage urgent recommandé ce soir.',time:'Maintenant'});
+    if(pct<30)alerts.push({type:'urgent',icon:p.emoji,title:p.name+' — urgence sol sec ('+pct+'%)',body:'Niveau critique. Plan récupération 5 sessions recommandé.',time:'Maintenant'});
+    else if(pct<50)alerts.push({type:'urgent',icon:p.emoji,title:p.name+' — stress visible ('+pct+'%)',body:'Arrosage requis aujourd\'hui. Plan 3 sessions recommandé.',time:'Aujourd\'hui'});
   });
   if(state.forecast&&state.forecast.precipitation_sum&&state.forecast.time){
     // Chercher la pluie de demain par date (pas par index fixe)

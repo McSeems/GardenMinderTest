@@ -2689,6 +2689,8 @@ function finalizeSetup(){
   // Init moisture à 70% (plantes bien hydratées mais pas au max)
   state.selectedPlants.forEach(k=>{ state.plantMoisture[k]=70; });
   state.lastMoistureDate = null; // forcer computeMoisture au prochain initApp
+  // Enregistrer la date de création du jardin (pour badge anniversaire)
+  if(!state.setupDate) state.setupDate = new Date().toISOString();
   applyWizardContext();
   initApp();
   goTo('app');
@@ -2786,11 +2788,89 @@ async function fetchWeather(){
     state.forecast=d.daily;
     state.precipHistory=(d.daily&&d.daily.precipitation_sum)?d.daily.precipitation_sum.slice(0,7):[];
     mergePrecipToLocal(d.daily&&d.daily.time, d.daily&&d.daily.precipitation_sum);
+    // ── Détection canicule ──────────────────────────────────────────────────
+    checkHeatwaveAlert();
   } catch(e) {
     if(!state.lat){state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
     state.weather={temperature_2m:22,windspeed_10m:15,precipitation:0};
     state.forecast={time:[],precipitation_sum:[0,2,0,0,5,1,0],temperature_2m_max:[24,22,25,27,20,21,23],weathercode:[1,61,1,1,80,2,1]};
     state.precipHistory=[3,0,8,2,0,1,0];
+  }
+}
+
+// ── DÉTECTION ET ALERTE CANICULE ─────────────────────────────────────────────
+function checkHeatwaveAlert(){
+  if(!state.forecast || !state.forecast.temperature_2m_max || !state.forecast.time) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  const SEUIL = 32; // °C
+  const JOURS_CONSECUTIFS = 3; // jours min pour qualifier une canicule
+
+  // Compter les jours consécutifs ≥ SEUIL dans les 7 derniers jours (passé+auj)
+  const temps = state.forecast.temperature_2m_max;
+  const dates = state.forecast.time;
+  let joursChauds = 0;
+  let maxTemp = 0;
+  for(let i=0; i<dates.length; i++){
+    if(dates[i] > today) break; // ne regarder que jusqu'à aujourd'hui
+    const t = temps[i] || 0;
+    if(t >= SEUIL){ joursChauds++; maxTemp = Math.max(maxTemp, t); }
+    else joursChauds = 0; // réinitialiser si un jour plus frais
+  }
+
+  const isHeatwave = joursChauds >= JOURS_CONSECUTIFS;
+
+  // Prévision : y a-t-il encore des jours chauds à venir ?
+  let previsionChaude = false;
+  let maxPrevTemp = 0;
+  for(let i=0; i<dates.length; i++){
+    if(dates[i] >= today){
+      if((temps[i]||0) >= SEUIL){ previsionChaude = true; maxPrevTemp = Math.max(maxPrevTemp, temps[i]); }
+    }
+  }
+
+  const todayKey = today;
+  const alreadyNotified = state.heatwaveAlertSent === todayKey;
+
+  if((isHeatwave || previsionChaude) && !alreadyNotified){
+    state.heatwaveAlertSent = todayKey;
+
+    // Si canicule active avec jardin vivant → badge survivant
+    if(isHeatwave && state.selectedPlants.length > 0){
+      const avgMoisture = state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||0),0) / state.selectedPlants.length;
+      if(avgMoisture >= 30){ // jardin pas mort = survie réussie
+        state.heatwaveSurvived = true;
+      }
+    }
+    saveState();
+
+    const msg = isHeatwave
+      ? `🌡️ Canicule à ${state.city} — ${joursChauds} jours consécutifs ≥${SEUIL}°C ! Arrosez le soir, paillez le sol, protégez vos plantes.`
+      : `☀️ Fortes chaleurs prévues à ${state.city} — jusqu'à ${Math.round(maxPrevTemp)}°C. Anticipez vos arrosages !`;
+
+    // Toast persistant (6s)
+    const toast = document.getElementById('toast') || document.getElementById('success-toast');
+    if(toast){
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=>toast.classList.remove('show'), 7000);
+    }
+    // Notification système si permission accordée
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('🌡️ GardenMinder — Alerte Canicule', {
+        body: msg,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌡️</text></svg>'
+      });
+    }
+    // Demande de permission si pas encore demandée
+    if('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission().then(perm => {
+        if(perm === 'granted'){
+          new Notification('🌡️ GardenMinder — Alerte Canicule', { body: msg });
+        }
+      });
+    }
+    checkBadges();
   }
 }
 const WX_ICONS={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',51:'🌦️',61:'🌧️',71:'🌨️',80:'🌩️',95:'⛈️'};
@@ -4367,8 +4447,28 @@ function renderAlertsTab(){
     const ti=state.forecast.time.indexOf(tomorrowStr);
     const rainTomorrow=ti!==-1?(state.forecast.precipitation_sum[ti]||0):0;
     if(rainTomorrow>3)alerts.push({type:'info',icon:'🌧️',title:'Pluie prévue demain',body:rainTomorrow.toFixed(1)+'mm attendus demain. Inutile d\'arroser ce soir !',time:'Prévision J+1'});
-    const maxTemp=Math.max(...(state.forecast.temperature_2m_max||[]));
-    if(maxTemp>32)alerts.push({type:'warn',icon:'🌡️',title:'Fortes chaleurs prévues',body:'Jusqu\'à '+Math.round(maxTemp)+'°C prévus. Arrosez le soir pour limiter l\'évaporation.',time:'Cette semaine'});
+
+    // Détection canicule : jours consécutifs ≥ 32°C
+    const today=new Date().toISOString().slice(0,10);
+    const temps=state.forecast.temperature_2m_max||[];
+    const dates=state.forecast.time;
+    let joursChauds=0, maxTemp=0;
+    for(let i=0;i<dates.length;i++){
+      if(dates[i]>today) break;
+      const t=temps[i]||0;
+      if(t>=32){joursChauds++;maxTemp=Math.max(maxTemp,t);}
+      else joursChauds=0;
+    }
+    // Température max prévue sur les 7 prochains jours
+    let maxPrev=0;
+    for(let i=0;i<dates.length;i++){
+      if(dates[i]>=today) maxPrev=Math.max(maxPrev,temps[i]||0);
+    }
+    if(joursChauds>=3){
+      alerts.push({type:'urgent',icon:'🌡️',title:'🔴 CANICULE — '+joursChauds+' jours ≥32°C consécutifs',body:'Max relevé : '+Math.round(maxTemp)+'°C. Arrosez impérativement le soir après 20h, paillez le sol, ombrez les plantes fragiles.',time:'En cours'});
+    } else if(maxPrev>=32){
+      alerts.push({type:'warn',icon:'🌡️',title:'Fortes chaleurs prévues',body:'Jusqu\'à '+Math.round(maxPrev)+'°C prévus. Arrosez le soir pour limiter l\'évaporation.',time:'Cette semaine'});
+    }
   }
   if(state.calibration.offset!==0||state.calibration.soilMultiplier!==1.0){
     alerts.push({type:'info',icon:'🪨',title:'Modèle calibré',body:'Votre sol a été calibré. Le modèle est plus précis pour votre jardin.',time:'Paramètres actifs'});
@@ -4757,17 +4857,17 @@ const ENTRY_TYPES = {
 };
 
 const ALL_BADGES = [
-  { id:'first_seed',        emoji:'🌱', name:'Premier semis',        desc:'Première entrée journal',              cond: s=>s.journalEntries.length>=1 },
-  { id:'survivor',          emoji:'☀️', name:'Survivant canicule',   desc:'Rare — Canicule traversée',            cond: s=>s.gardenPoints>=50, rare:true },
-  { id:'first_harvest',     emoji:'🍅', name:'Première récolte',     desc:'Première récolte notée',               cond: s=>s.journalEntries.some(e=>e.type==='harvest') },
-  { id:'w100',              emoji:'💧', name:'100 arrosages',        desc:'100 arrosages enregistrés',            cond: s=>(s.wateringHistory||[]).length>=5 },
-  { id:'winter',            emoji:'❄️', name:'Jardinier d\'hiver',   desc:'Entrée en hiver',                      cond: s=>{ const m=new Date().getMonth(); return m>=11||m<=1; } },
-  { id:'seasons',           emoji:'🔄', name:'4 saisons',            desc:'Un an de jardinage',                   cond: s=>s.gardenPoints>=200, rare:true },
-  { id:'anniversary',       emoji:'🎂', name:'1 an de jardin',       desc:'365 jours avec GardenMinder',          cond: s=>s.gardenPoints>=300, rare:true },
-  { id:'photo_addict',      emoji:'📸', name:'Mémoire visuelle',     desc:'5 entrées journal avec photo',         cond: s=>(s.journalEntries||[]).filter(e=>e.photo).length>=5 },
-  { id:'shared_social',     emoji:'📲', name:'Partage en fleur',     desc:'Première entrée partagée sur réseaux', cond: s=>(s.journalEntries||[]).some(e=>e.sharedSocial) },
-  { id:'premium_supporter', emoji:'🏅', name:'Jardinier Soutien',    desc:'Rare · Soutien officiel du projet',    cond: s=>s.premium&&s.premium.purchased, rare:true },
-  { id:'calibrated',        emoji:'🎯', name:'Sol calibré',          desc:'Calibration sol effectuée',            cond: s=>s.calibration&&(s.calibration.offset!==0||s.calibration.soilMultiplier!==1.0) },
+  { id:'first_seed',        emoji:'🌱', name:'Premier semis',        desc:'Première entrée dans le journal',                      cond: s=>s.journalEntries.length>=1 },
+  { id:'survivor',          emoji:'☀️', name:'Survivant canicule',   desc:'Rare — Canicule ≥32°C traversée avec jardin vivant',   cond: s=>!!(s.heatwaveSurvived), rare:true },
+  { id:'first_harvest',     emoji:'🍅', name:'Première récolte',     desc:'Première récolte notée dans le journal',               cond: s=>s.journalEntries.some(e=>e.type==='harvest') },
+  { id:'w100',              emoji:'💧', name:'100 arrosages',        desc:'100 arrosages enregistrés',                            cond: s=>(s.wateringHistory||[]).length>=100 },
+  { id:'winter',            emoji:'❄️', name:'Jardinier d\'hiver',   desc:'Entrée journal notée pendant l\'hiver (déc.–fév.)',    cond: s=>(s.journalEntries||[]).some(e=>{ const m=new Date(e.ts||Date.now()).getMonth(); return m>=11||m<=1; }) },
+  { id:'seasons',           emoji:'🔄', name:'4 saisons',            desc:'Entrées journal enregistrées sur les 4 saisons',       cond: s=>{ const ms=new Set((s.journalEntries||[]).map(e=>{ const m=new Date(e.ts||Date.now()).getMonth(); return m<=1||m===11?'winter':m<=4?'spring':m<=7?'summer':'autumn'; })); return ms.size>=4; }, rare:true },
+  { id:'anniversary',       emoji:'🎂', name:'1 an de jardin',       desc:'365 jours depuis la création du jardin',               cond: s=>s.setupDate && (Date.now()-new Date(s.setupDate).getTime())>=(365*24*3600*1000), rare:true },
+  { id:'photo_addict',      emoji:'📸', name:'Mémoire visuelle',     desc:'5 entrées journal avec photo',                         cond: s=>(s.journalEntries||[]).filter(e=>e.photo).length>=5 },
+  { id:'shared_social',     emoji:'📲', name:'Partage en fleur',     desc:'Première entrée partagée sur les réseaux sociaux',     cond: s=>(s.journalEntries||[]).some(e=>e.sharedSocial) },
+  { id:'premium_supporter', emoji:'🏅', name:'Jardinier Soutien',    desc:'Rare · Soutien officiel du projet',                    cond: s=>s.premium&&s.premium.purchased, rare:true },
+  { id:'calibrated',        emoji:'🎯', name:'Sol calibré',          desc:'Calibration du sol effectuée avec le test terrain',    cond: s=>s.calibration&&(s.calibration.offset!==0||s.calibration.soilMultiplier!==1.0) },
 ];
 
 // Titres débloqués selon niveau — enrichis en Premium
@@ -5620,15 +5720,23 @@ function renderMemoryTab() {
   checkBadges();
   const badgesEl = document.getElementById('badges-grid');
   if (badgesEl) {
-    badgesEl.innerHTML = ALL_BADGES.map(b => {
-      const earned = (state.earnedBadges||[]).includes(b.id);
-      const cls = earned ? (b.rare?'rare':'earned') : 'locked';
-      return `<div class="badge-item ${cls}" title="${b.desc}">
-        <span class="badge-emoji">${b.emoji}</span>
-        <div class="badge-name">${b.name}</div>
-        <div class="badge-date">${earned ? (b.rare?'⭐ Rare':'Débloqué') : 'Verrouillé'}</div>
+    const earnedBadges = ALL_BADGES.filter(b => (state.earnedBadges||[]).includes(b.id));
+    const lockedCount = ALL_BADGES.length - earnedBadges.length;
+    if(earnedBadges.length === 0){
+      badgesEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:24px 12px;color:var(--text-light);">
+        <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
+        <div style="font-size:0.88rem;line-height:1.5;">Aucun badge débloqué pour l'instant.<br>Arrosez, notez, récoltez pour les obtenir !</div>
       </div>`;
-    }).join('');
+    } else {
+      badgesEl.innerHTML = earnedBadges.map(b => {
+        const cls = b.rare ? 'rare' : 'earned';
+        return `<div class="badge-item ${cls}" title="${b.desc}">
+          <span class="badge-emoji">${b.emoji}</span>
+          <div class="badge-name">${b.name}</div>
+          <div class="badge-date">${b.rare ? '⭐ Rare' : 'Débloqué'}</div>
+        </div>`;
+      }).join('') + (lockedCount > 0 ? `<div style="grid-column:1/-1;text-align:center;padding:10px 4px 2px;font-size:0.78rem;color:var(--text-light);">🔒 ${lockedCount} badge${lockedCount>1?'s':''} encore à découvrir…</div>` : '');
+    }
   }
 
   // Saisons
@@ -5787,6 +5895,12 @@ function renderAccountInHeader() {
   if (!state.gardenPoints) state.gardenPoints = 0;
   if (!state.earnedBadges) state.earnedBadges = [];
   if (!state.plantInfos) state.plantInfos = {};
+  if (!state.heatwaveSurvived) state.heatwaveSurvived = false;
+  if (!state.heatwaveAlertSent) state.heatwaveAlertSent = null;
+  if (!state.setupDate && state.selectedPlants && state.selectedPlants.length > 0) {
+    // Retrocompatibilité : si le jardin existe déjà sans setupDate
+    state.setupDate = new Date().toISOString();
+  }
   if (!state.moistureHistory) state.moistureHistory = [];
   if (!state.lastWatered) state.lastWatered = {};
   if (!state.dailyPoints) state.dailyPoints = {};

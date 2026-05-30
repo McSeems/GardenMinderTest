@@ -1921,8 +1921,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetMoisture()">
           <div style="font-size:18px;width:32px;text-align:center;">💧</div>
           <div style="flex:1;">
-            <div style="font-size:0.92rem;font-weight:500;color:var(--text-dark);">Recalculer l'hygrométrie</div>
-            <div style="font-size:0.75rem;color:var(--text-light);margin-top:2px;">Remet les taux à 70% et recalcule selon la météo</div>
+            <div style="font-size:0.92rem;font-weight:500;color:var(--text-dark);">🔄 Recalculer l'hygrométrie</div>
+            <div style="font-size:0.75rem;color:var(--text-light);margin-top:2px;">Reconstitution réelle : 15 jours météo + arrosages enregistrés</div>
           </div>
         </div>
         <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetApp()">
@@ -2457,12 +2457,85 @@ function wizardNext(){
   wizardStep++;updateWizard();
 }
 function resetMoisture(){
-  state.selectedPlants.forEach(k=>{ state.plantMoisture[k] = 70; });
-  state.lastMoistureDate = null;
-  refreshAllMoisture(true);
+  // ── RECONSTITUTION RÉELLE depuis 15 jours ──────────────────────────────────
+  // Principe : on part de 100% il y a 15 jours (sol pleinement hydraté avant toute mesure)
+  // puis on applique jour par jour : ET (météo réelle) - pluie mesurée + arrosages enregistrés
+  // C'est la meilleure estimation possible du "vrai" état actuel sans capteur physique
+
+  const todayStr = new Date().toISOString().slice(0,10);
+  const WINDOW = 15; // jours de reconstitution
+
+  // Construire la liste des 15 derniers jours (excl. today)
+  const days = [];
+  for(let i = WINDOW; i >= 1; i--){
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0,10));
+  }
+
+  state.selectedPlants.forEach(key => {
+    const plant = PLANT_DB[key];
+    if(!plant){ state.plantMoisture[key] = 65; return; }
+
+    const retention = SOIL_RETENTION[state.soil]||1;
+    const expose = EXPOSE_FACTOR[state.expose]||1;
+    const drainage = getPlantDrainage(key);
+    const soilFactor = drainage>1.0 ? 1.0+(retention-1.0)*0.3 : retention;
+    const baseET = Math.min(6.0, (plant.waterNeed * expose * drainage / soilFactor) / 0.8);
+    const rainEff = drainage>1.5 ? 0.15 : 0.65;
+
+    let score = 100; // hypothèse de départ : sol pleinement hydraté 15 jours avant
+
+    days.forEach(dateStr => {
+      // Pluie mesurée ce jour-là
+      const rain = getRainMeasuredOnly(dateStr);
+
+      // Température max ce jour-là
+      const tempMax = getTempMaxForDate(dateStr);
+      const heat = heatFactor(tempMax);
+
+      // Arrosages enregistrés ce jour-là pour cette plante
+      const waterings = (state.wateringHistory||[]).filter(w => {
+        const wDate = (w.ts || w.date || '').slice(0,10);
+        if(wDate !== dateStr) return false;
+        // Arrosage global (sans plante spécifique) ou arrosage de cette plante
+        return !w.plant || w.plant === key;
+      });
+      // Convertir les litres en gain d'humidité
+      // Référence : waterGain utilisé dans confirmWatering
+      const surface = state.surface || 30;
+      let waterGain = 0;
+      waterings.forEach(w => {
+        const liters = w.liters || 0;
+        const mm = liters / surface; // L → mm (1L/m² = 1mm)
+        waterGain += mm * rainEff * 2.5; // même coefficient que dans confirmWatering
+      });
+
+      score = score - baseET * heat + rain * rainEff + waterGain;
+      score = Math.min(100, Math.max(2, score));
+    });
+
+    // Appliquer calibration (avec gardes strictes)
+    const safeMult = Math.min(1.2, Math.max(0.8, state.calibration?.soilMultiplier||1.0));
+    const safeOffset = Math.min(15, Math.max(-15, state.calibration?.offset||0));
+    score = score * safeMult + safeOffset;
+
+    state.plantMoisture[key] = Math.min(100, Math.max(2, Math.round(score)));
+  });
+
+  // Mettre à jour lastMoistureDate à aujourd'hui pour déclencher un recalcul demain
+  state.lastMoistureDate = todayStr;
+  saveState();
   updateHeroScore();
   renderPlantStrip();
-  showToast('💧 Hygrométrie recalculée !');
+  updateStats();
+
+  // Afficher un résumé des valeurs recalculées
+  const lines = state.selectedPlants.map(k =>
+    `${PLANT_DB[k]?.emoji||'🌱'} ${PLANT_DB[k]?.name||k} → ${state.plantMoisture[k]}%`
+  ).join('\n');
+  showToast('🔄 Reconstitution 15j terminée !');
+  console.info('GardenMinder resetMoisture:\n' + lines);
 }
 function relaunchWizard() {
   if(confirm('Relancer l\'assistant de configuration ? Vos plantes et historiques seront conservés.')) {
@@ -3068,10 +3141,22 @@ function initApp(){
     else if(days===0){goTo('trial-end');return;}
   }
   // refreshAllMoisture uniquement si pas déjà fait aujourd'hui
-  // Empêche la remontée du taux à chaque goTo('app')
   const todayForInit = new Date().toISOString().slice(0,10);
   if(state.lastMoistureDate !== todayForInit) {
-    refreshAllMoisture();
+    // Vérifier si les plantes sont toutes à 70% exactement = valeur par défaut non calculée
+    // → indique une réinitialisation accidentelle : lancer la reconstitution complète
+    const allAtDefault = state.selectedPlants.length > 0 &&
+      state.selectedPlants.every(k => state.plantMoisture[k] === 70 || state.plantMoisture[k] === undefined);
+    if(allAtDefault && state.wateringHistory && state.wateringHistory.length > 0){
+      // Des arrosages existent mais les taux sont à la valeur par défaut : reconstituer
+      console.info('GardenMinder: valeurs par défaut détectées avec historique existant → reconstitution 15j');
+      setTimeout(() => {
+        resetMoisture();
+        showToast('🔄 Données recalculées automatiquement sur 15 jours');
+      }, 1500); // après fetchWeather pour avoir les données météo
+    } else {
+      refreshAllMoisture();
+    }
   }
   updateHeroScore();
   renderPlantStrip();
@@ -6298,38 +6383,14 @@ function renderAccountInHeader() {
   if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
 
   // ── CORRECTIF ANTI-CORRUPTION ─────────────────────────────────────────────
-  let needsReset = false;
+  // Uniquement : corriger les valeurs franchement hors bornes (NaN, négatif, >100)
   if(state.plantMoisture){
     Object.keys(state.plantMoisture).forEach(k=>{
       const v = state.plantMoisture[k];
-      // Valeur hors bornes
-      if(v > 100 || v < 0 || isNaN(v)){
-        state.plantMoisture[k] = 70;
-        needsReset = true;
+      if(v === null || v === undefined || isNaN(v) || v < 0 || v > 100){
+        state.plantMoisture[k] = 65; // valeur neutre, sera recalculée
       }
     });
-  }
-  // Détecter le cas "toutes les plantes à 95–100% depuis >2 jours sans arrosage récent"
-  // = signe que refreshAllMoisture est bloqué
-  if(!needsReset && state.selectedPlants && state.selectedPlants.length > 0 && state.lastMoistureDate){
-    const todayCheck = new Date().toISOString().slice(0,10);
-    const daysSinceRefresh = Math.round((new Date(todayCheck) - new Date(state.lastMoistureDate)) / 86400000);
-    const allHigh = state.selectedPlants.every(k => (state.plantMoisture[k]||0) >= 95);
-    const lastWateredRecently = state.lastWatered && state.selectedPlants.some(k => {
-      const lw = state.lastWatered[k];
-      if(!lw) return false;
-      const daysSince = (Date.now() - new Date(lw).getTime()) / 86400000;
-      return daysSince < 1; // arrosé il y a moins de 24h
-    });
-    if(allHigh && daysSinceRefresh >= 1 && !lastWateredRecently){
-      // Humidité bloquée haute sans arrosage récent → recalcul forcé
-      state.selectedPlants.forEach(k=>{ state.plantMoisture[k] = 70; });
-      needsReset = true;
-      console.warn('GardenMinder: humidité bloquée haute détectée, recalcul forcé');
-    }
-  }
-  if(needsReset){
-    state.lastMoistureDate = null;
   }
   // ─────────────────────────────────────────────────────────────────────────
 

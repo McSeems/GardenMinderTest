@@ -1271,7 +1271,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <!-- Quick actions -->
     <div class="section-title">Actions rapides</div>
     <div class="quick-actions">
-      <button class="quick-btn" onclick="openWateringModal()">
+      <button class="quick-btn" onclick="currentPlant=null;openWateringTargetSelector()">
         <div class="quick-btn-icon blue">💧</div>
         <div class="quick-btn-label">Enregistrer<br>un arrosage</div>
       </button>
@@ -4077,41 +4077,192 @@ function awardPoints(pts, reason){
   saveState();
 }
 
+// ── SÉLECTEUR DE CIBLE D'ARROSAGE ──────────────────────────────────────────────
+function openWateringTargetSelector() {
+  const existing = document.getElementById('watering-target-overlay');
+  if(existing) existing.remove();
+
+  const lawnKeys   = state.selectedPlants.filter(k => PLANT_DB[k] && PLANT_DB[k].family === 'gazon');
+  const plantKeys  = state.selectedPlants.filter(k => PLANT_DB[k] && PLANT_DB[k].family !== 'gazon');
+  const hasLawn    = lawnKeys.length > 0;
+  const hasPlants  = plantKeys.length > 0;
+
+  // Bouton gazon — toujours affiché, désactivé visuellement si aucun gazon configuré
+  const lawnDisabled = !hasLawn;
+  const lawnDesc = hasLawn
+    ? `${lawnKeys.length} zone${lawnKeys.length>1?'s':''} — arrosage par aspersion`
+    : 'Aucun gazon configuré — ajoutez-en dans Réglages';
+  const lawnStyle = hasLawn
+    ? 'display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;border:2px solid var(--green-pale);background:white;cursor:pointer;text-align:left;width:100%;transition:all 0.15s;'
+    : 'display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;border:2px solid rgba(0,0,0,0.06);background:rgba(0,0,0,0.03);cursor:not-allowed;text-align:left;width:100%;opacity:0.5;';
+  const lawnClick = hasLawn ? 'onclick="setWateringTargetAndOpen(\'lawn\')"' : '';
+
+  const manualBtns = state.selectedPlants.map(k => {
+    const p = PLANT_DB[k];
+    if(!p) return '';
+    const isGazon = p.family === 'gazon';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;background:var(--cream);cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      <input type="checkbox" id="wtarget-${k}" value="${k}"
+        style="width:18px;height:18px;accent-color:var(--green-mid);cursor:pointer;flex-shrink:0;"
+        onchange="updateWateringTargetConfirmBtn()">
+      <span style="font-size:1.2rem;">${p.emoji}</span>
+      <span style="font-size:0.88rem;font-weight:600;color:var(--text-dark);flex:1;">${p.name}</span>
+      ${isGazon ? '<span style="font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:5px;background:#e8f5ec;color:var(--ok);">Gazon</span>' : ''}
+    </label>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'watering-target-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,14,0.52);z-index:250;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn 0.18s ease;';
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:16px 20px 36px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
+      <div style="width:36px;height:4px;background:var(--green-pale);border-radius:2px;margin:0 auto 18px;"></div>
+      <div style="font-family:var(--ff-display);font-size:1.15rem;font-weight:600;color:var(--text-dark);margin-bottom:4px;">💧 Que souhaitez-vous arroser ?</div>
+      <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:18px;">Choisissez une option rapide ou sélectionnez manuellement.</div>
+
+      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:20px;">
+
+        <!-- Tout le jardin -->
+        <button onclick="setWateringTargetAndOpen('all')"
+          style="display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;border:2px solid var(--green-pale);background:var(--green-mist);cursor:pointer;text-align:left;width:100%;transition:all 0.15s;"
+          onpointerdown="this.style.background='#c8ebd4'" onpointerup="this.style.background='var(--green-mist)'">
+          <span style="font-size:1.6rem;">🌿</span>
+          <div style="flex:1;">
+            <div style="font-size:0.92rem;font-weight:700;color:var(--green-deep);">Tout le jardin</div>
+            <div style="font-size:0.75rem;color:var(--text-mid);margin-top:1px;">${state.selectedPlants.length} plante${state.selectedPlants.length>1?'s':''} — gazon et massifs</div>
+          </div>
+          <span style="font-size:1.1rem;color:var(--green-mid);">›</span>
+        </button>
+
+        <!-- Gazon seulement — toujours affiché -->
+        <button ${lawnClick} style="${lawnStyle}"
+          ${hasLawn ? 'onpointerdown="this.style.background=\'var(--green-mist)\'" onpointerup="this.style.background=\'white\'"' : ''}>
+          <span style="font-size:1.6rem;">🟩</span>
+          <div style="flex:1;">
+            <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">Gazon seulement</div>
+            <div style="font-size:0.75rem;color:var(--text-mid);margin-top:1px;">${lawnDesc}</div>
+          </div>
+          ${hasLawn ? '<span style="font-size:1.1rem;color:var(--text-light);">›</span>' : '<span style="font-size:0.7rem;color:var(--text-light);">+</span>'}
+        </button>
+
+        <!-- Massifs & potager (hors gazon) -->
+        ${hasPlants ? `
+        <button onclick="setWateringTargetAndOpen('plants')"
+          style="display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:14px;border:2px solid var(--green-pale);background:white;cursor:pointer;text-align:left;width:100%;transition:all 0.15s;"
+          onpointerdown="this.style.background='var(--green-mist)'" onpointerup="this.style.background='white'">
+          <span style="font-size:1.6rem;">🌱</span>
+          <div style="flex:1;">
+            <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">Massifs & potager</div>
+            <div style="font-size:0.75rem;color:var(--text-mid);margin-top:1px;">${plantKeys.length} plante${plantKeys.length>1?'s':''} — hors gazon</div>
+          </div>
+          <span style="font-size:1.1rem;color:var(--text-light);">›</span>
+        </button>` : ''}
+
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;height:1px;background:var(--green-pale);"></div>
+        <span style="font-size:0.75rem;color:var(--text-light);font-weight:500;">ou sélection manuelle</span>
+        <div style="flex:1;height:1px;background:var(--green-pale);"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">${manualBtns}</div>
+
+      <button id="wtarget-confirm-btn" onclick="confirmManualWateringTarget()" disabled
+        style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-pale);color:var(--text-light);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:not-allowed;transition:all 0.2s;">
+        Arroser la sélection →
+      </button>
+      <button onclick="document.getElementById('watering-target-overlay').remove()"
+        style="width:100%;padding:11px;border-radius:12px;border:none;background:transparent;color:var(--text-light);font-family:var(--ff-body);font-size:0.88rem;cursor:pointer;margin-top:6px;">
+        Annuler
+      </button>
+    </div>`;
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+
+function updateWateringTargetConfirmBtn() {
+  const checked = document.querySelectorAll('#watering-target-overlay input[type=checkbox]:checked');
+  const btn = document.getElementById('wtarget-confirm-btn');
+  if(!btn) return;
+  if(checked.length > 0){
+    btn.disabled = false;
+    btn.style.background = 'var(--green-mid)';
+    btn.style.color = 'white';
+    btn.style.cursor = 'pointer';
+    btn.textContent = 'Arroser ' + checked.length + ' plante' + (checked.length>1?'s':'') + ' →';
+  } else {
+    btn.disabled = true;
+    btn.style.background = 'var(--green-pale)';
+    btn.style.color = 'var(--text-light)';
+    btn.style.cursor = 'not-allowed';
+    btn.textContent = 'Arroser la sélection →';
+  }
+}
+
+function setWateringTargetAndOpen(scope) {
+  document.getElementById('watering-target-overlay')?.remove();
+  currentPlant = null;
+  window._wateringScope = scope;
+  openWateringModal();
+}
+
+function confirmManualWateringTarget() {
+  const checked = [...document.querySelectorAll('#watering-target-overlay input[type=checkbox]:checked')];
+  if(checked.length === 0) return;
+  document.getElementById('watering-target-overlay')?.remove();
+  currentPlant = null;
+  window._wateringScope = 'custom';
+  window._wateringCustomKeys = checked.map(c => c.value);
+  openWateringModal();
+}
+
 // ── WATERING ─────────────────────────────────────────────────────────────────
 let chronoInterval=null,chronoRunning=false,chronoSecs=0;
 function openWateringModal(){
   document.getElementById('modal-watering').classList.add('open');
   document.getElementById('w-flow').value=state.flow;
-  // Adapt UI: if current plant is not lawn, show simple "J'ai arrosé" mode
-  const isLawn = currentPlant && PLANT_DB[currentPlant] && PLANT_DB[currentPlant].family==='gazon';
-  const methodTabs = document.querySelector('#modal-watering .method-tabs');
+  const scope    = window._wateringScope || null;
+  const isLawn   = currentPlant && PLANT_DB[currentPlant] && PLANT_DB[currentPlant].family==='gazon';
+  const scopeLawnOnly    = (scope === 'lawn');
+  const scopeSimplePlants = (scope === 'plants' || scope === 'custom');
+  const methodTabs   = document.querySelector('#modal-watering .method-tabs');
   const simpleBanner = document.getElementById('watering-simple-banner');
   const methodPanels = document.querySelectorAll('#modal-watering .method-panel');
-  if(!isLawn && currentPlant){
-    // Non-lawn: show simple banner, hide complex tabs
+
+  // Titre contextuel
+  const titleEl = document.getElementById('modal-watering').querySelector('.modal-title');
+  const scopeLabels = { all:'🌿 Tout le jardin', lawn:'🟩 Gazon seulement', plants:'🌱 Massifs & potager', custom:'✅ Sélection manuelle' };
+  const sub = scope && scopeLabels[scope] ? `<span style="display:block;font-size:0.74rem;font-weight:500;color:var(--text-mid);margin-top:2px;">${scopeLabels[scope]}</span>` : '';
+  if(titleEl) titleEl.innerHTML = '💧 Enregistrer l\'arrosage' + sub;
+
+  if((!isLawn && currentPlant) || scopeSimplePlants){
+    // Plantes non-gazon : mode simple (pas de chrono/débit)
     if(methodTabs) methodTabs.style.display='none';
     methodPanels.forEach(p=>p.style.display='none');
+    // Calcul des clés concernées pour la bannière
+    const keys = currentPlant ? [currentPlant]
+      : scope==='custom' ? (window._wateringCustomKeys||[])
+      : state.selectedPlants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family!=='gazon');
+    const icons = keys.map(k=>PLANT_DB[k]?PLANT_DB[k].emoji:'').join(' ');
+    const bannerContent = `<div style="font-size:1.4rem;margin-bottom:8px;">${icons}</div>
+      <div style="font-size:0.9rem;font-weight:700;color:var(--green-deep);margin-bottom:4px;">Arrosage enregistré</div>
+      <div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;">Humidité remise à 100% pour ${keys.length} plante${keys.length>1?'s':''}.</div>`;
     if(!simpleBanner){
-      const title = document.getElementById('modal-watering').querySelector('.modal-title');
       const banner = document.createElement('div');
       banner.id='watering-simple-banner';
-      banner.innerHTML=`<div style="background:var(--green-mist);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;">
-        <div style="font-size:2rem;margin-bottom:8px;">${PLANT_DB[currentPlant].emoji}</div>
-        <div style="font-size:0.9rem;font-weight:700;color:var(--green-deep);margin-bottom:4px;">Arrosage enregistré</div>
-        <div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;">L'humidité sera remise à 100% pour ${PLANT_DB[currentPlant].name}.</div>
-      </div>`;
+      banner.innerHTML=`<div style="background:var(--green-mist);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;">${bannerContent}</div>`;
       const confirmBtn = document.getElementById('modal-watering').querySelector('.btn-confirm');
       confirmBtn.parentNode.insertBefore(banner, confirmBtn);
     } else {
       simpleBanner.style.display='block';
-      simpleBanner.querySelector('div > div:first-child').textContent=PLANT_DB[currentPlant].emoji;
-      simpleBanner.querySelector('div > div:last-child').textContent=`L'humidité sera remise à 100% pour ${PLANT_DB[currentPlant].name}.`;
+      const inner = simpleBanner.querySelector('div');
+      if(inner) inner.innerHTML = bannerContent;
     }
   } else {
-    // Lawn or no current plant: show full tabs
+    // Gazon, tout le jardin, ou plante unique gazon : mode volumétrique
     if(methodTabs) methodTabs.style.display='';
     methodPanels.forEach(p=>{p.style.display='';});
-    // Restore active panel visibility
     const activePanel = document.querySelector('#modal-watering .method-panel.active');
     if(activePanel) activePanel.style.display='block';
     if(simpleBanner) simpleBanner.style.display='none';
@@ -4151,10 +4302,12 @@ function confirmWatering(){
     }
   }
   // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
   let liters=0;
+  const scope = window._wateringScope || null;
   const isLawn = currentPlant && PLANT_DB[currentPlant] && PLANT_DB[currentPlant].family==='gazon';
-  if(!isLawn && currentPlant){
-    // Non-lawn: symbolic 1L (we don't need the real volume)
+  const scopeSimplePlants = (scope === 'plants' || scope === 'custom');
+  if((!isLawn && currentPlant) || scopeSimplePlants){
     liters=1;
   } else {
     const activeTab=document.querySelector('#modal-watering .method-tab.active').textContent;
@@ -4167,9 +4320,17 @@ function confirmWatering(){
   state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:currentPlant});
   logWeeklyActivity('watering');
   requestNotifPermission();
-  // Enregistrer le dernier arrosage par plante pour le cooldown
   if(!state.lastWatered) state.lastWatered = {};
-  const targets=currentPlant?[currentPlant]:state.selectedPlants;
+  // Résolution des cibles selon scope
+  let targets;
+  if(currentPlant)            targets = [currentPlant];
+  else if(scope==='lawn')     targets = state.selectedPlants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family==='gazon');
+  else if(scope==='plants')   targets = state.selectedPlants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family!=='gazon');
+  else if(scope==='custom')   targets = (window._wateringCustomKeys||[]).filter(k=>state.selectedPlants.includes(k));
+  else                        targets = state.selectedPlants; // 'all' ou pas de scope
+  if(targets.length===0) targets = state.selectedPlants;
+  window._wateringScope = null;
+  window._wateringCustomKeys = null;
   targets.forEach(k=>{
     state.lastWatered[k] = now.toISOString();
     const currentScore = state.plantMoisture[k] || 60;
@@ -4842,34 +5003,78 @@ function renderBarChart(containerId, data, colorActive, colorNormal, unit) {
   if(!el) return;
   const values = data.values || [];
   const labels = data.labels || [];
-  // "Aucune donnée" = vraiment aucune valeur non-null (pas même un zéro)
   const hasAnyValue = values.some(v => v !== null && v !== undefined);
   if(!values.length || !hasAnyValue) {
     el.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#bbb;font-size:0.8rem;"><span style="font-size:1.8rem;opacity:0.35;">📭</span>Aucune donnée</div>';
     return;
   }
+
+  const isHumidity = (unit === '%');
   const nonNull = values.filter(v=>v!==null && v>0);
-  const max = nonNull.length ? Math.max(...nonNull) : 1;
+  // Pour l'humidité : échelle fixe 0–100 → les barres reflètent le niveau réel
+  // Pour les autres (mm, L) : échelle relative au max → contraste maximal
+  const max = isHumidity ? 100 : (nonNull.length ? Math.max(...nonNull) : 1);
   const n = values.length;
-  // Afficher les valeurs si ≤ 14 barres (lisible), sinon les masquer
   const showVals = n <= 14;
-  let html = '<div style="display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;">';
+
+  // Couleur sémantique pour l'humidité
+  function humColor(v) {
+    if(v < 30) return '#d94f3d'; // rouge urgent
+    if(v < 50) return '#e07830'; // orange stress
+    if(v < 70) return '#c9a020'; // jaune surveillance
+    return '#4a9c5e';            // vert OK
+  }
+
+  // Pour l'humidité, afficher une ligne de référence à 70% (seuil "OK")
+  // et une à 50% (seuil "arroser") dans le rendu SVG-less via position absolue
+  const wrapStyle = isHumidity
+    ? 'position:relative;display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;'
+    : 'display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;';
+
+  let html = `<div style="${wrapStyle}">`;
+
+  // Lignes de seuil hygrométrie (superposées en position absolue)
+  if(isHumidity){
+    const y70 = 100 - 70; // 30% du haut
+    const y50 = 100 - 50; // 50% du haut
+    html += `<div style="position:absolute;left:0;right:0;top:${y70}%;height:1px;background:rgba(74,156,94,0.35);pointer-events:none;z-index:1;">
+      <span style="position:absolute;right:2px;top:-9px;font-size:0.5rem;color:rgba(74,156,94,0.7);font-weight:700;">70%</span>
+    </div>`;
+    html += `<div style="position:absolute;left:0;right:0;top:${y50}%;height:1px;background:rgba(224,120,48,0.4);pointer-events:none;z-index:1;border-top:1px dashed rgba(224,120,48,0.5);">
+      <span style="position:absolute;right:2px;top:-9px;font-size:0.5rem;color:rgba(224,120,48,0.8);font-weight:700;">50%</span>
+    </div>`;
+  }
+
   values.forEach((v, i) => {
     const isNull = v === null || v === undefined;
     const isZero = !isNull && v === 0;
     const isLast = i===n-1;
-    // Zéro = barre fantôme visible (pas "vide")
-    const pct = isNull ? 0 : (isZero ? 0 : Math.max(8, (v/max)*100));
-    const barBg = isNull ? 'rgba(0,0,0,0.04)' : isZero ? 'rgba(74,158,202,0.12)' : (isLast ? colorActive : colorNormal);
+
+    let pct;
+    if(isNull) pct = 0;
+    else if(isZero) pct = 0;
+    else pct = isHumidity ? Math.max(4, v) : Math.max(8, (v/max)*100);
+
+    let barBg;
+    if(isNull)        barBg = 'rgba(0,0,0,0.04)';
+    else if(isZero)   barBg = isHumidity ? 'rgba(217,79,61,0.18)' : 'rgba(74,158,202,0.12)';
+    else if(isHumidity) barBg = humColor(v);
+    else              barBg = isLast ? colorActive : colorNormal;
+
     const minH = isNull ? '2px' : '4px';
-    const valTxt = (!isNull && !isZero && showVals) ? (unit==='%'?Math.round(v)+'%':unit==='L'?v+'L':v.toFixed(1)) : (isZero && showVals ? '0' : '');
+    const valTxt = (!isNull && !isZero && showVals)
+      ? (unit==='%' ? Math.round(v)+'%' : unit==='L' ? v+'L' : v.toFixed(1))
+      : (isZero && showVals ? '0' : '');
     const lbl = labels[i]||'';
-    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;">';
-    if(valTxt) html += '<div style="font-size:0.58rem;font-weight:600;color:'+(isZero?'var(--text-light)':'var(--text-mid)')+';margin-bottom:2px;white-space:nowrap;letter-spacing:-0.2px;">'+valTxt+'</div>';
-    html += '<div style="width:100%;border-radius:3px 3px 0 0;height:'+pct+'%;background:'+barBg+';min-height:'+minH+';transition:height 0.35s ease;"></div>';
-    if(lbl) html += '<div style="font-size:0.55rem;color:var(--text-light);margin-top:3px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">'+lbl+'</div>';
+    const valColor = isHumidity && !isNull && !isZero ? humColor(v) : (isZero?'var(--text-light)':'var(--text-mid)');
+
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;position:relative;z-index:2;">';
+    if(valTxt) html += `<div style="font-size:0.58rem;font-weight:700;color:${valColor};margin-bottom:2px;white-space:nowrap;letter-spacing:-0.2px;">${valTxt}</div>`;
+    html += `<div style="width:100%;border-radius:3px 3px 0 0;height:${pct}%;background:${barBg};min-height:${minH};transition:height 0.4s ease;"></div>`;
+    if(lbl) html += `<div style="font-size:0.55rem;color:var(--text-light);margin-top:3px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${lbl}</div>`;
     html += '</div>';
   });
+
   html += '</div>';
   el.innerHTML = html;
 }

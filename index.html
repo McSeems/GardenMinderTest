@@ -3250,9 +3250,9 @@ function computeMoisture(key){
   if(state.wateringHistory){
     state.wateringHistory.forEach(entry=>{
       if(!entry.ts) return;
-      // Concerne cette plante si : arrosage explicitement sur cette plante,
-      // OU arrosage global (plant null/undefined = ancien comportement "tout le jardin")
-      const concerns = (!entry.plant) || entry.plant === key;
+      // Concerne cette plante si : dans la liste targets, ou arrosage explicitement sur cette plante,
+      // OU ancien arrosage global (plant null sans targets = tout le jardin)
+      const concerns = entry.targets ? entry.targets.includes(key) : (!entry.plant || entry.plant === key);
       if(!concerns) return;
       const d = new Date(entry.ts); d.setHours(0,0,0,0);
       const ds = d.toISOString().slice(0,10);
@@ -3261,7 +3261,7 @@ function computeMoisture(key){
     });
   }
 
-  for(let d = 1; d < cappedDays; d++){
+  for(let d = 1; d <= cappedDays; d++){
     const date = new Date(lastDate);
     date.setDate(date.getDate() + d);
     const dateStr = date.toISOString().slice(0,10);
@@ -4259,26 +4259,30 @@ function confirmWatering(){
   const now = new Date();
   const targets=_getWateringTargets();
   if(!targets||targets.length===0){showToast('⚠️ Aucune plante sélectionnée.');return;}
-  // ── Cooldown 6h (uniquement pour cible = plante individuelle) ────────────
+  // ── Cooldown 6h par plante ────────────────────────────────────────────────
   const COOLDOWN_MS = 6 * 60 * 60 * 1000;
-  if(targets.length===1){
-    if(!state.lastWatered) state.lastWatered={};
-    const lastTs=state.lastWatered[targets[0]];
-    if(lastTs){
-      const elapsed=now.getTime()-new Date(lastTs).getTime();
-      if(elapsed<COOLDOWN_MS){
-        const remainMins=Math.ceil((COOLDOWN_MS-elapsed)/60000);
-        const h=Math.floor(remainMins/60),m=remainMins%60;
-        const waitStr=h>0?`${h}h${m>0?m+'min':''}`:`${m} min`;
-        showToast(`⏳ Arrosage déjà enregistré — réessayez dans ${waitStr}`);
-        document.getElementById('modal-watering').classList.remove('open');
-        return;
-      }
-    }
+  if(!state.lastWatered) state.lastWatered={};
+  const blocked=targets.filter(k=>{
+    const lastTs=state.lastWatered[k];
+    return lastTs&&(now.getTime()-new Date(lastTs).getTime())<COOLDOWN_MS;
+  });
+  if(blocked.length===targets.length){
+    // Toutes les plantes sélectionnées sont en cooldown
+    const sample=blocked[0];
+    const elapsed=now.getTime()-new Date(state.lastWatered[sample]).getTime();
+    const remainMins=Math.ceil((COOLDOWN_MS-elapsed)/60000);
+    const h=Math.floor(remainMins/60),m=remainMins%60;
+    const waitStr=h>0?`${h}h${m>0?m+'min':''}`:`${m} min`;
+    showToast(`⏳ Déjà arrosé — réessayez dans ${waitStr}`);
+    document.getElementById('modal-watering').classList.remove('open');
+    return;
   }
+  // Filtrer les plantes en cooldown et continuer avec les autres
+  const effectiveTargets=targets.filter(k=>!blocked.includes(k));
+  if(blocked.length>0) showToast(`ℹ️ ${blocked.length} plante(s) ignorée(s) — cooldown actif`);
   // ─────────────────────────────────────────────────────────────────────────
   let liters=0;
-  const isSimple=targets.length===1&&PLANT_DB[targets[0]]&&PLANT_DB[targets[0]].family!=='gazon';
+  const isSimple=effectiveTargets.length===1&&PLANT_DB[effectiveTargets[0]]&&PLANT_DB[effectiveTargets[0]].family!=='gazon';
   if(isSimple){
     liters=1;
   } else {
@@ -4289,45 +4293,35 @@ function confirmWatering(){
     if(liters<=0){alert('Veuillez entrer un volume.');return;}
   }
   const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
-  state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:targets.length===1?targets[0]:null,targets:targets});
+  state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:effectiveTargets.length===1?effectiveTargets[0]:null,targets:effectiveTargets});
   logWeeklyActivity('watering');
   requestNotifPermission();
-  if(!state.lastWatered) state.lastWatered={};
-  targets.forEach(k=>{
+  effectiveTargets.forEach(k=>{
     state.lastWatered[k] = now.toISOString();
     const currentScore = state.plantMoisture[k] || 60;
-
     if(PLANT_DB[k] && PLANT_DB[k].family==='gazon'){
-      // Gazon : volume proportionnel à la surface
       const gain = Math.min(40, liters / Math.max(1, state.surface) * 8);
       state.plantMoisture[k] = Math.min(100, currentScore + gain);
     } else if(currentScore < 30){
-      // URGENCE (<30%) : récupération très progressive — +15% max par arrosage
-      // Sol très sec = absorption lente, risque asphyxie si trop d'eau d'un coup
       state.plantMoisture[k] = Math.min(45, currentScore + 15);
       if(!state.recoveryPlan) state.recoveryPlan = {};
       state.recoveryPlan[k] = { sessions: 5, done: 1, startScore: currentScore, startDate: now.toISOString() };
     } else if(currentScore < 50){
-      // STRESS VISIBLE (30-50%) : récupération progressive — +20% par arrosage
       state.plantMoisture[k] = Math.min(70, currentScore + 20);
       if(!state.recoveryPlan) state.recoveryPlan = {};
       state.recoveryPlan[k] = { sessions: 3, done: 1, startScore: currentScore, startDate: now.toISOString() };
     } else {
-      // OK ou surveillance : arrosage normal → 100%
       state.plantMoisture[k] = 100;
       if(state.recoveryPlan) delete state.recoveryPlan[k];
     }
     state.plantMoisture[k] = Math.min(100, Math.max(2, state.plantMoisture[k]));
   });
-  // Fixer lastMoistureDate = aujourd'hui pour bloquer tout recalcul ET du même jour
-  // (évite que computeMoisture ne fasse baisser le score juste après l'arrosage)
   state.lastMoistureDate = new Date().toISOString().slice(0,10);
   saveState();
-  // Construire le message toast
-  const allSelected=(state.selectedPlants||[]).every(k=>targets.includes(k));
-  const targetLabel=allSelected?'tout le jardin':targets.length===1&&PLANT_DB[targets[0]]?PLANT_DB[targets[0]].name:`${targets.length} plantes`;
-  let toastMsg=isSimple?`✅ ${PLANT_DB[targets[0]].name} arrosé ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
-  const firstTarget = targets[0];
+  const allSelected=(state.selectedPlants||[]).every(k=>effectiveTargets.includes(k));
+  const targetLabel=allSelected?'tout le jardin':effectiveTargets.length===1&&PLANT_DB[effectiveTargets[0]]?PLANT_DB[effectiveTargets[0]].name:`${effectiveTargets.length} plantes`;
+  let toastMsg=isSimple?`✅ ${PLANT_DB[effectiveTargets[0]].name} arrosé ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
+  const firstTarget = effectiveTargets[0];
   if(state.recoveryPlan && state.recoveryPlan[firstTarget]){
     const plan = state.recoveryPlan[firstTarget];
     const remaining = plan.sessions - plan.done;

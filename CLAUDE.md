@@ -60,6 +60,13 @@ Interface en **français**. Tout texte visible par l'utilisateur doit être en f
 - `PLANT_DB` — base de données figée, modifier avec précaution
 - La fonction `boot()` (~ligne 6440) — point d'entrée de l'app
 
+## Gardes-fous
+
+- Ne jamais supprimer de fichiers sans lister exactement ce qui sera supprimé et demander confirmation.
+- Ne jamais manipuler de secrets ou API keys.
+- Avant de déclarer un livrable terminé, vérifier le résultat réel.
+- Si incertain, proposer un test simple plutôt que de deviner.
+
 ## Workflow Claude Code
 
 Pour chaque demande :

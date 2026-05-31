@@ -1950,8 +1950,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <button class="modal-close" onclick="document.getElementById('modal-watering').classList.remove('open')">×</button>
     <div class="modal-title">💧 Enregistrer un arrosage</div>
     <div id="watering-target-section" style="margin-bottom:14px;">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cible</div>
-      <div id="watering-target-chips" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+      <div id="watering-target-chips"></div>
     </div>
     <div class="method-tabs">
       <div class="method-tab active" onclick="setMethod(this,'flow')">🚿 Débit+Temps</div>
@@ -4161,72 +4160,85 @@ function openWateringModal(){
   _updateWateringMethodVisibility();
 }
 function _buildWateringTargetChips(){
-  const plants = state.selectedPlants||[];
-  const container = document.getElementById('watering-target-chips');
-  container.innerHTML='';
+  const plants=state.selectedPlants||[];
+  const wrap=document.getElementById('watering-target-chips');
+  wrap.innerHTML='';
   const FAMILY_EMOJI={potager:'🥕',aromatiques:'🌿',fleurs:'🌸',fruitiers:'🍎',arbustes:'🌳',gazon:'🌾',mediterranee:'🫒',tropical:'🌴'};
-  const addChip=(label,type,extra={})=>{
-    const chip=document.createElement('div');
-    chip.className='chip';
-    chip.style.cssText='padding:8px 13px;font-size:0.82rem;';
-    chip.textContent=label;
-    chip.dataset.type=type;
-    Object.assign(chip.dataset,extra);
-    chip.onclick=()=>{
-      container.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
-      chip.classList.add('selected');
-      _updateWateringMethodVisibility();
-    };
-    container.appendChild(chip);
-    return chip;
+  const lbl=(txt)=>{const d=document.createElement('div');d.style.cssText='font-size:0.74rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 6px;';d.textContent=txt;wrap.appendChild(d);};
+  const row=(id)=>{const d=document.createElement('div');d.id=id;d.style.cssText='display:flex;flex-wrap:wrap;gap:6px;';wrap.appendChild(d);return d;};
+
+  // ── Raccourcis ──
+  lbl('Sélection rapide');
+  const shortRow=row('watering-shortcuts');
+  const mkShortcut=(label,keys)=>{
+    const btn=document.createElement('div');
+    btn.className='chip';btn.style.cssText='padding:7px 12px;font-size:0.8rem;';
+    btn.textContent=label;
+    btn.onclick=()=>_toggleWateringGroup(keys);
+    shortRow.appendChild(btn);
+    return btn;
   };
-  const allChip=addChip('🌿 Tout le jardin','all');
-  const gazonKeys=plants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family==='gazon');
-  if(gazonKeys.length) addChip('🌾 Gazon','gazon');
+  mkShortcut('🌿 Tout le jardin',plants);
   const families={};
+  plants.forEach(k=>{const p=PLANT_DB[k];if(!p)return;if(!families[p.family])families[p.family]={label:p.label,keys:[]};families[p.family].keys.push(k);});
+  Object.entries(families).forEach(([fam,{label,keys}])=>{
+    if(keys.length<2)return;
+    mkShortcut(`${FAMILY_EMOJI[fam]||'🌱'} ${label}`,keys);
+  });
+
+  // ── Plantes individuelles ──
+  lbl('Plantes');
+  const plantRow=row('watering-plant-checks');
   plants.forEach(k=>{
-    const p=PLANT_DB[k]; if(!p||p.family==='gazon') return;
-    if(!families[p.family]) families[p.family]={label:p.label};
+    if(!PLANT_DB[k])return;
+    const chip=document.createElement('div');
+    chip.className='chip';chip.style.cssText='padding:7px 12px;font-size:0.82rem;';
+    chip.textContent=`${PLANT_DB[k].emoji} ${PLANT_DB[k].name}`;
+    chip.dataset.plant=k;
+    chip.onclick=()=>{chip.classList.toggle('selected');_updateWateringMethodVisibility();};
+    plantRow.appendChild(chip);
   });
-  Object.entries(families).forEach(([fam,{label}])=>{
-    addChip(`${FAMILY_EMOJI[fam]||'🌱'} ${label}`,'family',{family:fam});
-  });
-  plants.forEach(k=>{
-    if(!PLANT_DB[k]) return;
-    addChip(`${PLANT_DB[k].emoji} ${PLANT_DB[k].name}`,'plant',{plant:k});
-  });
-  // Pré-sélection : plante courante si définie, sinon tout le jardin
+
+  // Pré-sélection
   if(currentPlant&&PLANT_DB[currentPlant]){
-    const plantChip=[...container.querySelectorAll('.chip')].find(c=>c.dataset.plant===currentPlant);
-    if(plantChip){plantChip.classList.add('selected');return;}
+    const c=plantRow.querySelector(`[data-plant="${currentPlant}"]`);
+    if(c){c.classList.add('selected');_updateWateringMethodVisibility();return;}
   }
-  allChip.classList.add('selected');
+  plantRow.querySelectorAll('.chip').forEach(c=>c.classList.add('selected'));
+  _updateWateringMethodVisibility();
+}
+function _toggleWateringGroup(keys){
+  const plantRow=document.getElementById('watering-plant-checks');
+  if(!plantRow)return;
+  const chips=keys.map(k=>plantRow.querySelector(`[data-plant="${k}"]`)).filter(Boolean);
+  const allOn=chips.every(c=>c.classList.contains('selected'));
+  chips.forEach(c=>c.classList.toggle('selected',!allOn));
+  _updateWateringMethodVisibility();
+}
+function _getWateringTargets(){
+  const plantRow=document.getElementById('watering-plant-checks');
+  if(!plantRow)return state.selectedPlants||[];
+  return[...plantRow.querySelectorAll('.chip.selected')].map(c=>c.dataset.plant).filter(Boolean);
 }
 function _updateWateringMethodVisibility(){
-  const selected=document.querySelector('#watering-target-chips .chip.selected');
-  const type=selected?selected.dataset.type:'all';
-  const isSimple=type==='plant'&&selected.dataset.plant&&PLANT_DB[selected.dataset.plant]&&PLANT_DB[selected.dataset.plant].family!=='gazon';
+  const targets=_getWateringTargets();
+  const isSimple=targets.length===1&&PLANT_DB[targets[0]]&&PLANT_DB[targets[0]].family!=='gazon';
   const methodTabs=document.querySelector('#modal-watering .method-tabs');
   const methodPanels=document.querySelectorAll('#modal-watering .method-panel');
   let simpleBanner=document.getElementById('watering-simple-banner');
   if(isSimple){
-    const plantKey=selected.dataset.plant;
-    if(methodTabs) methodTabs.style.display='none';
+    const plantKey=targets[0];
+    if(methodTabs)methodTabs.style.display='none';
     methodPanels.forEach(p=>p.style.display='none');
-    if(!simpleBanner){
-      simpleBanner=document.createElement('div');
-      simpleBanner.id='watering-simple-banner';
-      const confirmBtn=document.getElementById('modal-watering').querySelector('.btn-confirm');
-      confirmBtn.parentNode.insertBefore(simpleBanner,confirmBtn);
-    }
+    if(!simpleBanner){simpleBanner=document.createElement('div');simpleBanner.id='watering-simple-banner';const btn=document.getElementById('modal-watering').querySelector('.btn-confirm');btn.parentNode.insertBefore(simpleBanner,btn);}
     simpleBanner.style.display='block';
     simpleBanner.innerHTML=`<div style="background:var(--green-mist);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">${PLANT_DB[plantKey].emoji}</div><div style="font-size:0.9rem;font-weight:700;color:var(--green-deep);margin-bottom:4px;">Arrosage enregistré</div><div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;">L'humidité sera remise à 100% pour ${PLANT_DB[plantKey].name}.</div></div>`;
   } else {
-    if(methodTabs) methodTabs.style.display='';
+    if(methodTabs)methodTabs.style.display='';
     methodPanels.forEach(p=>{p.style.display='';});
-    const activePanel=document.querySelector('#modal-watering .method-panel.active');
-    if(activePanel) activePanel.style.display='block';
-    if(simpleBanner) simpleBanner.style.display='none';
+    const ap=document.querySelector('#modal-watering .method-panel.active');
+    if(ap)ap.style.display='block';
+    if(simpleBanner)simpleBanner.style.display='none';
   }
 }
 function closeModal(e,id){if(e.target===e.currentTarget)document.getElementById(id).classList.remove('open');}
@@ -4245,16 +4257,7 @@ function toggleChrono(){
 }
 function confirmWatering(){
   const now = new Date();
-  const allPlants = state.selectedPlants||[];
-  // Résoudre la cible à partir du chip sélectionné
-  const selected=document.querySelector('#watering-target-chips .chip.selected');
-  const targetType=selected?selected.dataset.type:'all';
-  let targets;
-  if(targetType==='all') targets=allPlants;
-  else if(targetType==='gazon') targets=allPlants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family==='gazon');
-  else if(targetType==='family') targets=allPlants.filter(k=>PLANT_DB[k]&&PLANT_DB[k].family===selected.dataset.family);
-  else if(targetType==='plant') targets=[selected.dataset.plant];
-  else targets=allPlants;
+  const targets=_getWateringTargets();
   if(!targets||targets.length===0){showToast('⚠️ Aucune plante sélectionnée.');return;}
   // ── Cooldown 6h (uniquement pour cible = plante individuelle) ────────────
   const COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -4275,7 +4278,7 @@ function confirmWatering(){
   }
   // ─────────────────────────────────────────────────────────────────────────
   let liters=0;
-  const isSimple=targetType==='plant'&&PLANT_DB[targets[0]]&&PLANT_DB[targets[0]].family!=='gazon';
+  const isSimple=targets.length===1&&PLANT_DB[targets[0]]&&PLANT_DB[targets[0]].family!=='gazon';
   if(isSimple){
     liters=1;
   } else {
@@ -4321,8 +4324,9 @@ function confirmWatering(){
   state.lastMoistureDate = new Date().toISOString().slice(0,10);
   saveState();
   // Construire le message toast
-  const targetLabel = targetType==='all'?'tout le jardin':targetType==='gazon'?'gazon':targetType==='family'&&selected?selected.dataset.family:targets.length===1&&PLANT_DB[targets[0]]?PLANT_DB[targets[0]].name:'sélection';
-  let toastMsg = isSimple?`✅ ${PLANT_DB[targets[0]].name} arrosé${PLANT_DB[targets[0]].name.endsWith('e')?'e':''} ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
+  const allSelected=(state.selectedPlants||[]).every(k=>targets.includes(k));
+  const targetLabel=allSelected?'tout le jardin':targets.length===1&&PLANT_DB[targets[0]]?PLANT_DB[targets[0]].name:`${targets.length} plantes`;
+  let toastMsg=isSimple?`✅ ${PLANT_DB[targets[0]].name} arrosé ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
   const firstTarget = targets[0];
   if(state.recoveryPlan && state.recoveryPlan[firstTarget]){
     const plan = state.recoveryPlan[firstTarget];

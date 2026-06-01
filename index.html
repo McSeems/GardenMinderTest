@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.7.1';
-const APP_BUILD='2 juin 2026 à 02:45 (Paris)';
+const APP_VERSION='1.7.2';
+const APP_BUILD='2 juin 2026 à 03:15 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1239,12 +1239,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
             <div id="hero-avg-label" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:3px;display:none;">Moyenne jardin : —</div>
           </div>
         </div>
-        <div id="hero-plant-indicator" style="font-size:0.78rem;color:rgba(255,255,255,0.65);margin-top:4px;cursor:pointer;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);transition:background 0.2s;" onclick="if(_worstPlantKey)openPlantDetail(_worstPlantKey)"></div>
+        <div id="hero-plant-indicator" style="display:none;"></div>
       </div>
-      <div id="hero-alert" style="margin:10px 16px;padding:10px 14px;border-radius:10px;background:rgba(240,192,64,0.15);border:1px solid rgba(240,192,64,0.3);display:flex;gap:10px;align-items:flex-start;">
-        <span id="hero-alert-icon" style="font-size:16px;flex-shrink:0;margin-top:1px;">✅</span>
+      <div id="hero-alert" style="margin:10px 16px;padding:10px 14px;border-radius:10px;background:rgba(240,192,64,0.15);border:1px solid rgba(240,192,64,0.3);display:flex;gap:10px;align-items:center;cursor:pointer;" onclick="if(_worstPlantKey)openPlantDetail(_worstPlantKey)">
+        <span id="hero-alert-icon" style="font-size:16px;flex-shrink:0;">✅</span>
         <span id="hero-alert-text" style="font-size:0.83rem;color:rgba(255,255,255,0.9);line-height:1.5;flex:1;">Jardin en bonne santé.</span>
-        <button onclick="shareGardenScore()" style="flex-shrink:0;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 9px;color:white;font-size:0.72rem;cursor:pointer;font-family:var(--ff-body);">📲</button>
+        <span id="hero-alert-arrow" style="font-size:0.9rem;color:rgba(255,255,255,0.4);flex-shrink:0;display:none;">›</span>
       </div>
       <div style="padding:8px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 12px;">
@@ -2433,7 +2433,8 @@ function goTo(id) {
   });
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById('screen-'+id);
-  if(target) target.classList.add('active');
+  if(target){ target.classList.add('active'); target.scrollTop=0; }
+  window.scrollTo(0,0);
   // Initialiser le wizard quand on y entre
   if(id === 'wizard') {
     wizardStep = 1; updateWizard();
@@ -3487,11 +3488,9 @@ function updateHeroScore(){
       avgEl.style.display='none';
     }
   }
-  const indicator=document.getElementById('hero-plant-indicator');
-  if(indicator&&worstPlant){
-    _worstPlantKey = worstPlant;
-    indicator.textContent='⚠️ Pire : '+PLANT_DB[worstPlant].emoji+' '+PLANT_DB[worstPlant].name+' → voir ›';
-  }
+  if(worstPlant) _worstPlantKey = worstPlant;
+  const arrow=document.getElementById('hero-alert-arrow');
+  if(arrow) arrow.style.display=worstPlant?'':'none';
   const alertText=document.getElementById('hero-alert-text');
   const alertIcon=document.getElementById('hero-alert-icon');
   const _nw=document.getElementById('w-next-water');
@@ -3550,8 +3549,8 @@ function renderPlantStrip(){
     sortedFams.forEach(fam=>{
       const keys = groups[fam];
       const meta = CATEGORY_META[fam] || { name:fam, icon:'🌿', iconClass:'potager', order:9 };
-      // Compute avg moisture for category
-      const avgPct = Math.round(keys.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/keys.length);
+      // Score catégorie = pire plante (min), cohérent avec le héros
+      const avgPct = Math.round(Math.min(...keys.map(k=>state.plantMoisture[k]||60)));
       const lvl = getMoistureLevel(avgPct);
       // Find worst next watering
       let worstNext = null;
@@ -5694,11 +5693,11 @@ function switchTab(tab, el) {
   if(appScreen) appScreen.classList.add('active');
 
   const tabMap = {
-    history: () => { document.getElementById('tab-history').classList.remove('hidden'); renderHistoryTab(); },
-    alerts: () => { document.getElementById('tab-alerts').classList.remove('hidden'); renderAlertsTab(); },
-    settings: () => { document.getElementById('tab-settings').classList.remove('hidden'); renderSettingsTab(); },
-    journal: () => { document.getElementById('tab-journal').classList.remove('hidden'); renderJournalTab(); if(fab) fab.style.display='flex'; },
-    memory: () => { document.getElementById('tab-memory').classList.remove('hidden'); renderMemoryTab(); },
+    history: () => { const t=document.getElementById('tab-history'); t.classList.remove('hidden'); t.scrollTop=0; window.scrollTo(0,0); renderHistoryTab(); },
+    alerts: () => { const t=document.getElementById('tab-alerts'); t.classList.remove('hidden'); t.scrollTop=0; window.scrollTo(0,0); renderAlertsTab(); },
+    settings: () => { const t=document.getElementById('tab-settings'); t.classList.remove('hidden'); t.scrollTop=0; window.scrollTo(0,0); renderSettingsTab(); },
+    journal: () => { const t=document.getElementById('tab-journal'); t.classList.remove('hidden'); t.scrollTop=0; window.scrollTo(0,0); renderJournalTab(); if(fab) fab.style.display='flex'; },
+    memory: () => { const t=document.getElementById('tab-memory'); t.classList.remove('hidden'); t.scrollTop=0; window.scrollTo(0,0); renderMemoryTab(); },
   };
   if (tabMap[tab]) tabMap[tab]();
 }

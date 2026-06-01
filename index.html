@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.7.0';
-const APP_BUILD='2 juin 2026 à 02:10 (Paris)';
+const APP_VERSION='1.7.1';
+const APP_BUILD='2 juin 2026 à 02:45 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3021,8 +3021,19 @@ function daysUntilWatering(key){
     }
     score = score - baseET*heatFactor(tempMax) + forecastRain*rainEff;
     score = Math.min(100, Math.max(0, score));
-    if(score < 70){ // alerte = début zone surveillance (nouveau seuil)
-      if(i===0) return 'Ce soir !';
+    if(score < 70){
+      if(i===0){
+        // Plante non-critique + pluie efficace demain → reporter l'arrosage
+        if(score >= 40 && state.forecast && state.forecast.time){
+          const tmDS=addDays(localDateStr(),1);
+          const tmFi=state.forecast.time.indexOf(tmDS);
+          if(tmFi!==-1){
+            const effRain=(state.forecast.precipitation_sum[tmFi]||0)*rainEff;
+            if(effRain>=3) return '🌧️ Après pluie';
+          }
+        }
+        return 'Ce soir !';
+      }
       if(i===1) return 'Demain';
       return 'Dans '+i+'j';
     }
@@ -3487,10 +3498,23 @@ function updateHeroScore(){
   if(worstPlant&&alertText){
     const p=PLANT_DB[worstPlant];
     const nextWater=daysUntilWatering(worstPlant);
-    if(pct<30){if(alertIcon)alertIcon.textContent='🆘';alertText.textContent=p.emoji+' '+p.name+' — urgence ! Sol presque sec, arrosez immédiatement.';}
-    else if(pct<50){if(alertIcon)alertIcon.textContent='⚠️';alertText.textContent=p.emoji+' '+p.name+' — arrosage requis aujourd\'hui.';}
-    else if(pct<70){if(alertIcon)alertIcon.textContent='👁️';alertText.textContent=p.emoji+' '+p.name+' commence à manquer d\'eau. Arrosage prévu '+nextWater+'.';}
-    else{if(alertIcon)alertIcon.textContent='✅';alertText.textContent='Jardin bien hydraté. Prochain arrosage : '+nextWater+'.';}
+    const rainDefer=(nextWater==='🌧️ Après pluie');
+    if(pct<30){
+      if(alertIcon)alertIcon.textContent='🆘';
+      alertText.textContent=p.emoji+' '+p.name+' — urgence ! Sol presque sec, arrosez immédiatement.';
+    } else if(rainDefer){
+      if(alertIcon)alertIcon.textContent='🌧️';
+      alertText.textContent=p.emoji+' '+p.name+' — pluie efficace prévue demain, pas besoin d\'arroser ce soir.';
+    } else if(pct<50){
+      if(alertIcon)alertIcon.textContent='⚠️';
+      alertText.textContent=p.emoji+' '+p.name+' — arrosage requis aujourd\'hui.';
+    } else if(pct<70){
+      if(alertIcon)alertIcon.textContent='👁️';
+      alertText.textContent=p.emoji+' '+p.name+' commence à manquer d\'eau. Arrosage prévu '+nextWater+'.';
+    } else {
+      if(alertIcon)alertIcon.textContent='✅';
+      alertText.textContent='Jardin bien hydraté. Prochain arrosage : '+nextWater+'.';
+    }
     if(_nw)_nw.textContent=nextWater;
   }
 }

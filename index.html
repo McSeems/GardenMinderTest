@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.5.0';
-const APP_BUILD='1 juin 2026 à 22:05 (Paris)';
+const APP_VERSION='1.6.0';
+const APP_BUILD='2 juin 2026 à 01:20 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2321,6 +2321,19 @@ let currentPlant = null;
 let prevScreen = 'app';
 let _worstPlantKey = null;
 
+// ── UTILITAIRES DATE (timezone Paris) ────────────────────────────────────────
+// toISOString() renvoie UTC → à minuit Paris (UTC+1/+2) l'app affiche la veille.
+// localDateStr() retourne YYYY-MM-DD en heure de Paris.
+// addDays() fait l'arithmétique sur des chaînes ISO sans perdre le fuseau.
+function localDateStr(d){
+  return (d||new Date()).toLocaleDateString('sv-SE',{timeZone:'Europe/Paris'});
+}
+function addDays(dateStr,n){
+  const d=new Date(dateStr+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().slice(0,10);
+}
+
 // ── FORMULES ET COMMUNES ──────────────────────────────────────────────────────
 // Source unique de vérité pour l'évapotranspiration et l'efficacité pluie.
 // Toutes les fonctions (computeMoisture, daysUntilWatering, simulation) doivent
@@ -2525,15 +2538,13 @@ function resetMoisture(){
   // puis on applique jour par jour : ET (météo réelle) - pluie mesurée + arrosages enregistrés
   // C'est la meilleure estimation possible du "vrai" état actuel sans capteur physique
 
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
   const WINDOW = 15; // jours de reconstitution
 
   // Construire la liste des 15 derniers jours (excl. today)
   const days = [];
   for(let i = WINDOW; i >= 1; i--){
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0,10));
+    days.push(addDays(localDateStr(),-i));
   }
 
   state.selectedPlants.forEach(key => {
@@ -2890,7 +2901,7 @@ function openWizardPlantDetails(key){
         <div style="display:flex;align-items:center;gap:10px;background:var(--cream);border-radius:10px;padding:9px 12px;">
           <span style="font-size:1rem;width:20px;">🌱</span>
           <span style="font-size:0.82rem;color:var(--text-mid);flex:1;">Date de plantation</span>
-          <input type="date" id="wpd-date" style="border:1.5px solid var(--green-pale);border-radius:8px;padding:5px 8px;font-family:var(--ff-body);font-size:0.82rem;color:var(--text-dark);outline:none;background:white;" max="${new Date().toISOString().slice(0,10)}">
+          <input type="date" id="wpd-date" style="border:1.5px solid var(--green-pale);border-radius:8px;padding:5px 8px;font-family:var(--ff-body);font-size:0.82rem;color:var(--text-dark);outline:none;background:white;" max="${localDateStr()}">
         </div>
         <div style="display:flex;align-items:center;gap:10px;background:var(--cream);border-radius:10px;padding:9px 12px;">
           <span style="font-size:1rem;width:20px;">🔢</span>
@@ -2980,7 +2991,7 @@ function finalizeSetup(){
 // Source unique pour la pluie d'aujourd'hui (prévision daily, pas current)
 function getRainToday(){
   if(!state.forecast||!state.forecast.time)return 0;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const idx=state.forecast.time.indexOf(today);
   return idx!==-1?(state.forecast.precipitation_sum[idx]||0):0;
 }
@@ -2994,8 +3005,7 @@ function daysUntilWatering(key){
   for(let i=0; i<30; i++){
     let forecastRain=0, tempMax=22;
     if(state.forecast&&state.forecast.time){
-      const d=new Date(); d.setDate(d.getDate()+i);
-      const ds=d.toISOString().slice(0,10);
+      const ds=addDays(localDateStr(),i);
       const fi=state.forecast.time.indexOf(ds);
       if(fi!==-1){
         forecastRain=(state.forecast.precipitation_sum[fi]||0);
@@ -3018,10 +3028,9 @@ function daysUntilWatering(key){
 // Les jours plus anciens ne sont stockés qu'une seule fois (valeur définitive)
 function mergePrecipToLocal(times, sums){
   if(!times||!sums)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   // Calculer la date limite : jours < 3 jours → toujours réécrire
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-3);
-  const cutoffStr=cutoff.toISOString().slice(0,10);
+  const cutoffStr=addDays(localDateStr(),-3);
 
   times.forEach((t,i)=>{
     if(t>today)return; // futur strict : ignorer
@@ -3075,7 +3084,7 @@ async function fetchWeather(){
 function checkHeatwaveAlert(){
   if(!state.forecast || !state.forecast.temperature_2m_max || !state.forecast.time) return;
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDateStr();
   const SEUIL = 32; // °C
   const JOURS_CONSECUTIFS = 3; // jours min pour qualifier une canicule
 
@@ -3146,8 +3155,17 @@ function checkHeatwaveAlert(){
     checkBadges();
   }
 }
-const WX_ICONS={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',51:'🌦️',61:'🌧️',71:'🌨️',80:'🌩️',95:'⛈️'};
-function wxIcon(code){return WX_ICONS[code]||WX_ICONS[Math.floor(code/10)*10]||'🌤️';}
+const WX_ICONS={
+  0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
+  45:'🌫️', 48:'🌫️',
+  51:'🌦️', 53:'🌦️', 55:'🌦️',
+  61:'🌦️', 63:'🌧️', 65:'🌧️',
+  71:'🌨️', 73:'🌨️', 75:'❄️', 77:'❄️',
+  80:'🌦️', 81:'🌧️', 82:'🌧️',
+  85:'🌨️', 86:'❄️',
+  95:'⛈️', 96:'⛈️', 99:'⛈️'
+};
+function wxIcon(code){return WX_ICONS[code]||'⛅';}
 
 // ── INIT APP ─────────────────────────────────────────────────────────────────
 function initApp(){
@@ -3161,7 +3179,7 @@ function initApp(){
     // Temp MAX du jour (plus pertinente que la temp instantanée pour le jardinage)
     const _wt=document.getElementById('w-temp');
     if(_wt){
-      const todayStr=new Date().toISOString().slice(0,10);
+      const todayStr=localDateStr();
       const tempMax=getTempMaxForDate(todayStr);
       const displayTemp=(tempMax>0&&tempMax!==20)?Math.round(tempMax):Math.round(state.weather.temperature_2m);
       _wt.textContent=displayTemp+'°C';
@@ -3175,7 +3193,7 @@ function initApp(){
       const allT=(state.forecast&&state.forecast.time)||[];
       const allP=(state.forecast&&state.forecast.precipitation_sum)||[];
       let sum7=0;
-      for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);const idx=allT.indexOf(d.toISOString().slice(0,10));if(idx!==-1)sum7+=allP[idx]||0;}
+      for(let i=0;i<7;i++){const idx=allT.indexOf(addDays(localDateStr(),-i));if(idx!==-1)sum7+=allP[idx]||0;}
       _r7.textContent=sum7.toFixed(1)+' mm';
     }
     const _nw=document.getElementById('w-next-water');
@@ -3193,7 +3211,7 @@ function initApp(){
     else if(days===0){goTo('trial-end');return;}
   }
   // refreshAllMoisture uniquement si pas déjà fait aujourd'hui
-  const todayForInit = new Date().toISOString().slice(0,10);
+  const todayForInit = localDateStr();
   if(state.lastMoistureDate !== todayForInit) {
     // Vérifier si les plantes sont toutes à 70% exactement = valeur par défaut non calculée
     // → indique une réinitialisation accidentelle : lancer la reconstitution complète
@@ -3271,7 +3289,7 @@ function computeMoisture(key){
   // Score de départ — JAMAIS au-dessus de 100
   let score = Math.min(100, state.plantMoisture[key]||65);
 
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
   const lastDate = state.lastMoistureDate;
 
   if(!lastDate){
@@ -3299,17 +3317,14 @@ function computeMoisture(key){
       // OU ancien arrosage global (plant null sans targets = tout le jardin)
       const concerns = entry.targets ? entry.targets.includes(key) : (!entry.plant || entry.plant === key);
       if(!concerns) return;
-      const d = new Date(entry.ts); d.setHours(0,0,0,0);
-      const ds = d.toISOString().slice(0,10);
+      const ds = localDateStr(new Date(entry.ts));
       if(!wateringByDate[ds]) wateringByDate[ds] = [];
       wateringByDate[ds].push(entry);
     });
   }
 
   for(let d = 1; d <= cappedDays; d++){
-    const date = new Date(lastDate);
-    date.setDate(date.getDate() + d);
-    const dateStr = date.toISOString().slice(0,10);
+    const dateStr = addDays(lastDate, d);
     const tempMax = getTempMaxForDate(dateStr);
     const heat = heatFactor(tempMax);
     const rain = getRainMeasuredOnly(dateStr);
@@ -3354,7 +3369,7 @@ function computeMoisture(key){
 // Applique computeMoisture et ÉCRIT dans state
 // Appelé : au boot (une fois/jour), ET après chaque arrosage pour recalculer depuis today
 function refreshAllMoisture(forceToday){
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateStr();
 
   // Garde : si déjà fait aujourd'hui et pas de forceToday, on ne recalcule pas
   // EXCEPTION : si une valeur dépasse 100 (bug), on force quand même
@@ -3542,7 +3557,7 @@ function getWeekKeyGlobal(date){
   const d = new Date(date); d.setHours(0,0,0,0);
   const day = d.getDay(); const monday = new Date(d);
   monday.setDate(d.getDate() - (day===0?6:day-1));
-  return monday.toISOString().slice(0,10);
+  return localDateStr(monday);
 }
 
 // Vérifie si la série est en danger (aucune activité cette semaine, on est jeudi ou +)
@@ -3788,8 +3803,7 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
     let score = Math.min(100, state.plantMoisture[k]||65);
     const vals = [Math.round(score)];
     for(let d=1; d<=DAYS; d++){
-      const date = new Date(); date.setDate(date.getDate()+d);
-      const dateStr = date.toISOString().slice(0,10);
+      const dateStr = addDays(localDateStr(),d);
       const tempMax = getTempMaxForDate(dateStr);
       const heat = heatFactor(tempMax); // déjà capé à 1.5
       const rain = getRainForDate(dateStr); // forecast ok pour les jours futurs
@@ -3898,7 +3912,7 @@ function renderForecast(){
   const row=document.getElementById('forecast-row');
   if(!row||!state.forecast||!state.forecast.time)return;
   const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   // Find today's index in the time array (skips past_days)
   let startIdx=state.forecast.time.findIndex(t=>t>=today);
   if(startIdx===-1) startIdx=0;
@@ -3988,11 +4002,9 @@ function openPlantDetail(key, fromScreen){
   const days7=['J-6','J-5','J-4','J-3','J-2','Hier','Auj.'];
   chart.innerHTML='';labels.innerHTML='';
   // Reconstituer les 7 derniers jours depuis moistureHistory (ou estimer depuis l'historique d'arrosage)
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
   function getMoistureForDay(daysAgo){
     if(daysAgo===0) return Math.min(100,Math.max(2,pct));
-    const targetDate = new Date(todayD); targetDate.setDate(targetDate.getDate()-daysAgo);
-    const ds = targetDate.toISOString().slice(0,10);
+    const ds = addDays(localDateStr(),-daysAgo);
     // Chercher dans moistureHistory pour cette plante (snapshot quotidien)
     // Les snapshots sont des moyennes jardin — on cherche la date la plus proche
     if(state.moistureHistory && state.moistureHistory.length){
@@ -4365,7 +4377,7 @@ function confirmWatering(){
     }
     state.plantMoisture[k] = Math.min(100, Math.max(2, state.plantMoisture[k]));
   });
-  state.lastMoistureDate = new Date().toISOString().slice(0,10);
+  state.lastMoistureDate = localDateStr();
   saveState();
   const allSelected=(state.selectedPlants||[]).every(k=>effectiveTargets.includes(k));
   const targetLabel=allSelected?'tout le jardin':effectiveTargets.length===1&&PLANT_DB[effectiveTargets[0]]?PLANT_DB[effectiveTargets[0]].name:`${effectiveTargets.length} plantes`;
@@ -4676,7 +4688,7 @@ function selectContainerStep(key, containerType) {
     <div style="display:flex;flex-direction:column;gap:8px;max-height:42vh;overflow-y:auto;padding-right:4px;margin-bottom:14px;">
       <div style="background:var(--cream);border-radius:10px;padding:10px 12px;">
         <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🌱 Date de plantation</div>
-        <input type="date" id="new-pinfo-date" class="input-field" style="padding:8px 12px;font-size:0.88rem;" max="${new Date().toISOString().slice(0,10)}">
+        <input type="date" id="new-pinfo-date" class="input-field" style="padding:8px 12px;font-size:0.88rem;" max="${localDateStr()}">
       </div>
       <div style="background:var(--cream);border-radius:10px;padding:10px 12px;">
         <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🔢 Nombre de pieds / plants</div>
@@ -4963,13 +4975,10 @@ function getWaterData(period) {
 function getPrecipData(period) {
   const allTimes  = (state.forecast && state.forecast.time) || [];
   const allPrecip = (state.forecast && state.forecast.precipitation_sum) || [];
-  const today = new Date(); today.setHours(0,0,0,0);
-
   if(period === '7j') {
     const values = [], labels = [];
     for(let i=6;i>=0;i--) {
-      const d = new Date(today); d.setDate(d.getDate()-i);
-      const ds = d.toISOString().slice(0,10);
+      const ds = addDays(localDateStr(),-i);
       const idx = allTimes.indexOf(ds);
       // Aujourd'hui = prévision, passé = données réelles
       values.push(idx !== -1 ? parseFloat((allPrecip[idx]||0).toFixed(1)) : 0);
@@ -4980,8 +4989,7 @@ function getPrecipData(period) {
   } else if(period === '30j') {
     const values = [], labels = [];
     for(let i=29;i>=0;i--) {
-      const d = new Date(today); d.setDate(d.getDate()-i);
-      const ds = d.toISOString().slice(0,10);
+      const ds = addDays(localDateStr(),-i);
       const idx = allTimes.indexOf(ds);
       values.push(idx !== -1 ? parseFloat((allPrecip[idx]||0).toFixed(1)) : null);
       labels.push(i%5===0||i===0 ? (i===0?'Auj.':'J-'+i) : '');
@@ -5067,14 +5075,13 @@ function renderAlertsTab(){
   });
   if(state.forecast&&state.forecast.precipitation_sum&&state.forecast.time){
     // Chercher la pluie de demain par date (pas par index fixe)
-    const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
-    const tomorrowStr=tomorrow.toISOString().slice(0,10);
+    const tomorrowStr=addDays(localDateStr(),1);
     const ti=state.forecast.time.indexOf(tomorrowStr);
     const rainTomorrow=ti!==-1?(state.forecast.precipitation_sum[ti]||0):0;
     if(rainTomorrow>3)alerts.push({type:'info',icon:'🌧️',title:'Pluie prévue demain',body:rainTomorrow.toFixed(1)+'mm attendus demain. Inutile d\'arroser ce soir !',time:'Prévision J+1'});
 
     // Détection canicule : jours consécutifs ≥ 32°C
-    const today=new Date().toISOString().slice(0,10);
+    const today=localDateStr();
     const temps=state.forecast.temperature_2m_max||[];
     const dates=state.forecast.time;
     let joursChauds=0, maxTemp=0;
@@ -5338,8 +5345,7 @@ function runSimulation(){
     // Chercher la pluie prévue par date
     let rain=0;
     if(state.forecast&&state.forecast.time){
-      const d=new Date();d.setDate(d.getDate()+i);
-      const ds=d.toISOString().slice(0,10);
+      const ds=addDays(localDateStr(),i);
       const fi=state.forecast.time.indexOf(ds);
       if(fi!==-1)rain=(state.forecast.precipitation_sum[fi]||0);
     }
@@ -5715,7 +5721,7 @@ function submitJournalEntry() {
   const now = new Date();
 
   // ── Plafond 50 pts/jour ──────────────────────────────────────────────────
-  const todayStr = now.toISOString().slice(0,10);
+  const todayStr = localDateStr();
   if(!state.dailyPoints) state.dailyPoints = {};
   const usedToday = state.dailyPoints[todayStr] || 0;
   const DAILY_CAP = 50;
@@ -6330,7 +6336,7 @@ function renderMemoryTab() {
     const d = new Date(date); d.setHours(0,0,0,0);
     const day = d.getDay(); const monday = new Date(d);
     monday.setDate(d.getDate() - (day===0?6:day-1));
-    return monday.toISOString().slice(0,10);
+    return localDateStr(monday);
   }
   const activeWeeks = new Set();
   // Toutes les sources d'activité

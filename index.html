@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.4.0';
-const APP_BUILD='1 juin 2026 à 16:02 (Paris)';
+const APP_VERSION='1.5.0';
+const APP_BUILD='1 juin 2026 à 22:05 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -4234,28 +4234,44 @@ function _buildWateringTargetChips(){
   // ── Plantes individuelles ──
   lbl('Plantes');
   const plantRow=row('watering-plant-checks');
+  const COOLDOWN_MS=6*60*60*1000;
+  const now=Date.now();
   plants.forEach(k=>{
     if(!PLANT_DB[k])return;
+    const lastTs=state.lastWatered&&state.lastWatered[k];
+    const elapsed=lastTs?now-new Date(lastTs).getTime():Infinity;
+    const inCooldown=elapsed<COOLDOWN_MS;
     const chip=document.createElement('div');
-    chip.className='chip';chip.style.cssText='padding:7px 12px;font-size:0.82rem;';
-    chip.textContent=`${PLANT_DB[k].emoji} ${PLANT_DB[k].name}`;
+    chip.className='chip';
     chip.dataset.plant=k;
-    chip.onclick=()=>{chip.classList.toggle('selected');_updateWateringMethodVisibility();};
+    if(inCooldown){
+      const remainMins=Math.ceil((COOLDOWN_MS-elapsed)/60000);
+      const h=Math.floor(remainMins/60),m=remainMins%60;
+      const waitStr=h>0?`${h}h${m>0?m+'min':''}`:`${m}min`;
+      chip.style.cssText='padding:7px 12px;font-size:0.82rem;opacity:0.4;cursor:not-allowed;';
+      chip.textContent=`${PLANT_DB[k].emoji} ${PLANT_DB[k].name} ⏳${waitStr}`;
+      chip.dataset.cooldown='1';
+    } else {
+      chip.style.cssText='padding:7px 12px;font-size:0.82rem;';
+      chip.textContent=`${PLANT_DB[k].emoji} ${PLANT_DB[k].name}`;
+      chip.onclick=()=>{chip.classList.toggle('selected');_updateWateringMethodVisibility();};
+    }
     plantRow.appendChild(chip);
   });
 
-  // Pré-sélection
+  // Pré-sélection : ignorer les plantes en cooldown
   if(currentPlant&&PLANT_DB[currentPlant]){
-    const c=plantRow.querySelector(`[data-plant="${currentPlant}"]`);
+    const c=plantRow.querySelector(`[data-plant="${currentPlant}"]:not([data-cooldown])`);
     if(c){c.classList.add('selected');_updateWateringMethodVisibility();return;}
   }
-  plantRow.querySelectorAll('.chip').forEach(c=>c.classList.add('selected'));
+  plantRow.querySelectorAll('.chip:not([data-cooldown])').forEach(c=>c.classList.add('selected'));
   _updateWateringMethodVisibility();
 }
 function _toggleWateringGroup(keys){
   const plantRow=document.getElementById('watering-plant-checks');
   if(!plantRow)return;
-  const chips=keys.map(k=>plantRow.querySelector(`[data-plant="${k}"]`)).filter(Boolean);
+  // Ne touche que les chips disponibles (pas en cooldown)
+  const chips=keys.map(k=>plantRow.querySelector(`[data-plant="${k}"]:not([data-cooldown])`)).filter(Boolean);
   const allOn=chips.every(c=>c.classList.contains('selected'));
   chips.forEach(c=>c.classList.toggle('selected',!allOn));
   _updateWateringMethodVisibility();
@@ -4263,7 +4279,8 @@ function _toggleWateringGroup(keys){
 function _getWateringTargets(){
   const plantRow=document.getElementById('watering-plant-checks');
   if(!plantRow)return state.selectedPlants||[];
-  return[...plantRow.querySelectorAll('.chip.selected')].map(c=>c.dataset.plant).filter(Boolean);
+  // Exclut explicitement les chips en cooldown même si selected (double sécurité)
+  return[...plantRow.querySelectorAll('.chip.selected:not([data-cooldown])')].map(c=>c.dataset.plant).filter(Boolean);
 }
 function _updateWateringMethodVisibility(){
   const targets=_getWateringTargets();
@@ -4303,28 +4320,15 @@ function toggleChrono(){
 function confirmWatering(){
   const now = new Date();
   const targets=_getWateringTargets();
-  if(!targets||targets.length===0){showToast('⚠️ Aucune plante sélectionnée.');return;}
-  // ── Cooldown 6h par plante ────────────────────────────────────────────────
-  const COOLDOWN_MS = 6 * 60 * 60 * 1000;
-  if(!state.lastWatered) state.lastWatered={};
-  const blocked=targets.filter(k=>{
-    const lastTs=state.lastWatered[k];
-    return lastTs&&(now.getTime()-new Date(lastTs).getTime())<COOLDOWN_MS;
-  });
-  if(blocked.length===targets.length){
-    // Toutes les plantes sélectionnées sont en cooldown
-    const sample=blocked[0];
-    const elapsed=now.getTime()-new Date(state.lastWatered[sample]).getTime();
-    const remainMins=Math.ceil((COOLDOWN_MS-elapsed)/60000);
-    const h=Math.floor(remainMins/60),m=remainMins%60;
-    const waitStr=h>0?`${h}h${m>0?m+'min':''}`:`${m} min`;
-    showToast(`⏳ Déjà arrosé — réessayez dans ${waitStr}`);
+  // _getWateringTargets() filtre déjà les cooldowns via data-cooldown.
+  // Ce garde-fou final protège contre toute manipulation directe du state.
+  if(!targets||targets.length===0){
+    showToast('⏳ Toutes les plantes sélectionnées sont en cooldown — revenez dans 6h.');
     document.getElementById('modal-watering').classList.remove('open');
     return;
   }
-  // Filtrer les plantes en cooldown et continuer avec les autres
-  const effectiveTargets=targets.filter(k=>!blocked.includes(k));
-  if(blocked.length>0) showToast(`ℹ️ ${blocked.length} plante(s) ignorée(s) — cooldown actif`);
+  const effectiveTargets=targets;
+  if(!state.lastWatered) state.lastWatered={};
   // ─────────────────────────────────────────────────────────────────────────
   let liters=0;
   const isSimple=effectiveTargets.length===1&&PLANT_DB[effectiveTargets[0]]&&PLANT_DB[effectiveTargets[0]].family!=='gazon';

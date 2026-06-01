@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.2.0';
-const APP_BUILD=new Date('2026-06-01').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+const APP_VERSION='1.4.0';
+const APP_BUILD='1 juin 2026 à 22:05';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1936,6 +1936,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         </div>
       </div>
     </div>
+    <div id="settings-version-block" style="text-align:center;padding:20px 16px 8px;"></div>
     <div style="height:16px;"></div>
   </div>
   <div class="bottom-nav">
@@ -5198,6 +5199,8 @@ function renderSettingsTab(){
   document.getElementById('set-price').textContent=state.price?state.price.toFixed(2)+' €/m³':'—';
   document.getElementById('set-flow').textContent=state.flow?state.flow+' L/min':'—';
   document.getElementById('set-auto').textContent=state.autoSchedules.length?state.autoSchedules.length+' créneau(x)':'Aucun configuré';
+  const vBlock=document.getElementById('settings-version-block');
+  if(vBlock) vBlock.innerHTML=`<div style="font-size:0.72rem;color:var(--text-light);line-height:1.7;">GardenMinder v${APP_VERSION}<br><span style="font-size:0.68rem;opacity:0.7;">Mise à jour : ${APP_BUILD}</span></div>`;
   // Synchroniser les heures de notification sauvegardées
   const sm=document.getElementById('settings-notif-morning');
   const se=document.getElementById('settings-notif-evening');

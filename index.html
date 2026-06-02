@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.7.2';
-const APP_BUILD='2 juin 2026 à 03:15 (Paris)';
+const APP_VERSION='1.8.0';
+const APP_BUILD='2 juin 2026 à 04:30 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1266,18 +1266,21 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
+    <!-- Prévisions 7 jours -->
+    <div class="section-title">Prévisions 7 jours</div>
+    <div class="forecast-scroll">
+      <div class="forecast-row" id="forecast-row"></div>
+    </div>
+
+    <!-- Bannière fin de saison -->
+    <div id="season-end-banner" style="display:none;"></div>
+
     <!-- Plants strip -->
     <div class="section-title" id="plants-section-title">Mes plantes</div>
     <div class="plant-strip" id="plant-strip"></div>
     <div id="free-limit-banner" style="display:none;margin:8px 16px 0;background:linear-gradient(135deg,var(--green-mist),#d8f0e0);border-radius:12px;padding:12px 14px;border:1px dashed var(--green-pale);cursor:pointer;" onclick="openPremiumModal('plants_limit')">
       <div style="font-size:0.82rem;font-weight:600;color:var(--green-deep);">🌿 Version gratuite — 3 plantes max</div>
       <div style="font-size:0.75rem;color:var(--text-mid);margin-top:2px;">Passez à Premium pour suivre plus de plantes et accéder à l'affichage par catégorie.</div>
-    </div>
-
-    <!-- Prévisions 7 jours -->
-    <div class="section-title">Prévisions 7 jours</div>
-    <div class="forecast-scroll">
-      <div class="forecast-row" id="forecast-row"></div>
     </div>
 
     <!-- Quick actions -->
@@ -1570,10 +1573,10 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="seasons-section">
       <div class="seasons-title">📆 Mémoire des saisons</div>
       <div class="seasons-grid">
-        <div class="season-card"><div class="season-bg spring">🌸</div><div class="season-overlay"><div class="season-name">Printemps</div><div class="season-stat" id="season-spring">Aucune entrée</div></div><div class="season-badge-chip">Mars–Mai</div></div>
-        <div class="season-card"><div class="season-bg summer">☀️</div><div class="season-overlay"><div class="season-name">Été</div><div class="season-stat" id="season-summer">Aucune entrée</div></div><div class="season-badge-chip">Juin–Août</div></div>
-        <div class="season-card"><div class="season-bg autumn">🍂</div><div class="season-overlay"><div class="season-name">Automne</div><div class="season-stat" id="season-autumn">Aucune entrée</div></div><div class="season-badge-chip">Sept–Nov</div></div>
-        <div class="season-card" style="opacity:0.6;"><div class="season-bg winter">❄️</div><div class="season-overlay"><div class="season-name">Hiver</div><div class="season-stat" id="season-winter">Aucune entrée</div></div><div class="season-badge-chip">Déc–Fév</div></div>
+        <div class="season-card" onclick="openSeasonRecap('spring')"><div class="season-bg spring">🌸</div><div class="season-overlay"><div class="season-name">Printemps</div><div class="season-stat" id="season-spring">Aucune entrée</div></div><div class="season-badge-chip">Mars–Mai</div></div>
+        <div class="season-card" onclick="openSeasonRecap('summer')"><div class="season-bg summer">☀️</div><div class="season-overlay"><div class="season-name">Été</div><div class="season-stat" id="season-summer">Aucune entrée</div></div><div class="season-badge-chip">Juin–Août</div></div>
+        <div class="season-card" onclick="openSeasonRecap('autumn')"><div class="season-bg autumn">🍂</div><div class="season-overlay"><div class="season-name">Automne</div><div class="season-stat" id="season-autumn">Aucune entrée</div></div><div class="season-badge-chip">Sept–Nov</div></div>
+        <div class="season-card" onclick="openSeasonRecap('winter')"><div class="season-bg winter">❄️</div><div class="season-overlay"><div class="season-name">Hiver</div><div class="season-stat" id="season-winter">Aucune entrée</div></div><div class="season-badge-chip">Déc–Fév</div></div>
       </div>
     </div>
     <div style="height:16px;"></div>
@@ -3442,7 +3445,7 @@ function refreshAllMoisture(forceToday){
   if(state.selectedPlants.length > 0){
     if(!state.moistureHistory) state.moistureHistory = [];
     const avg = Math.min(100, Math.round(
-      state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0) / state.selectedPlants.length
+      Math.min(...state.selectedPlants.map(k=>state.plantMoisture[k]||60))
     ));
     const lastEntry = state.moistureHistory[state.moistureHistory.length-1];
     if(!lastEntry || lastEntry.date !== todayStr){
@@ -3519,6 +3522,7 @@ function updateHeroScore(){
 }
 
 function renderPlantStrip(){
+  renderSeasonBanner();
   const strip=document.getElementById('plant-strip');
   strip.innerHTML='';
   const titleEl=document.getElementById('plants-section-title');
@@ -5000,7 +5004,7 @@ function getMoistureData(period) {
   // Si pas d'historique mais on a un score actuel, créer un jeu de données minimal
   if(!state.moistureHistory || !state.moistureHistory.length) {
     const curScore = state.selectedPlants.length > 0
-      ? Math.round(state.selectedPlants.reduce((s,k)=>s+(state.plantMoisture[k]||60),0)/state.selectedPlants.length)
+      ? Math.round(Math.min(...state.selectedPlants.map(k=>state.plantMoisture[k]||60)))
       : null;
     if(!curScore) return { values: [], labels, hasData: false };
     // Remplir seulement aujourd'hui
@@ -5941,26 +5945,25 @@ function renderJournalWatering() {
       <div style="font-size:0.7rem;color:var(--text-light);margin-top:6px;">${subtext}</div>
     </div>`;
 
+  const _waterRow = e => {
+    const plant = e.plant ? PLANT_DB[e.plant] : null;
+    const label = e.targets && e.targets.length > 1
+      ? e.targets.map(k=>PLANT_DB[k]?.emoji||'🌿').join('')+' '+e.targets.length+' plantes'
+      : plant ? plant.emoji+' '+plant.name : '💧 Jardin';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
+      <div style="font-size:20px;">${plant ? plant.emoji : '💧'}</div>
+      <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${label}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div></div>
+      <div style="text-align:right;"><div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div><div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div></div>
+    </div>`;
+  };
   const waterRows = history.length === 0
     ? `<div style="text-align:center;padding:20px;color:var(--text-light);font-size:0.85rem;">Aucun arrosage enregistré</div>`
-    : history.slice(0,15).map(e => {
-        const plant = e.plant ? PLANT_DB[e.plant] : null;
-        return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
-          <div style="font-size:20px;">${plant ? plant.emoji : '💧'}</div>
-          <div style="flex:1;">
-            <div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${plant ? plant.name : 'Jardin'}</div>
-            <div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div>
-            <div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div>
-          </div>
-        </div>`;
-      }).join('');
+    : `<div id="watering-rows-wrap">${history.slice(0,5).map(_waterRow).join('')}</div>`
+      + (history.length > 5 ? `<button onclick="showMoreWaterings()" style="width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1.5px solid var(--green-pale);background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.82rem;font-weight:600;cursor:pointer;">＋ Voir les ${Math.min(30,history.length)} derniers arrosages</button>` : '');
 
   list.innerHTML =
     card('jhist-precip-chart','jhist-precip-stat','precip','🌧️','Précipitations','Pluie mesurée + prévisions météo')
-    + card('jhist-hygro-chart','jhist-hygro-stat','hygro','💧','Hygrométrie sol','Taux d\'humidité moyen de vos plantes')
+    + card('jhist-hygro-chart','jhist-hygro-stat','hygro','💧','Hygrométrie sol','Humidité minimale du jardin (pire plante)')
     + `<div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div style="display:flex;align-items:center;gap:8px;">
@@ -6461,19 +6464,122 @@ function renderMemoryTab() {
     }
   }
 
-  // Saisons
-  const entries = state.journalEntries || [];
-  const seasonEntries = (monthRange) => {
-    const count = entries.filter(e => {
-      const m = new Date(e.ts||Date.now()).getMonth();
-      return monthRange.includes(m);
-    }).length;
-    return count > 0 ? `${count} entrée${count>1?'s':''} · ${entries.filter(e=>monthRange.includes(new Date(e.ts||Date.now()).getMonth())&&e.type==='harvest').length} récolte${entries.filter(e=>monthRange.includes(new Date(e.ts||Date.now()).getMonth())&&e.type==='harvest').length>1?'s':''}` : 'Aucune entrée';
+  // Saisons — stats arrosage + journal
+  const jEntries = state.journalEntries || [];
+  const wHistory = state.wateringHistory || [];
+  const seasonStat = (monthRange) => {
+    const y = new Date().getFullYear();
+    const ws = wHistory.filter(e=>{ const d=new Date(e.ts||Date.now()); return monthRange.includes(d.getMonth())&&d.getFullYear()===y; });
+    const je = jEntries.filter(e=>{ const d=new Date(e.ts||Date.now()); return monthRange.includes(d.getMonth())&&d.getFullYear()===y; });
+    const vol = ws.reduce((t,e)=>t+(e.liters||0),0);
+    const harvests = je.filter(e=>e.type==='harvest').length;
+    if(ws.length===0 && je.length===0) return 'Aucune activité — appuyer';
+    let parts=[];
+    if(ws.length>0) parts.push(`${ws.length} arrosage${ws.length>1?'s':''} · ${vol}L`);
+    if(harvests>0) parts.push(`${harvests} récolte${harvests>1?'s':''}`);
+    else if(je.length>0) parts.push(`${je.length} entrée${je.length>1?'s':''}`);
+    return parts.join(' · ');
   };
-  sid('season-spring', seasonEntries([2,3,4]));
-  sid('season-summer', seasonEntries([5,6,7]));
-  sid('season-autumn', seasonEntries([8,9,10]));
-  sid('season-winter', seasonEntries([11,0,1]));
+  sid('season-spring', seasonStat([2,3,4]));
+  sid('season-summer', seasonStat([5,6,7]));
+  sid('season-autumn', seasonStat([8,9,10]));
+  sid('season-winter', seasonStat([11,0,1]));
+}
+
+// ── RÉCAP SAISON ─────────────────────────────────────────────────────────────
+function openSeasonRecap(seasonKey){
+  const y = new Date().getFullYear();
+  const SDEF = {
+    spring:{name:'Printemps',emoji:'🌸',months:[2,3,4], bg:'linear-gradient(160deg,#a8d8a8,#6ab86a)'},
+    summer:{name:'Été',      emoji:'☀️',months:[5,6,7], bg:'linear-gradient(160deg,#f0d060,#d09020)'},
+    autumn:{name:'Automne',  emoji:'🍂',months:[8,9,10],bg:'linear-gradient(160deg,#e0905a,#b05018)'},
+    winter:{name:'Hiver',    emoji:'❄️',months:[11,0,1],bg:'linear-gradient(160deg,#a0c8e0,#6090b8)'},
+  };
+  const s = SDEF[seasonKey]; if(!s) return;
+  const ws = (state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getFullYear()===y-1&&d.getMonth()===11)); });
+  const je = (state.journalEntries||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getFullYear()===y-1&&d.getMonth()===11)); });
+  const vol = ws.reduce((t,e)=>t+(e.liters||0),0);
+  const harvests = je.filter(e=>e.type==='harvest').length;
+  const cost = (vol/1000)*(state.price||4.3);
+  const precip = (state.precipLocalHistory||[]).filter(e=>{ const d=new Date(e.date+'T12:00:00Z'); return s.months.includes(d.getMonth())&&d.getFullYear()===y; }).reduce((t,e)=>t+(e.mm||0),0);
+  const plantCnt = {}; ws.forEach(e=>{ (e.targets||(e.plant?[e.plant]:[])).forEach(k=>{ plantCnt[k]=(plantCnt[k]||0)+1; }); });
+  const topPlants = Object.entries(plantCnt).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const modal = document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;z-index:300;background:var(--cream);overflow-y:auto;';
+  const close = ()=>modal.remove();
+  modal.innerHTML=`
+    <div style="min-height:180px;${s.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 28px;position:relative;">
+      <button onclick="(${close})()" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,0.18);border:none;border-radius:50%;width:34px;height:34px;font-size:1.1rem;cursor:pointer;color:white;">✕</button>
+      <div style="font-size:2.8rem;margin-bottom:6px;">${s.emoji}</div>
+      <div style="font-family:var(--ff-display);font-size:1.5rem;font-weight:600;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.25);">${s.name} ${y}</div>
+      <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:3px;">Bilan de saison</div>
+    </div>
+    <div style="padding:18px 16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--water);">${ws.length}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Arrosages</div></div>
+        <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--water);">${vol}L</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Volume total</div></div>
+        <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--ok);">${harvests}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Récoltes</div></div>
+        <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--green-mid);">${je.length}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Journal</div></div>
+      </div>
+      ${precip>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">🌧️ Pluie reçue</span><span style="font-weight:700;color:var(--water);">${Math.round(precip)} mm</span></div>`:''}
+      ${cost>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">💶 Coût eau</span><span style="font-weight:700;">${cost.toFixed(2)} €</span></div>`:''}
+      ${topPlants.length>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;"><div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🌿 Plus arrosées</div>${topPlants.map(([k,n])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--green-mist);"><span style="font-size:0.88rem;">${PLANT_DB[k]?PLANT_DB[k].emoji+' '+PLANT_DB[k].name:k}</span><span style="font-weight:600;color:var(--water);">${n}×</span></div>`).join('')}</div>`:''}
+      ${ws.length===0&&je.length===0?`<div style="text-align:center;padding:24px;color:var(--text-light);line-height:1.7;">Aucune donnée pour cette saison.<br><span style="font-size:0.8rem;">Enregistrez vos arrosages et journal pour voir apparaître votre bilan ici !</span></div>`:''}
+    </div>
+    <div style="padding:0 16px 36px;"><button onclick="(${close})()" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:1rem;font-weight:600;cursor:pointer;">Fermer</button></div>`;
+  document.body.appendChild(modal);
+}
+
+function getEndedSeasonForBanner(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const SDEF = [
+    {key:'spring',name:'Printemps',emoji:'🌸',months:[2,3,4], endM:5},
+    {key:'summer',name:'Été',      emoji:'☀️',months:[5,6,7], endM:8},
+    {key:'autumn',name:'Automne',  emoji:'🍂',months:[8,9,10],endM:11},
+    {key:'winter',name:'Hiver',    emoji:'❄️',months:[11,0,1],endM:2},
+  ];
+  for(const s of SDEF){
+    const seasonEndY = (s.key==='winter'&&today.getMonth()<=1) ? y : y;
+    const firstDayAfter = new Date(seasonEndY, s.endM, 1);
+    const diff = Math.round((today - firstDayAfter)/86400000);
+    if(diff>=0 && diff<=21){
+      const ws=(state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth()); });
+      if(ws.length>0) return {...s, ws};
+    }
+  }
+  return null;
+}
+
+function renderSeasonBanner(){
+  const banner = document.getElementById('season-end-banner');
+  if(!banner) return;
+  const s = getEndedSeasonForBanner();
+  if(!s){ banner.style.display='none'; return; }
+  const vol = s.ws.reduce((t,e)=>t+(e.liters||0),0);
+  banner.style.display='block';
+  banner.innerHTML=`<div onclick="openSeasonRecap('${s.key}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:var(--radius);margin:0 16px 4px;box-shadow:0 4px 16px rgba(26,58,42,0.18);cursor:pointer;">
+    <div style="font-size:2rem;flex-shrink:0;">${s.emoji}</div>
+    <div style="flex:1;"><div style="font-size:0.68rem;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Bilan de saison disponible</div><div style="font-family:var(--ff-display);font-size:0.98rem;font-weight:600;color:white;">${s.name} — voir le récap →</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:2px;">${s.ws.length} arrosage${s.ws.length>1?'s':''} · ${vol}L cette saison</div></div>
+  </div>`;
+}
+
+function showMoreWaterings(){
+  const wrap = document.getElementById('watering-rows-wrap');
+  if(!wrap) return;
+  const history = state.wateringHistory || [];
+  const _waterRow = e => {
+    const plant = e.plant ? PLANT_DB[e.plant] : null;
+    const label = e.targets&&e.targets.length>1 ? e.targets.map(k=>PLANT_DB[k]?.emoji||'🌿').join('')+' '+e.targets.length+' plantes' : plant?plant.emoji+' '+plant.name:'💧 Jardin';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
+      <div style="font-size:20px;">${plant?plant.emoji:'💧'}</div>
+      <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${label}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div></div>
+      <div style="text-align:right;"><div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div><div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div></div>
+    </div>`;
+  };
+  wrap.innerHTML = history.slice(0,30).map(_waterRow).join('')
+    + `<div style="text-align:center;padding:10px 0 2px;font-size:0.72rem;color:var(--text-light);">— 30 derniers arrosages —</div>`;
+  wrap.nextElementSibling && (wrap.nextElementSibling.style.display='none');
 }
 
 function checkBadges() {

@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.8.0';
-const APP_BUILD='2 juin 2026 à 04:30 (Paris)';
+const APP_VERSION='1.9.0';
+const APP_BUILD='2 juin 2026 à 06:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1202,6 +1202,10 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="trial-nudge-cta">Activer →</div>
     </div>
 
+    <!-- Bannière fin de saison -->
+    <div id="season-end-banner" style="display:none;padding:0 0 4px;"></div>
+    <!-- Bannière alerte série hebdo -->
+    <div id="streak-warn-banner" style="display:none;padding:0 0 4px;"></div>
     <!-- Hero gauge card -->
     <div class="hero-card">
       <div style="padding:20px 24px 0;display:flex;flex-direction:column;align-items:center;">
@@ -1271,9 +1275,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="forecast-scroll">
       <div class="forecast-row" id="forecast-row"></div>
     </div>
-
-    <!-- Bannière fin de saison -->
-    <div id="season-end-banner" style="display:none;"></div>
 
     <!-- Plants strip -->
     <div class="section-title" id="plants-section-title">Mes plantes</div>
@@ -1556,8 +1557,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     </div>
     <!-- Série hebdo -->
     <div class="streak-card">
-      <div class="streak-card-title">📅 Série hebdomadaire</div>
-      <div class="streak-card-sub">Pas quotidienne — respecte le rythme naturel du jardin</div>
+      <div class="streak-card-title">🔥 Série hebdomadaire</div>
+      <div class="streak-card-sub" id="streak-card-sub">💧 Arroser · ✍️ Journal · 🌾 Récolter · ✂️ Tailler — une action par semaine suffit</div>
       <div class="streak-weeks-row" id="streak-weeks"></div>
       <div class="streak-flame">
         <div class="streak-flame-num" id="streak-num">🔥 0</div>
@@ -3451,6 +3452,9 @@ function refreshAllMoisture(forceToday){
     if(!lastEntry || lastEntry.date !== todayStr){
       state.moistureHistory.push({ date: todayStr, value: avg, ts: new Date().toISOString() });
       if(state.moistureHistory.length > 400) state.moistureHistory = state.moistureHistory.slice(-400);
+    } else {
+      lastEntry.value = avg;
+      lastEntry.ts = new Date().toISOString();
     }
   }
   saveState();
@@ -3523,6 +3527,7 @@ function updateHeroScore(){
 
 function renderPlantStrip(){
   renderSeasonBanner();
+  renderStreakBanner();
   const strip=document.getElementById('plant-strip');
   strip.innerHTML='';
   const titleEl=document.getElementById('plants-section-title');
@@ -4953,7 +4958,7 @@ function renderPrecipChart(){
   }
 }
 function renderHumidityChart(){
-  renderBarChart('history-chart-humidity', getMoistureData(chartPeriods.humidity), 'var(--green-mid)', 'var(--green-pale)', '%');
+  renderBarChart('history-chart-humidity', getMoistureData(chartPeriods.humidity), null, null, '%', HYGRO_COLOR);
 }
 function renderWaterChart(){
   renderBarChart('history-chart-water', getWaterData(chartPeriods.water), 'var(--water)', 'var(--water-light)', 'L');
@@ -5092,7 +5097,8 @@ function buildLabels(period, n) {
   return Array.from({length:12},(_,i)=>{const m=new Date(now);m.setMonth(m.getMonth()-(11-i));return MONTHS[m.getMonth()];});
 }
 
-function renderBarChart(containerId, data, colorActive, colorNormal, unit) {
+const HYGRO_COLOR=(v,last)=>v>=70?(last?'var(--ok)':'rgba(58,173,92,0.45)'):v>=40?(last?'#d09030':'rgba(208,144,48,0.55)'):(last?'var(--danger)':'rgba(224,82,82,0.5)');
+function renderBarChart(containerId, data, colorActive, colorNormal, unit, colorFn) {
   const el = document.getElementById(containerId);
   if(!el) return;
   const values = data.values || [];
@@ -5115,7 +5121,7 @@ function renderBarChart(containerId, data, colorActive, colorNormal, unit) {
     const isLast = i===n-1;
     // Zéro = barre fantôme visible (pas "vide")
     const pct = isNull ? 0 : (isZero ? 0 : Math.max(8, (v/max)*100));
-    const barBg = isNull ? 'rgba(0,0,0,0.04)' : isZero ? 'rgba(74,158,202,0.12)' : (isLast ? colorActive : colorNormal);
+    const barBg = isNull ? 'rgba(0,0,0,0.04)' : isZero ? 'rgba(74,158,202,0.12)' : (colorFn ? colorFn(v,isLast) : (isLast ? colorActive : colorNormal));
     const minH = isNull ? '2px' : '4px';
     const valTxt = (!isNull && !isZero && showVals) ? (unit==='%'?Math.round(v)+'%':unit==='L'?v+'L':v.toFixed(1)) : (isZero && showVals ? '0' : '');
     const lbl = labels[i]||'';
@@ -5581,6 +5587,9 @@ const ALL_BADGES = [
   { id:'shared_social',     emoji:'📲', name:'Partage en fleur',     desc:'Première entrée partagée sur les réseaux sociaux',     cond: s=>(s.journalEntries||[]).some(e=>e.sharedSocial) },
   { id:'premium_supporter', emoji:'🏅', name:'Jardinier Soutien',    desc:'Rare · Soutien officiel du projet',                    cond: s=>s.premium&&s.premium.purchased, rare:true },
   { id:'calibrated',        emoji:'🎯', name:'Sol calibré',          desc:'Calibration du sol effectuée avec le test terrain',    cond: s=>s.calibration&&(s.calibration.offset!==0||s.calibration.soilMultiplier!==1.0) },
+  { id:'streak8',  emoji:'🔥', name:'Série ×8',      desc:'8 semaines consécutives de jardinage',          cond: s=>(s.weeklyStreak||0)>=8 },
+  { id:'streak12', emoji:'⚡', name:'Série ×12',     desc:'12 semaines de suite — impressionnant !',        cond: s=>(s.weeklyStreak||0)>=12 },
+  { id:'streak16', emoji:'🏆', name:'Légendaire',     desc:'16 semaines consécutives — vrai jardinier !',   cond: s=>(s.weeklyStreak||0)>=16, rare:true },
 ];
 
 // Titres débloqués selon niveau — enrichis en Premium
@@ -5900,8 +5909,8 @@ function renderSingleChart(chartKey) {
       ? Math.round(Object.values(state.plantMoisture).reduce((a,b)=>a+b,0)/state.selectedPlants.length) : 60;
     if(!d.hasData) {
       const synth = Array(n).fill(null); synth[n-1]=cur;
-      renderBarChart('jhist-hygro-chart',{values:synth,labels:buildLabels(p,n),hasData:true},'var(--green-mid)','var(--green-pale)','%');
-    } else { renderBarChart('jhist-hygro-chart',d,'var(--green-mid)','var(--green-pale)','%'); }
+      renderBarChart('jhist-hygro-chart',{values:synth,labels:buildLabels(p,n),hasData:true},null,null,'%',HYGRO_COLOR);
+    } else { renderBarChart('jhist-hygro-chart',d,null,null,'%',HYGRO_COLOR); }
     const el = document.getElementById('jhist-hygro-stat'); if(el) el.textContent = cur+'% auj.';
   } else if(chartKey === 'water') {
     const d = getWaterData(p);
@@ -5926,6 +5935,16 @@ function _indivPeriodBtns(chartKey) {
   </div>`;
 }
 
+function _historyWaterRow(e){
+  const plant=e.plant?PLANT_DB[e.plant]:null;
+  const label=e.targets&&e.targets.length>1?e.targets.map(k=>PLANT_DB[k]?.emoji||'🌿').join('')+' '+e.targets.length+' plantes':plant?plant.emoji+' '+plant.name:'💧 Jardin';
+  return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
+    <div style="font-size:20px;">${plant?plant.emoji:'💧'}</div>
+    <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${label}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div></div>
+    <div style="text-align:right;"><div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div><div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div></div>
+  </div>`;
+}
+
 function renderJournalWatering() {
   const list = document.getElementById('journal-watering-list');
   if(!list) return;
@@ -5945,20 +5964,9 @@ function renderJournalWatering() {
       <div style="font-size:0.7rem;color:var(--text-light);margin-top:6px;">${subtext}</div>
     </div>`;
 
-  const _waterRow = e => {
-    const plant = e.plant ? PLANT_DB[e.plant] : null;
-    const label = e.targets && e.targets.length > 1
-      ? e.targets.map(k=>PLANT_DB[k]?.emoji||'🌿').join('')+' '+e.targets.length+' plantes'
-      : plant ? plant.emoji+' '+plant.name : '💧 Jardin';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
-      <div style="font-size:20px;">${plant ? plant.emoji : '💧'}</div>
-      <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${label}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div></div>
-      <div style="text-align:right;"><div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div><div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div></div>
-    </div>`;
-  };
   const waterRows = history.length === 0
     ? `<div style="text-align:center;padding:20px;color:var(--text-light);font-size:0.85rem;">Aucun arrosage enregistré</div>`
-    : `<div id="watering-rows-wrap">${history.slice(0,5).map(_waterRow).join('')}</div>`
+    : `<div id="watering-rows-wrap">${history.slice(0,5).map(_historyWaterRow).join('')}</div>`
       + (history.length > 5 ? `<button onclick="showMoreWaterings()" style="width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1.5px solid var(--green-pale);background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.82rem;font-weight:600;cursor:pointer;">＋ Voir les ${Math.min(30,history.length)} derniers arrosages</button>` : '');
 
   list.innerHTML =
@@ -6496,38 +6504,72 @@ function openSeasonRecap(seasonKey){
     winter:{name:'Hiver',    emoji:'❄️',months:[11,0,1],bg:'linear-gradient(160deg,#a0c8e0,#6090b8)'},
   };
   const s = SDEF[seasonKey]; if(!s) return;
-  const ws = (state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getFullYear()===y-1&&d.getMonth()===11)); });
-  const je = (state.journalEntries||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getFullYear()===y-1&&d.getMonth()===11)); });
+  document.getElementById('season-recap-modal')?.remove();
+  const ws = (state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getMonth()===11&&d.getFullYear()===y-1)); });
+  const je = (state.journalEntries||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth())&&(d.getFullYear()===y||(seasonKey==='winter'&&d.getMonth()===11&&d.getFullYear()===y-1)); });
   const vol = ws.reduce((t,e)=>t+(e.liters||0),0);
   const harvests = je.filter(e=>e.type==='harvest').length;
   const cost = (vol/1000)*(state.price||4.3);
   const precip = (state.precipLocalHistory||[]).filter(e=>{ const d=new Date(e.date+'T12:00:00Z'); return s.months.includes(d.getMonth())&&d.getFullYear()===y; }).reduce((t,e)=>t+(e.mm||0),0);
   const plantCnt = {}; ws.forEach(e=>{ (e.targets||(e.plant?[e.plant]:[])).forEach(k=>{ plantCnt[k]=(plantCnt[k]||0)+1; }); });
   const topPlants = Object.entries(plantCnt).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const photos = je.filter(e=>e.photo).map(e=>({src:e.photo,date:new Date(e.ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}));
+  const hygro = (state.moistureHistory||[]).filter(e=>{ const d=new Date(e.date+'T12:00:00Z'); return s.months.includes(d.getMonth())&&d.getFullYear()===y; });
+  const avgHygro = hygro.length>0?Math.round(hygro.reduce((t,e)=>t+e.value,0)/hygro.length):null;
+  const worstHygro = hygro.length>0?Math.min(...hygro.map(e=>e.value)):null;
+  let congrats='';
+  if(ws.length>0||je.length>0){
+    if(avgHygro!==null){
+      if(avgHygro>=70) congrats=`🌟 Excellent travail ! Votre jardin a maintenu une humidité moyenne de ${avgHygro}% cette saison — vos plantes ont été choyées.`;
+      else if(avgHygro>=50) congrats=`👍 Bonne saison ! Humidité moyenne à ${avgHygro}% — quelques plantes ont eu soif, mais l'ensemble s'en sort bien.`;
+      else congrats=`💪 Saison difficile (${avgHygro}% moy.) — vos plantes ont souffert du manque d'eau. La prochaine saison sera l'occasion de mieux les hydrater !`;
+    } else {
+      congrats=`Merci pour votre engagement cette saison — ${ws.length} arrosage${ws.length>1?'s':''} enregistrés !`;
+    }
+  }
   const modal = document.createElement('div');
+  modal.id='season-recap-modal';
   modal.style.cssText='position:fixed;inset:0;z-index:300;background:var(--cream);overflow-y:auto;';
-  const close = ()=>modal.remove();
   modal.innerHTML=`
     <div style="min-height:180px;${s.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px 28px;position:relative;">
-      <button onclick="(${close})()" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,0.18);border:none;border-radius:50%;width:34px;height:34px;font-size:1.1rem;cursor:pointer;color:white;">✕</button>
+      <button id="season-close-btn" style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,0.18);border:none;border-radius:50%;width:34px;height:34px;font-size:1.1rem;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center;">✕</button>
       <div style="font-size:2.8rem;margin-bottom:6px;">${s.emoji}</div>
       <div style="font-family:var(--ff-display);font-size:1.5rem;font-weight:600;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.25);">${s.name} ${y}</div>
       <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-top:3px;">Bilan de saison</div>
     </div>
     <div style="padding:18px 16px;">
+      ${congrats?`<div style="background:white;border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:12px;font-size:0.88rem;color:var(--text-dark);line-height:1.55;">${congrats}</div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--water);">${ws.length}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Arrosages</div></div>
         <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--water);">${vol}L</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Volume total</div></div>
         <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--ok);">${harvests}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Récoltes</div></div>
         <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);text-align:center;"><div style="font-size:1.7rem;font-weight:700;color:var(--green-mid);">${je.length}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:3px;">Journal</div></div>
       </div>
+      ${avgHygro!==null?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💧 Hygrométrie de la saison</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--green-mist);"><span style="font-size:0.88rem;color:var(--text-dark);">Moyenne</span><span style="font-weight:700;color:${avgHygro>=70?'var(--ok)':avgHygro>=40?'#d09030':'var(--danger)'};">${avgHygro}%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;"><span style="font-size:0.88rem;color:var(--text-dark);">Pire moment</span><span style="font-weight:700;color:${worstHygro>=70?'var(--ok)':worstHygro>=40?'#d09030':'var(--danger)'};">${worstHygro}%</span></div>
+      </div>`:''}
       ${precip>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">🌧️ Pluie reçue</span><span style="font-weight:700;color:var(--water);">${Math.round(precip)} mm</span></div>`:''}
       ${cost>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">💶 Coût eau</span><span style="font-weight:700;">${cost.toFixed(2)} €</span></div>`:''}
       ${topPlants.length>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;"><div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🌿 Plus arrosées</div>${topPlants.map(([k,n])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--green-mist);"><span style="font-size:0.88rem;">${PLANT_DB[k]?PLANT_DB[k].emoji+' '+PLANT_DB[k].name:k}</span><span style="font-weight:600;color:var(--water);">${n}×</span></div>`).join('')}</div>`:''}
-      ${ws.length===0&&je.length===0?`<div style="text-align:center;padding:24px;color:var(--text-light);line-height:1.7;">Aucune donnée pour cette saison.<br><span style="font-size:0.8rem;">Enregistrez vos arrosages et journal pour voir apparaître votre bilan ici !</span></div>`:''}
+      ${photos.length>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;"><div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📸 Photos de la saison (${photos.length})</div><div style="display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;">${photos.map(p=>`<div style="flex-shrink:0;text-align:center;"><img src="${p.src}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:block;"><div style="font-size:0.6rem;color:var(--text-light);margin-top:3px;">${p.date}</div></div>`).join('')}</div><button onclick="shareSeasonPhotos('${seasonKey}',${y})" style="width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--green-pale);background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.82rem;font-weight:600;cursor:pointer;margin-top:4px;">📲 Partager le timelapse</button></div>`:''}
+      ${ws.length===0&&je.length===0?`<div style="text-align:center;padding:24px;color:var(--text-light);line-height:1.7;">Aucune donnée pour cette saison.<br><span style="font-size:0.8rem;">Enregistrez vos arrosages et journal — votre bilan apparaîtra ici !</span></div>`:''}
     </div>
-    <div style="padding:0 16px 36px;"><button onclick="(${close})()" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:1rem;font-weight:600;cursor:pointer;">Fermer</button></div>`;
+    <div style="padding:0 16px 36px;"><button id="season-close-btn2" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:1rem;font-weight:600;cursor:pointer;">Fermer</button></div>`;
   document.body.appendChild(modal);
+  document.getElementById('season-close-btn').onclick=()=>modal.remove();
+  document.getElementById('season-close-btn2').onclick=()=>modal.remove();
+}
+
+function shareSeasonPhotos(seasonKey, year){
+  const SDEF={spring:{name:'Printemps',emoji:'🌸',months:[2,3,4]},summer:{name:'Été',emoji:'☀️',months:[5,6,7]},autumn:{name:'Automne',emoji:'🍂',months:[8,9,10]},winter:{name:'Hiver',emoji:'❄️',months:[11,0,1]}};
+  const s=SDEF[seasonKey]; if(!s) return;
+  const ws=(state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth()); });
+  const vol=ws.reduce((t,e)=>t+(e.liters||0),0);
+  const text=`${s.emoji} Mon ${s.name} ${year} avec GardenMinder — ${ws.length} arrosages · ${vol}L · ${state.city||'mon jardin'} 🌱`;
+  if(navigator.share){ navigator.share({title:'GardenMinder — '+s.name+' '+year,text}); }
+  else { navigator.clipboard?.writeText(text).then(()=>showToast('📋 Copié !')); }
 }
 
 function getEndedSeasonForBanner(){
@@ -6543,12 +6585,32 @@ function getEndedSeasonForBanner(){
     const seasonEndY = (s.key==='winter'&&today.getMonth()<=1) ? y : y;
     const firstDayAfter = new Date(seasonEndY, s.endM, 1);
     const diff = Math.round((today - firstDayAfter)/86400000);
-    if(diff>=0 && diff<=21){
+    if(diff>=0 && diff<=7){
       const ws=(state.wateringHistory||[]).filter(e=>{ const d=new Date(e.ts||Date.now()); return s.months.includes(d.getMonth()); });
       if(ws.length>0) return {...s, ws};
     }
   }
   return null;
+}
+
+function renderStreakBanner(){
+  const banner=document.getElementById('streak-warn-banner');
+  if(!banner) return;
+  const day=new Date().getDay(); // 0=Dim, 6=Sam
+  if(day!==0&&day!==6){ banner.style.display='none'; return; }
+  const thisWeek=getWeekKeyGlobal(new Date());
+  const hasAct=
+    (state.wateringHistory||[]).some(e=>e.ts&&getWeekKeyGlobal(new Date(e.ts))===thisWeek)||
+    (state.journalEntries||[]).some(e=>e.ts&&getWeekKeyGlobal(new Date(e.ts))===thisWeek)||
+    (state.weeklyActivityLog||[]).some(e=>e.ts&&getWeekKeyGlobal(new Date(e.ts))===thisWeek);
+  if(hasAct||!(state.weeklyStreak>0)){ banner.style.display='none'; return; }
+  const streak=state.weeklyStreak;
+  banner.style.display='block';
+  banner.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#c07020,#e09040);border-radius:var(--radius);margin:0 16px 4px;box-shadow:0 4px 12px rgba(192,112,32,0.3);cursor:pointer;" onclick="openWateringModal()">
+    <div style="font-size:1.5rem;">🔥</div>
+    <div style="flex:1;"><div style="font-size:0.68rem;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:1px;">Série en danger !</div><div style="font-size:0.88rem;font-weight:600;color:white;">Arrosez ou notez ce weekend pour garder ${streak} sem. 🔥</div></div>
+    <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);">›</div>
+  </div>`;
 }
 
 function renderSeasonBanner(){
@@ -6568,18 +6630,19 @@ function showMoreWaterings(){
   const wrap = document.getElementById('watering-rows-wrap');
   if(!wrap) return;
   const history = state.wateringHistory || [];
-  const _waterRow = e => {
-    const plant = e.plant ? PLANT_DB[e.plant] : null;
-    const label = e.targets&&e.targets.length>1 ? e.targets.map(k=>PLANT_DB[k]?.emoji||'🌿').join('')+' '+e.targets.length+' plantes' : plant?plant.emoji+' '+plant.name:'💧 Jardin';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--green-mist);">
-      <div style="font-size:20px;">${plant?plant.emoji:'💧'}</div>
-      <div style="flex:1;"><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${label}</div><div style="font-size:0.72rem;color:var(--text-light);margin-top:1px;">${e.date}</div></div>
-      <div style="text-align:right;"><div style="font-size:0.9rem;font-weight:700;color:var(--water);">${e.liters}L</div><div style="font-size:0.7rem;color:var(--text-light);">${((e.liters/1000)*(state.price||4.3)).toFixed(2)}€</div></div>
-    </div>`;
-  };
-  wrap.innerHTML = history.slice(0,30).map(_waterRow).join('')
+  wrap.innerHTML = history.slice(0,30).map(_historyWaterRow).join('')
     + `<div style="text-align:center;padding:10px 0 2px;font-size:0.72rem;color:var(--text-light);">— 30 derniers arrosages —</div>`;
-  wrap.nextElementSibling && (wrap.nextElementSibling.style.display='none');
+  const btn=wrap.nextElementSibling;
+  if(btn){ btn.textContent='— Voir moins'; btn.onclick=showLessWaterings; }
+}
+
+function showLessWaterings(){
+  const wrap=document.getElementById('watering-rows-wrap');
+  if(!wrap) return;
+  const history=state.wateringHistory||[];
+  wrap.innerHTML=history.slice(0,5).map(_historyWaterRow).join('');
+  const btn=wrap.nextElementSibling;
+  if(btn&&history.length>5){ btn.style.display=''; btn.textContent='＋ Voir les '+Math.min(30,history.length)+' derniers arrosages'; btn.onclick=showMoreWaterings; }
 }
 
 function checkBadges() {

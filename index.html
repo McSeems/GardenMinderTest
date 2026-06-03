@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.9.0';
-const APP_BUILD='3 juin 2026 à 09:00 (Paris)';
+const APP_VERSION='1.10.0';
+const APP_BUILD='3 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -39,6 +39,19 @@ if('serviceWorker' in navigator && (location.protocol === 'https:' || location.p
   --ff-display:'Playfair Display',Georgia,serif;
   --ff-serif:'Fraunces',Georgia,serif;
   --ff-body:'Outfit',sans-serif;
+}
+/* ── THÈMES ── */
+[data-theme="terre"]{
+  --green-deep:#5c2a10;--green-mid:#9a4a20;--green-light:#c06a30;--green-pale:#d4a878;--green-mist:#fdf0e4;
+  --cream:#fdf7f0;--paper:#f8ede0;--text-dark:#2a1005;--text-mid:#6a3a1c;--text-light:#b08060;--ok:#9a4a20;
+}
+[data-theme="rosee"]{
+  --green-deep:#0d3055;--green-mid:#1a6aaa;--green-light:#3a8acc;--green-pale:#90c4e8;--green-mist:#e8f4ff;
+  --cream:#f0f6ff;--paper:#e4f0fa;--text-dark:#0a1a2e;--text-mid:#1a4a70;--text-light:#6a96b8;--ok:#1a6aaa;
+}
+[data-theme="nuit"]{
+  --green-deep:#2a1a5a;--green-mid:#6a3db8;--green-light:#9060d8;--green-pale:#c4a8f0;--green-mist:#f0ecff;
+  --cream:#f5f0ff;--paper:#ece6ff;--text-dark:#1a0a30;--text-mid:#4a2a80;--text-light:#9a7acc;--ok:#6a3db8;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);min-height:100vh;overflow-x:hidden;}
@@ -1741,6 +1754,9 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <!-- Premium status -->
     <div id="settings-premium-block"></div>
 
+    <!-- Thème visuel -->
+    <div id="settings-theme-block"></div>
+
     <!-- Soil calibration section -->
     <div class="soil-test-section">
       <div class="soil-test-header" onclick="toggleSoilTest()">
@@ -2074,15 +2090,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="premium-feature-item">
         <div class="premium-feature-icon">🌱</div>
         <div class="premium-feature-text">
-          <div class="title">135+ plantes dans la bibliothèque</div>
-          <div class="sub">Tomates, rosiers, hortensias, oliviers, pommiers, basilic… chaque espèce avec ses vrais besoins en eau.</div>
-        </div>
-      </div>
-      <div class="premium-feature-item">
-        <div class="premium-feature-icon">📍</div>
-        <div class="premium-feature-text">
-          <div class="title">Zones multiples de jardin</div>
-          <div class="sub">Potager, pelouse, terrasse, massif — chaque espace suivi séparément avec son propre score.</div>
+          <div class="title">Plantes illimitées</div>
+          <div class="sub">Toutes les 135+ espèces disponibles — potager, fruitiers, aromatiques, plantes d'intérieur. Chacune avec ses vrais besoins en eau.</div>
         </div>
       </div>
       <div class="premium-feature-item">
@@ -2096,14 +2105,21 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div class="premium-feature-icon">📊</div>
         <div class="premium-feature-text">
           <div class="title">Historique 12 mois + graphiques</div>
-          <div class="sub">Visualisez vos économies d'eau sur l'année. Exportez votre bilan mensuel en PDF.</div>
+          <div class="sub">Visualisez vos économies d'eau sur l'année entière avec des graphiques colorés par niveau de santé.</div>
         </div>
       </div>
       <div class="premium-feature-item">
-        <div class="premium-feature-icon">📅</div>
+        <div class="premium-feature-icon">🎨</div>
         <div class="premium-feature-text">
-          <div class="title">Calendrier saisonnier</div>
-          <div class="sub">Quand planter, tailler, récolter — adapté à votre région et vos espèces.</div>
+          <div class="title">Thèmes visuels exclusifs</div>
+          <div class="sub">Forêt, Terre, Rosée, Nuit — 4 palettes de couleurs à débloquer en progressant. Personnalisez votre expérience.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🏅</div>
+        <div class="premium-feature-text">
+          <div class="title">Titres de jardinage Premium</div>
+          <div class="sub">De "Apprenti Botaniste" à "Grand Maître Botaniste" — des titres exclusifs qui évoluent avec votre niveau.</div>
         </div>
       </div>
     </div>
@@ -2324,6 +2340,7 @@ let state = {
   advParams:{kc:1.0, windFactor:1.0, drain:3, efficiency:75, depth:30},
   calibration:{ offset:0, soilMultiplier:1.0, notes:'' },
   premium:{ active:false, type:null, trialStart:null, purchased:false },
+  theme: 'foret',
   alertsReceived: 0,
   lastMoistureDate: null, // ISO date YYYY-MM-DD de la dernière application refreshAllMoisture
 };
@@ -5184,6 +5201,57 @@ function renderAlertsTab(){
   list.innerHTML=alerts.map(a=>`<div class="alert-item ${a.type}"><div class="alert-icon">${a.icon}</div><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-body">${a.body}</div><div class="alert-time">${a.time}</div></div></div>`).join('');
 }
 
+// ── THÈME VISUEL ──────────────────────────────────────────────────────────────
+const THEMES = [
+  { id:'foret',  label:'Forêt',  swatch:'#2d5c3f', bg:'#e8f5ec', minLevel:0 },
+  { id:'terre',  label:'Terre',  swatch:'#9a4a20', bg:'#fdf0e4', minLevel:1 },
+  { id:'rosee',  label:'Rosée',  swatch:'#1a6aaa', bg:'#e8f4ff', minLevel:2 },
+  { id:'nuit',   label:'Nuit',   swatch:'#6a3db8', bg:'#f0ecff', minLevel:3 },
+];
+
+function applyTheme(key) {
+  const k = key || 'foret';
+  if(k === 'foret') delete document.body.dataset.theme;
+  else document.body.dataset.theme = k;
+  state.theme = k;
+}
+
+function renderThemeSection() {
+  const block = document.getElementById('settings-theme-block');
+  if(!block) return;
+  const pts = state.gardenPoints || 0;
+  const lvlIdx = getLevelIdx(pts);
+  const current = state.theme || 'foret';
+  block.innerHTML = `<div style="background:white;border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="padding:12px 16px;font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.8px;background:var(--green-mist);">🎨 Thème visuel</div>
+    <div style="padding:14px 16px;">
+      <div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:12px;">Personnalisez les couleurs de l'application. Les thèmes se débloquent en progressant.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${THEMES.map(t => {
+          const locked = !isPremium() && lvlIdx < t.minLevel;
+          const levelName = t.minLevel > 0 ? GARDEN_LEVELS[t.minLevel]?.name : '';
+          const isActive = current === t.id;
+          return `<div onclick="${locked ? `showToast('Niveau ${levelName} requis')` : `selectTheme('${t.id}')`}" style="cursor:pointer;text-align:center;border-radius:12px;padding:10px 6px;border:2px solid ${isActive ? 'var(--green-mid)' : 'transparent'};background:${isActive ? 'var(--green-mist)' : 'var(--cream)'};position:relative;transition:all 0.2s;">
+            <div style="width:36px;height:36px;border-radius:50%;margin:0 auto 6px;background:${locked ? '#ddd' : t.bg};border:3px solid ${locked ? '#bbb' : t.swatch};display:flex;align-items:center;justify-content:center;">
+              ${locked ? '<span style="font-size:14px;">🔒</span>' : `<div style="width:16px;height:16px;border-radius:50%;background:${t.swatch};"></div>`}
+            </div>
+            <div style="font-size:0.72rem;font-weight:${isActive ? '700' : '500'};color:${locked ? 'var(--text-light)' : 'var(--text-dark)'};">${t.label}</div>
+            ${locked ? `<div style="font-size:0.6rem;color:var(--text-light);margin-top:2px;">Niv. ${t.minLevel}</div>` : ''}
+            ${isActive ? '<div style="position:absolute;top:4px;right:6px;font-size:10px;">✓</div>' : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function selectTheme(key) {
+  applyTheme(key);
+  saveState();
+  renderThemeSection();
+  showToast(`🎨 Thème "${THEMES.find(t=>t.id===key)?.label}" activé`);
+}
+
 // ── SETTINGS TAB ──────────────────────────────────────────────────────────────
 function renderSettingsTab(){
   // Update smart alerts display
@@ -5239,10 +5307,11 @@ function renderSettingsTab(){
       <div class="premium-banner-title">✨ Passer à Premium</div>
       <div class="premium-banner-body">135+ plantes, zones multiples, alertes intelligentes, historique 12 mois.</div>
       <div class="premium-features" style="margin-bottom:14px;">
-        <div class="premium-feat">135+ plantes dans la bibliothèque</div>
-        <div class="premium-feat">Zones multiples de jardin</div>
+        <div class="premium-feat">Plantes illimitées (135+ espèces)</div>
         <div class="premium-feat">Alertes intelligentes contextuelles</div>
-        <div class="premium-feat">Export PDF bilan mensuel</div>
+        <div class="premium-feat">Historique 12 mois + graphiques</div>
+        <div class="premium-feat">🎨 Thèmes visuels exclusifs</div>
+        <div class="premium-feat">🏅 Titres de jardinage Premium</div>
       </div>
       <button class="btn-premium-buy" onclick="openPremiumModal('settings')">Acheter — 9,99€ (achat unique)</button>
       <button class="btn-trial" onclick="startTrial()">🎁 Essayer 30 jours gratuits</button>
@@ -5251,6 +5320,7 @@ function renderSettingsTab(){
     </div>`;
     }
   }
+  renderThemeSection();
   // Account section
   const accountBlock = document.getElementById('settings-account-block');
   if(accountBlock) {
@@ -5607,10 +5677,10 @@ function getPlayerTitle(levelIdx) {
 
 const GARDEN_LEVELS = [
   { min:0,   max:100,  name:'Jardin Débutant',  emoji:'🌱', reward: null },
-  { min:100, max:250,  name:'Jardin Apprenti',  emoji:'🌿', reward: { plants:1, msg:'+1 emplacement plante gratuit' } },
-  { min:250, max:500,  name:'Jardin Confirmé',  emoji:'🍃', reward: { plants:1, msg:'+1 emplacement plante gratuit' } },
-  { min:500, max:900,  name:'Jardin Expert',    emoji:'🌳', reward: { plants:2, msg:'+2 emplacements plantes gratuits' } },
-  { min:900, max:9999, name:'Jardin Maître',    emoji:'🏡', reward: { plants:3, msg:'+3 emplacements plantes gratuits' } },
+  { min:100, max:250,  name:'Jardin Apprenti',  emoji:'🌿', reward: { plants:1, theme:'terre',  themeLabel:'Thème "Terre" débloqué 🪵' } },
+  { min:250, max:500,  name:'Jardin Confirmé',  emoji:'🍃', reward: { plants:1, theme:'rosee',  themeLabel:'Thème "Rosée" débloqué 💧' } },
+  { min:500, max:900,  name:'Jardin Expert',    emoji:'🌳', reward: { plants:2, theme:'nuit',   themeLabel:'Thème "Nuit" débloqué 🌙' } },
+  { min:900, max:9999, name:'Jardin Maître',    emoji:'🏡', reward: { plants:3, themeLabel:'Titre exclusif débloqué ✨' } },
 ];
 
 // Returns the current level index based on points
@@ -5652,8 +5722,7 @@ function showLevelUpModal(idx, lvl) {
       ${lvl.reward ? `
         <div style="background:white;border-radius:14px;padding:14px 16px;margin:18px 0;border:2px dashed #f0c840;">
           <div style="font-size:0.72rem;font-weight:700;color:#8b5e08;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🎁 Votre récompense</div>
-          <div style="font-size:1.05rem;color:var(--text-dark);font-weight:700;">${lvl.reward.msg}</div>
-          <div style="font-size:0.78rem;color:var(--text-mid);margin-top:6px;">Vous pouvez désormais suivre ${5 + (state.bonusPlantSlots||0)} plantes en gratuit</div>
+          ${isPremium() && lvl.reward.themeLabel ? `<div style="font-size:1.05rem;color:var(--premium);font-weight:700;margin-bottom:4px;">${lvl.reward.themeLabel}</div><div style="font-size:0.82rem;color:var(--text-mid);">+ Titre "${getPlayerTitle(idx)}" obtenu</div>` : `<div style="font-size:1.05rem;color:var(--text-dark);font-weight:700;">+${lvl.reward.plants} emplacement${lvl.reward.plants>1?'s':''} plante${lvl.reward.plants>1?'s':''}</div><div style="font-size:0.78rem;color:var(--text-mid);margin-top:4px;">Vous pouvez désormais suivre ${3+(state.bonusPlantSlots||0)} plantes en gratuit</div>`}
         </div>` : ''}
       <button onclick="this.closest('div').parentElement.remove()" style="margin-top:8px;width:100%;padding:14px;background:var(--green-mid);color:white;border:none;border-radius:14px;font-family:var(--ff-body);font-size:0.95rem;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Magnifique ! ✨</button>
     </div>`;
@@ -6053,10 +6122,14 @@ function renderJournalStats() {
     </div>
     <div style="background:white;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
       <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">🏆 Points jardin</div>
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="font-family:'Fraunces',serif;font-size:2.5rem;color:var(--green-mid);">${state.gardenPoints||0}</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+        <div style="font-family:'Fraunces',serif;font-size:2.5rem;color:var(--green-mid);">${pts}</div>
         <div style="font-size:0.82rem;color:var(--text-mid);">points accumulés<br><span style="color:var(--text-light);">Arrosages, journal, fiches plantes…</span></div>
       </div>
+      ${(()=>{const _l=GARDEN_LEVELS[getLevelIdx(pts)];const _t=getPlayerTitle(getLevelIdx(pts));return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isPremium()?'linear-gradient(135deg,var(--premium-pale),#e8e0ff)':'var(--green-mist)'};border-radius:10px;border:1px solid ${isPremium()?'#c8b8ff':'var(--green-pale)'};">
+        <div style="font-size:1.4rem;">${_l.emoji}</div>
+        <div><div style="font-size:0.82rem;font-weight:700;color:${isPremium()?'var(--premium)':'var(--green-mid)'};">${_t}</div><div style="font-size:0.7rem;color:var(--text-light);">${_l.name}${isPremium()?' · ✨ Premium':''}</div></div>
+      </div>`;})()}
     </div>`;
 }
 function renderJournalTab() {
@@ -6780,6 +6853,8 @@ function renderAccountInHeader() {
   if(vEl) vEl.textContent=`v${APP_VERSION} — ${APP_BUILD}`;
   const restored = loadState();
   // Init new state fields if missing
+  if (!state.theme) state.theme = 'foret';
+  applyTheme(state.theme);
   if (!state.journalEntries) state.journalEntries = [];
   if (!state.weeklyStreak) state.weeklyStreak = 0;
   if (!state.weeklyActivityLog) state.weeklyActivityLog = [];

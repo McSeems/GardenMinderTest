@@ -22,7 +22,7 @@ const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=ma
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
 const APP_VERSION='1.10.0';
-const APP_BUILD='3 juin 2026 à 11:17 (Paris)';
+const APP_BUILD='3 juin 2026 à 12:13 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -5228,7 +5228,7 @@ function renderThemeSection() {
       <div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:12px;">Personnalisez les couleurs de l'application. Les thèmes se débloquent en progressant.</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
         ${THEMES.map(t => {
-          const locked = !isPremium() && lvlIdx < t.minLevel;
+          const locked = lvlIdx < t.minLevel;
           const levelName = t.minLevel > 0 ? GARDEN_LEVELS[t.minLevel]?.name : '';
           const isActive = current === t.id;
           return `<div onclick="${locked ? `showToast('Niveau ${levelName} requis')` : `selectTheme('${t.id}')`}" style="cursor:pointer;text-align:center;border-radius:12px;padding:10px 6px;border:2px solid ${isActive ? 'var(--green-mid)' : 'transparent'};background:${isActive ? 'var(--green-mist)' : 'var(--cream)'};position:relative;transition:all 0.2s;">
@@ -6279,12 +6279,13 @@ function openProgressionTree(){
   const currentLvl = GARDEN_LEVELS[levelIdx];
   const progress = Math.round(((pts - currentLvl.min) / Math.max(1,currentLvl.max - currentLvl.min)) * 100);
 
+  const prem = isPremium();
   const FULL_LEVELS = [
-    { ...GARDEN_LEVELS[0], pts:0,   nextPts:100, reward:null,                               how:'Enregistrez vos premiers arrosages et entrées journal' },
-    { ...GARDEN_LEVELS[1], pts:100, nextPts:250, reward:'+1 emplacement plante gratuit',     how:'Arrosages, notes, récoltes — 5 pts à 10 pts par action' },
-    { ...GARDEN_LEVELS[2], pts:250, nextPts:500, reward:'+1 emplacement plante gratuit',     how:'Ajoutez des photos à vos entrées journal (+3 pts)' },
-    { ...GARDEN_LEVELS[3], pts:500, nextPts:900, reward:'+2 emplacements plantes gratuits',  how:'Calibrez votre sol, utilisez le mode avancé' },
-    { ...GARDEN_LEVELS[4], pts:900, nextPts:null,reward:'+3 emplacements plantes gratuits',  how:'Devenez le maître de votre jardin 🏆' },
+    { ...GARDEN_LEVELS[0], pts:0,   nextPts:100, reward:null,                                                                        how:'Enregistrez vos premiers arrosages et entrées journal' },
+    { ...GARDEN_LEVELS[1], pts:100, nextPts:250, reward: prem ? '🎨 Thème "Terre" débloqué 🪵'       : '+1 emplacement plante',      how:'Arrosages, notes, récoltes — 5 pts à 10 pts par action' },
+    { ...GARDEN_LEVELS[2], pts:250, nextPts:500, reward: prem ? '🎨 Thème "Rosée" débloqué 💧'       : '+1 emplacement plante',      how:'Ajoutez des photos à vos entrées journal (+3 pts)' },
+    { ...GARDEN_LEVELS[3], pts:500, nextPts:900, reward: prem ? '🎨 Thème "Nuit" débloqué 🌙'        : '+2 emplacements plantes',    how:'Calibrez votre sol, utilisez le mode avancé' },
+    { ...GARDEN_LEVELS[4], pts:900, nextPts:null,reward: prem ? '✨ Titre "Grand Maître Botaniste"'   : '+3 emplacements plantes',   how:'Devenez le maître de votre jardin 🏆' },
   ];
 
   const pointsTable = [
@@ -6339,7 +6340,8 @@ function openProgressionTree(){
         <div style="font-family:var(--ff-display);font-size:1.3rem;font-weight:600;color:var(--text-dark);">🌳 Arbre de progression</div>
         <button onclick="this.closest('.prog-tree-overlay').remove()" style="background:var(--green-mist);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
-      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:20px;">Vous avez <strong style="color:var(--green-mid);">${pts} points</strong> — Niveau ${levelIdx+1} sur 5</div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:${prem?'6px':'20px'};">Vous avez <strong style="color:var(--green-mid);">${pts} points</strong> — Niveau ${levelIdx+1} sur 5</div>
+      ${prem ? `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:20px;border:1px solid #c8b8ff;margin-bottom:16px;"><span style="font-size:0.78rem;color:var(--premium);font-weight:700;">✨ ${getPlayerTitle(levelIdx)}</span></div>` : ''}
 
       <!-- Arbre -->
       <div style="padding:0 4px;">

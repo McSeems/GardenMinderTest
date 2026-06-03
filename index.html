@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.11.5';
-const APP_BUILD='4 juin 2026 à 00:08 (Paris)';
+const APP_VERSION='1.11.6';
+const APP_BUILD='4 juin 2026 à 00:23 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -5222,7 +5222,9 @@ function renderBarChart(containerId, data, colorActive, colorNormal, unit, color
     return;
   }
   const nonNull = values.filter(v=>v!==null && v>0);
-  const max = nonNull.length ? Math.max(...nonNull) : 1;
+  let max = nonNull.length ? Math.max(...nonNull) : 1;
+  // Pour les pourcentages, axe fixe 0-100 pour que les différences soient lisibles
+  if(unit === '%') max = 100;
   const n = values.length;
   // Afficher les valeurs si ≤ 14 barres (lisible), sinon les masquer
   const showVals = n <= 14;
@@ -5232,7 +5234,7 @@ function renderBarChart(containerId, data, colorActive, colorNormal, unit, color
     const isZero = !isNull && v === 0;
     const isLast = i===n-1;
     // Zéro = barre fantôme visible (pas "vide")
-    const pct = isNull ? 0 : (isZero ? 0 : Math.max(8, (v/max)*100));
+    const pct = isNull ? 0 : (isZero ? 0 : Math.max(unit==='%' ? 1 : 8, (v/max)*100));
     const barBg = isNull ? 'rgba(0,0,0,0.04)' : isZero ? 'rgba(74,158,202,0.12)' : (colorFn ? colorFn(v,isLast) : (isLast ? colorActive : colorNormal));
     const minH = isNull ? '2px' : '4px';
     const valTxt = (!isNull && !isZero && showVals) ? (unit==='%'?Math.round(v)+'%':unit==='L'?v+'L':v.toFixed(1)) : (isZero && showVals ? '0' : '');

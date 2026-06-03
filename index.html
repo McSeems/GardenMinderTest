@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.11.1';
-const APP_BUILD='3 juin 2026 à 21:30 (Paris)';
+const APP_VERSION='1.11.2';
+const APP_BUILD='3 juin 2026 à 23:06 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -6369,77 +6369,167 @@ function openTimelapseModal() {
 function openAvantApresModal() {
   const photoEntries = (state.journalEntries||[]).filter(e=>e.photo);
   if(photoEntries.length < 2) return;
-  const first = photoEntries[photoEntries.length-1]; // plus ancienne
-  const last  = photoEntries[0]; // plus récente
+  const oldest = photoEntries[photoEntries.length-1];
+  const newest = photoEntries[0];
   const fmtDate = ts => new Date(ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+
   const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s ease;';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s ease;';
   modal.innerHTML = `
-    <div style="width:100%;max-width:420px;">
-      <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:600;color:white;text-align:center;margin-bottom:16px;">🖼️ Avant / Après</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div><div style="font-size:0.7rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Avant · ${fmtDate(first.ts)}</div>
-          <img src="${getPhotoSync(first.photo)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;" alt="Avant"></div>
-        <div><div style="font-size:0.7rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Après · ${fmtDate(last.ts)}</div>
-          <img src="${getPhotoSync(last.photo)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;" alt="Après"></div>
+    <div style="width:100%;max-width:480px;">
+      <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:600;color:white;text-align:center;margin-bottom:14px;">🖼️ Avant / Après</div>
+      <canvas id="collage-canvas" style="width:100%;border-radius:16px;display:block;background:#111;"></canvas>
+      <div style="text-align:center;padding:10px 0;font-size:0.72rem;color:rgba(255,255,255,0.35);" id="collage-status">Génération du collage…</div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button id="collage-share" style="flex:1;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;opacity:0.5;" disabled>📤 Partager</button>
+        <button id="collage-dl" style="padding:14px 16px;border-radius:14px;border:none;background:rgba(255,255,255,0.1);color:white;font-family:var(--ff-body);font-size:0.9rem;cursor:pointer;opacity:0.5;" disabled>⬇️</button>
+        <button onclick="this.closest('div').parentElement.remove()" style="padding:14px 16px;border-radius:14px;border:none;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);font-family:var(--ff-body);font-size:0.88rem;cursor:pointer;">✕</button>
       </div>
-      <button onclick="shareAvantApres('${first.photo}','${last.photo}')" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.92rem;font-weight:600;cursor:pointer;margin-bottom:8px;">📤 Partager</button>
-      <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:12px;border-radius:14px;border:none;background:rgba(255,255,255,0.1);color:white;font-family:var(--ff-body);font-size:0.88rem;cursor:pointer;">Fermer</button>
     </div>`;
   modal.onclick = e => { if(e.target===modal) modal.remove(); };
   document.body.appendChild(modal);
-}
 
-function shareAvantApres(photoId1, photoId2) {
-  const src1 = getPhotoSync(photoId1), src2 = getPhotoSync(photoId2);
-  if(!src1||!src2){ showToast('Photos non disponibles'); return; }
-  const text = `🌱➡️🌿 Mon jardin avant/après — GardenMinder\n#GardenMinder #MonJardin #AvantAprès`;
-  if(navigator.share && navigator.canShare) {
-    Promise.all([fetch(src1).then(r=>r.blob()), fetch(src2).then(r=>r.blob())]).then(blobs => {
-      const files = [new File([blobs[0]],'avant.jpg',{type:'image/jpeg'}), new File([blobs[1]],'apres.jpg',{type:'image/jpeg'})];
-      if(navigator.canShare({files})) navigator.share({files, text}).catch(()=>{});
-      else _showShareSheet(text);
-    }).catch(()=>_showShareSheet(text));
-  } else { _showShareSheet(text); }
+  const canvas = document.getElementById('collage-canvas');
+  const S = 900;
+  canvas.width = S * 2; canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#111'; ctx.fillRect(0,0,S*2,S);
+
+  const loadImg = src => new Promise(res => {
+    const img = new Image(); img.onload = ()=>res(img); img.onerror=()=>res(null); img.src = src;
+  });
+
+  Promise.all([loadImg(getPhotoSync(oldest.photo)), loadImg(getPhotoSync(newest.photo))]).then(([img1, img2]) => {
+    const drawCrop = (img, x) => {
+      if(!img){ ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(x,0,S,S); return; }
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth-s)/2, sy = (img.naturalHeight-s)/2;
+      ctx.drawImage(img, sx, sy, s, s, x, 0, S, S);
+    };
+    drawCrop(img1, 0);
+    drawCrop(img2, S);
+    // Divider
+    ctx.fillStyle = 'white'; ctx.fillRect(S-3, 0, 6, S);
+    // Bottom label bars
+    const bh = 60;
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(0, S-bh, S, bh); ctx.fillRect(S, S-bh, S, bh);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(S-3, S-bh, 6, bh);
+    // Dates
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '24px Outfit,sans-serif'; ctx.textAlign='center';
+    ctx.fillText(fmtDate(oldest.ts), S/2, S-bh+22);
+    ctx.fillText(fmtDate(newest.ts), S+S/2, S-bh+22);
+    // Labels
+    ctx.fillStyle = 'white'; ctx.font = 'bold 30px Outfit,sans-serif';
+    ctx.fillText('AVANT', S/2, S-8);
+    ctx.fillText('APRÈS', S+S/2, S-8);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.93);
+    document.getElementById('collage-status').textContent = 'Collage prêt ✓';
+    const shareBtn = document.getElementById('collage-share');
+    const dlBtn = document.getElementById('collage-dl');
+    shareBtn.disabled = false; shareBtn.style.opacity = '1';
+    dlBtn.disabled = false; dlBtn.style.opacity = '1';
+    shareBtn.onclick = () => {
+      fetch(dataUrl).then(r=>r.blob()).then(blob => {
+        const file = new File([blob],'avant-apres-jardin.jpg',{type:'image/jpeg'});
+        if(navigator.share && navigator.canShare && navigator.canShare({files:[file]}))
+          navigator.share({files:[file], title:'Mon jardin — Avant/Après', text:'🌱 GardenMinder #AvantAprès #MonJardin'}).catch(()=>{});
+        else { const a=document.createElement('a'); a.href=dataUrl; a.download='avant-apres-jardin.jpg'; a.click(); }
+      });
+    };
+    dlBtn.onclick = () => { const a=document.createElement('a'); a.href=dataUrl; a.download='avant-apres-jardin.jpg'; a.click(); };
+  });
 }
 
 function openTimelapseViewer() {
   if(!isPremium()){ openPremiumModal('timelapse'); return; }
-  const photoEntries = (state.journalEntries||[]).filter(e=>e.photo).slice(0,20);
-  if(photoEntries.length < 5) return;
-  let current = 0;
+  const entries = (state.journalEntries||[]).filter(e=>e.photo).slice(0,20);
+  if(entries.length < 5) return;
+
+  let current = 0, playing = true, timer = null;
+  const SPEEDS = [4000, 2000, 800];
+  const SPEED_LABELS = ['×½','×1','×2'];
+  let speedIdx = 1;
+  let showingA = true;
+
   const m = document.createElement('div');
   m.id = 'timelapse-viewer';
-  m.style.cssText = 'position:fixed;inset:0;background:#000;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+  m.style.cssText = 'position:fixed;inset:0;background:#000;z-index:10000;overflow:hidden;';
   m.innerHTML = `
-    <img id="tl-img" style="max-width:100%;max-height:78vh;object-fit:contain;" src="" alt="">
-    <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 20px 36px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
-      <div style="height:3px;background:rgba(255,255,255,0.18);border-radius:2px;margin-bottom:12px;"><div id="tl-bar" style="height:100%;background:white;border-radius:2px;width:0%;transition:width 0.35s;"></div></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="color:white;"><div id="tl-date" style="font-family:var(--ff-display);font-size:1rem;font-weight:600;"></div><div id="tl-count" style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div></div>
-        <div style="display:flex;gap:8px;">
-          <button id="tl-prev" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.14);color:white;font-size:0.88rem;cursor:pointer;">‹</button>
-          <button id="tl-next" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.14);color:white;font-size:0.88rem;cursor:pointer;">›</button>
-        </div>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+      <img id="tl-a" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 0.45s ease;" src="" alt="">
+      <img id="tl-b" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 0.45s ease;opacity:0;" src="" alt="">
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 20px 38px;background:linear-gradient(transparent,rgba(0,0,0,0.88));">
+      <div style="height:3px;background:rgba(255,255,255,0.15);border-radius:2px;margin-bottom:14px;"><div id="tl-bar" style="height:100%;background:white;border-radius:2px;width:0%;transition:width 0.4s;"></div></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;color:white;"><div id="tl-date" style="font-family:var(--ff-display);font-size:0.95rem;font-weight:600;"></div><div id="tl-count" style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-top:2px;"></div></div>
+        <button id="tl-prev" style="padding:9px 16px;border-radius:20px;border:none;background:rgba(255,255,255,0.12);color:white;font-size:1rem;cursor:pointer;">‹</button>
+        <button id="tl-pp" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.2);color:white;font-size:1.1rem;cursor:pointer;">⏸</button>
+        <button id="tl-next" style="padding:9px 16px;border-radius:20px;border:none;background:rgba(255,255,255,0.12);color:white;font-size:1rem;cursor:pointer;">›</button>
+        <button id="tl-spd" style="padding:9px 14px;border-radius:20px;border:none;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-size:0.78rem;font-family:var(--ff-body);cursor:pointer;">×1</button>
       </div>
     </div>
-    <button id="tl-close" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;border-radius:50%;width:34px;height:34px;color:white;font-size:1rem;cursor:pointer;">✕</button>`;
+    <button id="tl-close" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;border-radius:50%;width:34px;height:34px;color:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>`;
   document.body.appendChild(m);
-  const showFrame = idx => {
-    const e = photoEntries[idx];
-    document.getElementById('tl-img').src = getPhotoSync(e.photo);
+
+  const showFrame = (idx, instant) => {
+    const e = entries[idx];
+    const src = getPhotoSync(e.photo);
     document.getElementById('tl-date').textContent = new Date(e.ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-    document.getElementById('tl-count').textContent = `${idx+1} / ${photoEntries.length}`;
-    document.getElementById('tl-bar').style.width = `${((idx+1)/photoEntries.length)*100}%`;
+    document.getElementById('tl-count').textContent = `${idx+1} / ${entries.length}`;
+    document.getElementById('tl-bar').style.width = `${((idx+1)/entries.length)*100}%`;
+    if(instant) {
+      document.getElementById('tl-a').src = src; document.getElementById('tl-a').style.opacity=1;
+      document.getElementById('tl-b').style.opacity=0; showingA=true;
+    } else {
+      const next = showingA ? 'tl-b' : 'tl-a', curr = showingA ? 'tl-a' : 'tl-b';
+      document.getElementById(next).src = src;
+      requestAnimationFrame(() => {
+        document.getElementById(next).style.opacity=1;
+        document.getElementById(curr).style.opacity=0;
+      });
+      showingA = !showingA;
+    }
   };
-  showFrame(0);
-  document.getElementById('tl-prev').onclick = () => { if(current>0){ current--; showFrame(current); } };
-  document.getElementById('tl-next').onclick = () => { if(current<photoEntries.length-1){ current++; showFrame(current); } };
-  document.getElementById('tl-close').onclick = () => { m.remove(); document.removeEventListener('keydown', onKey); };
+
+  const schedule = () => {
+    clearTimeout(timer);
+    if(!playing) return;
+    timer = setTimeout(() => {
+      current = current < entries.length-1 ? current+1 : 0;
+      showFrame(current);
+      schedule();
+    }, SPEEDS[speedIdx]);
+  };
+
+  showFrame(0, true);
+  schedule();
+
+  document.getElementById('tl-pp').onclick = () => {
+    playing = !playing;
+    document.getElementById('tl-pp').textContent = playing ? '⏸' : '▶';
+    playing ? schedule() : clearTimeout(timer);
+  };
+  document.getElementById('tl-spd').onclick = () => {
+    speedIdx = (speedIdx+1) % SPEEDS.length;
+    document.getElementById('tl-spd').textContent = SPEED_LABELS[speedIdx];
+    if(playing){ clearTimeout(timer); schedule(); }
+  };
+  document.getElementById('tl-prev').onclick = () => {
+    clearTimeout(timer); if(current>0){ current--; showFrame(current); } if(playing) schedule();
+  };
+  document.getElementById('tl-next').onclick = () => {
+    clearTimeout(timer); if(current<entries.length-1){ current++; showFrame(current); } if(playing) schedule();
+  };
+  const close = () => { clearTimeout(timer); m.remove(); document.removeEventListener('keydown',onKey); };
+  document.getElementById('tl-close').onclick = close;
   const onKey = e => {
-    if(e.key==='ArrowRight'&&current<photoEntries.length-1){ current++; showFrame(current); }
-    else if(e.key==='ArrowLeft'&&current>0){ current--; showFrame(current); }
-    else if(e.key==='Escape'){ m.remove(); document.removeEventListener('keydown',onKey); }
+    if(e.key==='ArrowRight') document.getElementById('tl-next').click();
+    else if(e.key==='ArrowLeft') document.getElementById('tl-prev').click();
+    else if(e.key===' '){ e.preventDefault(); document.getElementById('tl-pp').click(); }
+    else if(e.key==='Escape') close();
   };
   document.addEventListener('keydown', onKey);
 }

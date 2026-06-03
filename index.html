@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.11.0';
-const APP_BUILD='3 juin 2026 à 16:50 (Paris)';
+const APP_VERSION='1.11.1';
+const APP_BUILD='3 juin 2026 à 21:30 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -6294,7 +6294,9 @@ function renderHomePrecipChart() {
 // ── TIMELAPSE MODAL ───────────────────────────────────────────────────────────
 function openTimelapseModal() {
   const isPrem = isPremium();
-  const photos = (state.journalEntries||[]).filter(e=>e.photo).slice(0,4);
+  const allPhotos = (state.journalEntries||[]).filter(e=>e.photo);
+  const photos = allPhotos.slice(0, isPrem ? 20 : 2); // gratuit : 2 (avant/après) ; premium : jusqu'à 20
+  const totalPhotos = allPhotos.length;
   const modal = document.createElement('div');
   modal.id = 'timelapse-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.25s ease;';
@@ -6311,8 +6313,8 @@ function openTimelapseModal() {
       <div style="font-size:0.85rem;color:var(--text-mid);text-align:center;margin-bottom:20px;line-height:1.5;">Photographiez régulièrement vos plantes depuis le Journal.<br>GardenMinder compose automatiquement votre timelapse.</div>
       ${!isPrem ? `<div style="background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:12px;padding:12px 14px;margin-bottom:16px;border:1px solid #c8b8ff;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openPremiumModal('timelapse')">
         <span style="font-size:1.4rem;">✨</span>
-        <div><div style="font-size:0.82rem;font-weight:700;color:var(--premium);">Fonctionnalité Premium</div>
-        <div style="font-size:0.75rem;color:#5a3a9a;">Débloquez le timelapse et l'avant/après — 9,99€ à vie →</div></div>
+        <div><div style="font-size:0.82rem;font-weight:700;color:var(--premium);">Timelapse complet — Premium</div>
+        <div style="font-size:0.75rem;color:#5a3a9a;">L'avant/après (2 photos) est gratuit. Le timelapse jusqu'à 20 photos est Premium →</div></div>
       </div>` : ''}
       <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">🖼️ Exemples de créations</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
@@ -6333,12 +6335,27 @@ function openTimelapseModal() {
           <div style="font-size:0.82rem;color:var(--text-mid);line-height:1.4;">${t}</div>
         </div>`).join('')}
       </div>
-      ${photos.length > 0 ? `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${photos.length})</div>
-        <div style="display:flex;gap:6px;margin-bottom:16px;">
-          ${photos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}
-          ${photos.length<4?`<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>`:''}
-        </div>
-        <div style="font-size:0.78rem;color:var(--text-light);text-align:center;margin-bottom:16px;">${photos.length<5?`Encore ${5-photos.length} photo(s) pour débloquer le timelapse.`:isPrem?'✅ Timelapse disponible !':'Passez Premium pour générer le timelapse.'}</div>`
+      ${totalPhotos > 0 ? (() => {
+        const minFree = 2, minPrem = 5;
+        const hasAvantApres = totalPhotos >= minFree;
+        const hasTimelapse = totalPhotos >= minPrem;
+        const displayPhotos = photos; // already sliced
+        const grid = displayPhotos.length <= 3
+          ? `<div style="display:flex;gap:6px;margin-bottom:10px;">${displayPhotos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}${!isPrem && totalPhotos >= 2 ? '' : (totalPhotos < (isPrem?5:2) ? `<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>` : '')}</div>`
+          : `<div style="display:grid;grid-template-columns:repeat(${Math.min(displayPhotos.length,4)},1fr);gap:6px;margin-bottom:10px;">${displayPhotos.map(e=>`<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}${isPrem && totalPhotos < 5 ? `<div style="aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>` : ''}</div>`;
+        const statusLine = !hasAvantApres
+          ? `📷 Encore ${minFree - totalPhotos} photo pour l'avant/après`
+          : !isPrem
+          ? `✅ Avant/après disponible · ${!hasTimelapse ? `Encore ${minPrem - totalPhotos} photos pour le timelapse (Premium)` : 'Passez Premium pour le timelapse'}`
+          : !hasTimelapse
+          ? `✅ Avant/après disponible · Encore ${minPrem - totalPhotos} photo(s) pour le timelapse`
+          : `✅ Avant/après + Timelapse disponibles (${totalPhotos} photos)`;
+        return `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${totalPhotos})</div>
+        ${grid}
+        <div style="font-size:0.78rem;color:var(--text-mid);text-align:center;margin-bottom:16px;font-weight:500;">${statusLine}</div>
+        ${hasAvantApres ? `<button onclick="openAvantApresModal()" style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🖼️ Voir l'avant/après</button>` : ''}
+        ${isPrem && hasTimelapse ? `<button onclick="openTimelapseViewer()" style="width:100%;padding:13px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--premium),#9060d8);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🎬 Lancer le timelapse</button>` : ''}`;
+      })()
       : `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;margin-bottom:16px;">Aucune photo encore. Ajoutez votre première depuis le Journal 📖</div>`}
       <button onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();"
         style="width:100%;padding:15px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;margin-bottom:8px;">📷 Ajouter une photo maintenant</button>
@@ -6347,6 +6364,84 @@ function openTimelapseModal() {
     </div>`;
   modal.onclick = e => { if(e.target === modal) modal.remove(); };
   document.body.appendChild(modal);
+}
+
+function openAvantApresModal() {
+  const photoEntries = (state.journalEntries||[]).filter(e=>e.photo);
+  if(photoEntries.length < 2) return;
+  const first = photoEntries[photoEntries.length-1]; // plus ancienne
+  const last  = photoEntries[0]; // plus récente
+  const fmtDate = ts => new Date(ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s ease;';
+  modal.innerHTML = `
+    <div style="width:100%;max-width:420px;">
+      <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:600;color:white;text-align:center;margin-bottom:16px;">🖼️ Avant / Après</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div><div style="font-size:0.7rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Avant · ${fmtDate(first.ts)}</div>
+          <img src="${getPhotoSync(first.photo)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;" alt="Avant"></div>
+        <div><div style="font-size:0.7rem;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Après · ${fmtDate(last.ts)}</div>
+          <img src="${getPhotoSync(last.photo)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;" alt="Après"></div>
+      </div>
+      <button onclick="shareAvantApres('${first.photo}','${last.photo}')" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.92rem;font-weight:600;cursor:pointer;margin-bottom:8px;">📤 Partager</button>
+      <button onclick="this.closest('div').parentElement.remove()" style="width:100%;padding:12px;border-radius:14px;border:none;background:rgba(255,255,255,0.1);color:white;font-family:var(--ff-body);font-size:0.88rem;cursor:pointer;">Fermer</button>
+    </div>`;
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function shareAvantApres(photoId1, photoId2) {
+  const src1 = getPhotoSync(photoId1), src2 = getPhotoSync(photoId2);
+  if(!src1||!src2){ showToast('Photos non disponibles'); return; }
+  const text = `🌱➡️🌿 Mon jardin avant/après — GardenMinder\n#GardenMinder #MonJardin #AvantAprès`;
+  if(navigator.share && navigator.canShare) {
+    Promise.all([fetch(src1).then(r=>r.blob()), fetch(src2).then(r=>r.blob())]).then(blobs => {
+      const files = [new File([blobs[0]],'avant.jpg',{type:'image/jpeg'}), new File([blobs[1]],'apres.jpg',{type:'image/jpeg'})];
+      if(navigator.canShare({files})) navigator.share({files, text}).catch(()=>{});
+      else _showShareSheet(text);
+    }).catch(()=>_showShareSheet(text));
+  } else { _showShareSheet(text); }
+}
+
+function openTimelapseViewer() {
+  if(!isPremium()){ openPremiumModal('timelapse'); return; }
+  const photoEntries = (state.journalEntries||[]).filter(e=>e.photo).slice(0,20);
+  if(photoEntries.length < 5) return;
+  let current = 0;
+  const m = document.createElement('div');
+  m.id = 'timelapse-viewer';
+  m.style.cssText = 'position:fixed;inset:0;background:#000;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+  m.innerHTML = `
+    <img id="tl-img" style="max-width:100%;max-height:78vh;object-fit:contain;" src="" alt="">
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 20px 36px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
+      <div style="height:3px;background:rgba(255,255,255,0.18);border-radius:2px;margin-bottom:12px;"><div id="tl-bar" style="height:100%;background:white;border-radius:2px;width:0%;transition:width 0.35s;"></div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="color:white;"><div id="tl-date" style="font-family:var(--ff-display);font-size:1rem;font-weight:600;"></div><div id="tl-count" style="font-size:0.72rem;color:rgba(255,255,255,0.45);margin-top:2px;"></div></div>
+        <div style="display:flex;gap:8px;">
+          <button id="tl-prev" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.14);color:white;font-size:0.88rem;cursor:pointer;">‹</button>
+          <button id="tl-next" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.14);color:white;font-size:0.88rem;cursor:pointer;">›</button>
+        </div>
+      </div>
+    </div>
+    <button id="tl-close" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;border-radius:50%;width:34px;height:34px;color:white;font-size:1rem;cursor:pointer;">✕</button>`;
+  document.body.appendChild(m);
+  const showFrame = idx => {
+    const e = photoEntries[idx];
+    document.getElementById('tl-img').src = getPhotoSync(e.photo);
+    document.getElementById('tl-date').textContent = new Date(e.ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    document.getElementById('tl-count').textContent = `${idx+1} / ${photoEntries.length}`;
+    document.getElementById('tl-bar').style.width = `${((idx+1)/photoEntries.length)*100}%`;
+  };
+  showFrame(0);
+  document.getElementById('tl-prev').onclick = () => { if(current>0){ current--; showFrame(current); } };
+  document.getElementById('tl-next').onclick = () => { if(current<photoEntries.length-1){ current++; showFrame(current); } };
+  document.getElementById('tl-close').onclick = () => { m.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => {
+    if(e.key==='ArrowRight'&&current<photoEntries.length-1){ current++; showFrame(current); }
+    else if(e.key==='ArrowLeft'&&current>0){ current--; showFrame(current); }
+    else if(e.key==='Escape'){ m.remove(); document.removeEventListener('keydown',onKey); }
+  };
+  document.addEventListener('keydown', onKey);
 }
 
 function shareGardenScore() {

@@ -22,7 +22,7 @@ const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=ma
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
 const APP_VERSION='1.10.0';
-const APP_BUILD='3 juin 2026 à 12:13 (Paris)';
+const APP_BUILD='3 juin 2026 à 16:37 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2414,7 +2414,7 @@ function saveState() {
   } catch(e) {
     console.warn('[GardenMinder] saveState failed:', e);
     if(document.getElementById('success-toast')){
-      showToast('⚠️ Sauvegarde impossible — espace plein ou mode navigation privée');
+      showToast('⚠️ Mémoire pleine — essayez de supprimer d\'anciennes entrées avec photos');
     }
   }
 }
@@ -4253,18 +4253,19 @@ function handlePlantPhoto(input){
   if(!input.files||!input.files[0]) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const dataUrl = e.target.result;
-    if(!state.plantInfos) state.plantInfos={};
-    if(!state.plantInfos[currentPlant]) state.plantInfos[currentPlant]={};
-    state.plantInfos[currentPlant].photo = dataUrl;
-    document.getElementById('plant-info-photo-img').src=dataUrl;
-    document.getElementById('plant-info-photo-img').style.display='block';
-    document.getElementById('plant-info-photo-placeholder').style.display='none';
-    updatePlantInfoSummary(currentPlant);
-    awardPoints(10,'Photo de plante ajoutée 📸');
-    logWeeklyActivity('photo');
-    saveState();
-    showToast('📸 Photo enregistrée ! +10 pts');
+    compressPhoto(e.target.result, 800, 0.72, compressed => {
+      if(!state.plantInfos) state.plantInfos={};
+      if(!state.plantInfos[currentPlant]) state.plantInfos[currentPlant]={};
+      state.plantInfos[currentPlant].photo = compressed;
+      document.getElementById('plant-info-photo-img').src=compressed;
+      document.getElementById('plant-info-photo-img').style.display='block';
+      document.getElementById('plant-info-photo-placeholder').style.display='none';
+      updatePlantInfoSummary(currentPlant);
+      awardPoints(10,'Photo de plante ajoutée 📸');
+      logWeeklyActivity('photo');
+      saveState();
+      showToast('📸 Photo enregistrée ! +10 pts');
+    });
   };
   reader.readAsDataURL(input.files[0]);
 }
@@ -5787,18 +5788,36 @@ function switchTab(tab, el) {
 // ── JOURNAL FUNCTIONS ─────────────────────────────────────────────────────────
 let _entryPhotoData = null;
 
+function compressPhoto(dataUrl, maxDim, quality, cb) {
+  const img = new Image();
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    if(w > maxDim || h > maxDim) {
+      if(w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else { w = Math.round(w * maxDim / h); h = maxDim; }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    cb(canvas.toDataURL('image/jpeg', quality));
+  };
+  img.src = dataUrl;
+}
+
 function handleEntryPhoto(input) {
   const file = input.files && input.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    _entryPhotoData = e.target.result;
-    const img = document.getElementById('entry-photo-img');
-    const prev = document.getElementById('entry-photo-preview');
-    const lbl = document.getElementById('entry-photo-label');
-    if(img) img.src = _entryPhotoData;
-    if(prev) prev.style.display = 'block';
-    if(lbl) lbl.style.display = 'none';
+    compressPhoto(e.target.result, 800, 0.72, compressed => {
+      _entryPhotoData = compressed;
+      const img = document.getElementById('entry-photo-img');
+      const prev = document.getElementById('entry-photo-preview');
+      const lbl = document.getElementById('entry-photo-label');
+      if(img) img.src = compressed;
+      if(prev) prev.style.display = 'block';
+      if(lbl) lbl.style.display = 'none';
+    });
   };
   reader.readAsDataURL(file);
 }

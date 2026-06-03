@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.10.0';
-const APP_BUILD='3 juin 2026 à 16:37 (Paris)';
+const APP_VERSION='1.11.0';
+const APP_BUILD='3 juin 2026 à 16:50 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2406,6 +2406,88 @@ function canUsePlant(key) {
   return !PLANT_DB[key].premium || isPremium();
 }
 
+// ── PHOTO STORE (IndexedDB) ──────────────────────────────────────────────────
+const PHOTO_DB_NAME = 'GardenMinderPhotos';
+let _photoDB = null;
+
+function openPhotoDB() {
+  return new Promise((resolve, reject) => {
+    if(_photoDB){ resolve(_photoDB); return; }
+    const req = indexedDB.open(PHOTO_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('photos');
+    req.onsuccess = e => { _photoDB = e.target.result; resolve(_photoDB); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+function savePhotoToDB(id, dataUrl) {
+  return openPhotoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('photos','readwrite');
+    tx.objectStore('photos').put(dataUrl, id);
+    tx.oncomplete = resolve; tx.onerror = e => reject(e.target.error);
+  }));
+}
+function loadPhotoFromDB(id) {
+  return openPhotoDB().then(db => new Promise((resolve) => {
+    const tx = db.transaction('photos','readonly');
+    const req = tx.objectStore('photos').get(id);
+    req.onsuccess = e => resolve(e.target.result||null);
+    req.onerror = () => resolve(null);
+  }));
+}
+function deletePhotoFromDB(id) {
+  return openPhotoDB().then(db => new Promise(resolve => {
+    const tx = db.transaction('photos','readwrite');
+    tx.objectStore('photos').delete(id);
+    tx.oncomplete = resolve; tx.onerror = resolve;
+  }));
+}
+
+// In-memory cache populated at boot — enables synchronous display
+const _photoCache = new Map();
+
+function getPhotoSync(id) {
+  if(!id) return '';
+  if(id.startsWith('data:')) return id; // legacy entries not yet migrated
+  return _photoCache.get(id) || '';
+}
+
+async function preloadPhotos() {
+  const db = await openPhotoDB();
+  const keys = await new Promise(res => {
+    const r = db.transaction('photos','readonly').objectStore('photos').getAllKeys();
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => res([]);
+  });
+  for(const key of keys) {
+    const data = await loadPhotoFromDB(key);
+    if(data) _photoCache.set(key, data);
+  }
+}
+
+async function migratePhotosToIndexedDB() {
+  let changed = false;
+  for(const entry of (state.journalEntries||[])) {
+    if(entry.photo && entry.photo.startsWith('data:')) {
+      const id = 'photo_j_' + (entry.id || Date.now());
+      await savePhotoToDB(id, entry.photo);
+      _photoCache.set(id, entry.photo);
+      entry.photo = id;
+      changed = true;
+    }
+  }
+  for(const key of Object.keys(state.plantInfos||{})) {
+    const info = state.plantInfos[key];
+    if(info && info.photo && info.photo.startsWith('data:')) {
+      const id = 'photo_p_' + key;
+      await savePhotoToDB(id, info.photo);
+      _photoCache.set(id, info.photo);
+      info.photo = id;
+      changed = true;
+    }
+  }
+  if(changed) saveState();
+}
+
 // ── PERSISTENCE localStorage ─────────────────────────────────────────────────
 const LS_KEY = 'alertgarden_state_v4';
 function saveState() {
@@ -2414,7 +2496,7 @@ function saveState() {
   } catch(e) {
     console.warn('[GardenMinder] saveState failed:', e);
     if(document.getElementById('success-toast')){
-      showToast('⚠️ Mémoire pleine — essayez de supprimer d\'anciennes entrées avec photos');
+      showToast('⚠️ Erreur de sauvegarde — vos photos sont protégées dans IndexedDB');
     }
   }
 }
@@ -4192,7 +4274,7 @@ function loadPlantInfoCard(key){
   const img = document.getElementById('plant-info-photo-img');
   const ph = document.getElementById('plant-info-photo-placeholder');
   if(img && ph){
-    if(info.photo){img.src=info.photo;img.style.display='block';ph.style.display='none';}
+    if(info.photo){img.src=getPhotoSync(info.photo);img.style.display='block';ph.style.display='none';}
     else{img.style.display='none';ph.style.display='flex';}
   }
   // Summary
@@ -4253,19 +4335,24 @@ function handlePlantPhoto(input){
   if(!input.files||!input.files[0]) return;
   const reader = new FileReader();
   reader.onload = e => {
-    compressPhoto(e.target.result, 800, 0.72, compressed => {
-      if(!state.plantInfos) state.plantInfos={};
-      if(!state.plantInfos[currentPlant]) state.plantInfos[currentPlant]={};
-      state.plantInfos[currentPlant].photo = compressed;
-      document.getElementById('plant-info-photo-img').src=compressed;
-      document.getElementById('plant-info-photo-img').style.display='block';
-      document.getElementById('plant-info-photo-placeholder').style.display='none';
-      updatePlantInfoSummary(currentPlant);
-      awardPoints(10,'Photo de plante ajoutée 📸');
-      logWeeklyActivity('photo');
-      saveState();
-      showToast('📸 Photo enregistrée ! +10 pts');
-    });
+    const dataUrl = e.target.result;
+    const photoId = 'photo_p_' + currentPlant;
+    if(!state.plantInfos) state.plantInfos={};
+    if(!state.plantInfos[currentPlant]) state.plantInfos[currentPlant]={};
+    // Delete old photo from DB if exists
+    const oldId = state.plantInfos[currentPlant].photo;
+    if(oldId && !oldId.startsWith('data:')) deletePhotoFromDB(oldId);
+    state.plantInfos[currentPlant].photo = photoId;
+    _photoCache.set(photoId, dataUrl);
+    savePhotoToDB(photoId, dataUrl);
+    document.getElementById('plant-info-photo-img').src = dataUrl;
+    document.getElementById('plant-info-photo-img').style.display='block';
+    document.getElementById('plant-info-photo-placeholder').style.display='none';
+    updatePlantInfoSummary(currentPlant);
+    awardPoints(10,'Photo de plante ajoutée 📸');
+    logWeeklyActivity('photo');
+    saveState();
+    showToast('📸 Photo enregistrée ! +10 pts');
   };
   reader.readAsDataURL(input.files[0]);
 }
@@ -5788,36 +5875,22 @@ function switchTab(tab, el) {
 // ── JOURNAL FUNCTIONS ─────────────────────────────────────────────────────────
 let _entryPhotoData = null;
 
-function compressPhoto(dataUrl, maxDim, quality, cb) {
-  const img = new Image();
-  img.onload = () => {
-    let w = img.width, h = img.height;
-    if(w > maxDim || h > maxDim) {
-      if(w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
-      else { w = Math.round(w * maxDim / h); h = maxDim; }
-    }
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    cb(canvas.toDataURL('image/jpeg', quality));
-  };
-  img.src = dataUrl;
-}
-
 function handleEntryPhoto(input) {
   const file = input.files && input.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    compressPhoto(e.target.result, 800, 0.72, compressed => {
-      _entryPhotoData = compressed;
-      const img = document.getElementById('entry-photo-img');
-      const prev = document.getElementById('entry-photo-preview');
-      const lbl = document.getElementById('entry-photo-label');
-      if(img) img.src = compressed;
-      if(prev) prev.style.display = 'block';
-      if(lbl) lbl.style.display = 'none';
-    });
+    const dataUrl = e.target.result;
+    const photoId = 'photo_j_' + Date.now();
+    _entryPhotoData = photoId;
+    _photoCache.set(photoId, dataUrl);
+    savePhotoToDB(photoId, dataUrl);
+    const img = document.getElementById('entry-photo-img');
+    const prev = document.getElementById('entry-photo-preview');
+    const lbl = document.getElementById('entry-photo-label');
+    if(img) img.src = dataUrl;
+    if(prev) prev.style.display = 'block';
+    if(lbl) lbl.style.display = 'none';
   };
   reader.readAsDataURL(file);
 }
@@ -6182,7 +6255,7 @@ function renderJournalTab() {
           <span class="jcard-tag ${e.type}" style="background:${t.color};color:${t.text};">${t.label}</span>
         </div>
         <div class="jcard-text">${e.text}</div>
-        ${e.photo ? `<img src="${e.photo}" style="width:100%;border-radius:8px;margin-top:8px;max-height:180px;object-fit:cover;display:block;" alt="Photo">` : ''}
+        ${e.photo ? `<img src="${getPhotoSync(e.photo)}" style="width:100%;border-radius:8px;margin-top:8px;max-height:180px;object-fit:cover;display:block;" alt="Photo">` : ''}
         <div class="jcard-chips">
           ${e.sharedSocial ? '<span class="jcard-chip">📲 Partagée</span>' : ''}
           <button onclick="shareJournalEntry(${e.id})" style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--green-pale);background:white;font-size:0.75rem;color:var(--text-mid);cursor:pointer;font-family:var(--ff-body);">📲 Partager</button>
@@ -6262,7 +6335,7 @@ function openTimelapseModal() {
       </div>
       ${photos.length > 0 ? `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${photos.length})</div>
         <div style="display:flex;gap:6px;margin-bottom:16px;">
-          ${photos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${e.photo}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}
+          ${photos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}
           ${photos.length<4?`<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>`:''}
         </div>
         <div style="font-size:0.78rem;color:var(--text-light);text-align:center;margin-bottom:16px;">${photos.length<5?`Encore ${5-photos.length} photo(s) pour débloquer le timelapse.`:isPrem?'✅ Timelapse disponible !':'Passez Premium pour générer le timelapse.'}</div>`
@@ -6607,7 +6680,7 @@ function openSeasonRecap(seasonKey){
   const precip = (state.precipLocalHistory||[]).filter(e=>{ const d=new Date(e.date+'T12:00:00Z'); return s.months.includes(d.getMonth())&&d.getFullYear()===y; }).reduce((t,e)=>t+(e.mm||0),0);
   const plantCnt = {}; ws.forEach(e=>{ (e.targets||(e.plant?[e.plant]:[])).forEach(k=>{ plantCnt[k]=(plantCnt[k]||0)+1; }); });
   const topPlants = Object.entries(plantCnt).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  const photos = je.filter(e=>e.photo).map(e=>({src:e.photo,date:new Date(e.ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}));
+  const photos = je.filter(e=>e.photo).map(e=>({src:getPhotoSync(e.photo),date:new Date(e.ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}));
   const hygro = (state.moistureHistory||[]).filter(e=>{ const d=new Date(e.date+'T12:00:00Z'); return s.months.includes(d.getMonth())&&d.getFullYear()===y; });
   const avgHygro = hygro.length>0?Math.round(hygro.reduce((t,e)=>t+e.value,0)/hygro.length):null;
   const worstHygro = hygro.length>0?Math.min(...hygro.map(e=>e.value)):null;
@@ -6873,6 +6946,12 @@ function renderAccountInHeader() {
   const vEl=document.getElementById('landing-version');
   if(vEl) vEl.textContent=`v${APP_VERSION} — ${APP_BUILD}`;
   const restored = loadState();
+  preloadPhotos().then(() => {
+    migratePhotosToIndexedDB();
+    if(document.getElementById('journal-timeline') && (state.journalEntries||[]).length > 0) {
+      renderJournalTab();
+    }
+  });
   // Init new state fields if missing
   if (!state.theme) state.theme = 'foret';
   applyTheme(state.theme);

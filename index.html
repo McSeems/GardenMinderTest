@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.11.3';
-const APP_BUILD='3 juin 2026 à 23:10 (Paris)';
+const APP_VERSION='1.11.4';
+const APP_BUILD='3 juin 2026 à 23:19 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -6455,7 +6455,7 @@ function openTimelapseViewer() {
   if(entries.length < 5) return;
 
   let current = 0, playing = true, timer = null;
-  const SPEEDS = [4000, 2000, 800];
+  const SPEEDS = [6000, 3000, 2000];
   const SPEED_LABELS = ['×½','×1','×2'];
   let speedIdx = 1;
   let showingA = true;
@@ -6465,8 +6465,8 @@ function openTimelapseViewer() {
   m.style.cssText = 'position:fixed;inset:0;background:#000;z-index:10000;overflow:hidden;';
   m.innerHTML = `
     <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-      <img id="tl-a" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 0.45s ease;" src="" alt="">
-      <img id="tl-b" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 0.45s ease;opacity:0;" src="" alt="">
+      <img id="tl-a" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 1.35s ease;" src="" alt="">
+      <img id="tl-b" style="position:absolute;max-width:100%;max-height:100%;object-fit:contain;transition:opacity 1.35s ease;opacity:0;" src="" alt="">
     </div>
     <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 20px 38px;background:linear-gradient(transparent,rgba(0,0,0,0.88));">
       <div style="height:3px;background:rgba(255,255,255,0.15);border-radius:2px;margin-bottom:14px;"><div id="tl-bar" style="height:100%;background:white;border-radius:2px;width:0%;transition:width 0.4s;"></div></div>
@@ -6476,6 +6476,7 @@ function openTimelapseViewer() {
         <button id="tl-pp" style="padding:9px 18px;border-radius:20px;border:none;background:rgba(255,255,255,0.2);color:white;font-size:1.1rem;cursor:pointer;">⏸</button>
         <button id="tl-next" style="padding:9px 16px;border-radius:20px;border:none;background:rgba(255,255,255,0.12);color:white;font-size:1rem;cursor:pointer;">›</button>
         <button id="tl-spd" style="padding:9px 14px;border-radius:20px;border:none;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);font-size:0.78rem;font-family:var(--ff-body);cursor:pointer;">×1</button>
+        <button id="tl-rec" style="padding:9px 14px;border-radius:20px;border:none;background:rgba(255,80,80,0.25);color:rgba(255,180,180,0.9);font-size:0.78rem;font-family:var(--ff-body);cursor:pointer;">🎬</button>
       </div>
     </div>
     <button id="tl-close" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.14);border:none;border-radius:50%;width:34px;height:34px;color:white;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>`;
@@ -6532,6 +6533,11 @@ function openTimelapseViewer() {
   };
   const close = () => { clearTimeout(timer); m.remove(); document.removeEventListener('keydown',onKey); };
   document.getElementById('tl-close').onclick = close;
+  document.getElementById('tl-rec').onclick = () => {
+    clearTimeout(timer); playing = false;
+    document.getElementById('tl-pp').textContent = '▶';
+    recordTimelapse(entries);
+  };
   const onKey = e => {
     if(e.key==='ArrowRight') document.getElementById('tl-next').click();
     else if(e.key==='ArrowLeft') document.getElementById('tl-prev').click();
@@ -6539,6 +6545,96 @@ function openTimelapseViewer() {
     else if(e.key==='Escape') close();
   };
   document.addEventListener('keydown', onKey);
+}
+
+async function recordTimelapse(entries) {
+  if(!window.MediaRecorder){ alert('Votre navigateur ne supporte pas l\'enregistrement vidéo.'); return; }
+  const SIZE = 1080;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:20000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+  overlay.innerHTML = `<div style="color:white;font-family:var(--ff-body);font-size:1.1rem;">🎬 Création de la vidéo…</div><div id="rec-progress" style="color:rgba(255,255,255,0.6);font-size:0.85rem;">Chargement des images…</div><button id="rec-cancel" style="margin-top:8px;padding:8px 20px;border-radius:16px;border:none;background:rgba(255,255,255,0.15);color:white;cursor:pointer;font-family:var(--ff-body);">Annuler</button>`;
+  document.body.appendChild(overlay);
+
+  let cancelled = false;
+  document.getElementById('rec-cancel').onclick = () => { cancelled = true; overlay.remove(); };
+
+  const imgs = [];
+  for(let i=0; i<entries.length; i++){
+    if(cancelled) return;
+    document.getElementById('rec-progress').textContent = `Chargement ${i+1}/${entries.length}…`;
+    const src = getPhotoSync(entries[i].photo);
+    if(!src){ imgs.push(null); continue; }
+    await new Promise(res=>{
+      const img = new Image();
+      img.onload = ()=>{ imgs.push(img); res(); };
+      img.onerror = ()=>{ imgs.push(null); res(); };
+      img.src = src;
+    });
+  }
+  if(cancelled) return;
+
+  const mimeType = ['video/mp4','video/webm;codecs=vp9','video/webm'].find(t=>MediaRecorder.isTypeSupported(t))||'video/webm';
+  const stream = canvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond:8000000 });
+  const chunks = [];
+  recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+
+  const HOLD_MS = 2800, FADE_MS = 1200;
+
+  const drawCrop = img => {
+    if(!img){ ctx.fillStyle='#111'; ctx.fillRect(0,0,SIZE,SIZE); return; }
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    const sx = (img.naturalWidth-s)/2, sy = (img.naturalHeight-s)/2;
+    ctx.drawImage(img, sx, sy, s, s, 0, 0, SIZE, SIZE);
+  };
+
+  recorder.start();
+  for(let i=0; i<imgs.length; i++){
+    if(cancelled) break;
+    document.getElementById('rec-progress') && (document.getElementById('rec-progress').textContent = `Rendu ${i+1}/${imgs.length}…`);
+    if(i===0){
+      drawCrop(imgs[i]);
+      await new Promise(res=>setTimeout(res, HOLD_MS));
+    } else {
+      const prev=imgs[i-1], curr=imgs[i];
+      const start=performance.now();
+      await new Promise(res=>{
+        const fade=()=>{
+          const t=Math.min(1,(performance.now()-start)/FADE_MS);
+          drawCrop(prev);
+          ctx.globalAlpha=t; drawCrop(curr); ctx.globalAlpha=1;
+          if(t<1) requestAnimationFrame(fade); else res();
+        };
+        requestAnimationFrame(fade);
+      });
+      if(cancelled) break;
+      await new Promise(res=>setTimeout(res, HOLD_MS));
+    }
+  }
+
+  document.getElementById('rec-progress') && (document.getElementById('rec-progress').textContent = 'Finalisation…');
+  await new Promise(res=>{ recorder.onstop=res; recorder.stop(); });
+  overlay.remove();
+
+  const blob = new Blob(chunks, {type:mimeType});
+  const ext = mimeType.startsWith('video/mp4')?'mp4':'webm';
+  const file = new File([blob], `timelapse-jardin.${ext}`, {type:mimeType});
+
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file], title:'Mon jardin — Timelapse', text:'🌱 GardenMinder #Timelapse #MonJardin'}).catch(()=>{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=`timelapse-jardin.${ext}`; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+    });
+  } else {
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`timelapse-jardin.${ext}`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }
 }
 
 function shareGardenScore() {

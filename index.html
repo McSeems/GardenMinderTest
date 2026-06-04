@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.12.0';
-const APP_BUILD='4 juin 2026 à 17:49 (Paris)';
+const APP_VERSION='1.12.1';
+const APP_BUILD='4 juin 2026 à 22:47 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1577,14 +1577,14 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <button class="btn-timelapse" onclick="openTlPlantsSheet();event.stopPropagation()">Voir →</button>
     </div>
     <!-- Avant/Après journal -->
-    <div class="timelapse-card" onclick="openTimelapseModal()" style="cursor:pointer;margin-top:10px;">
+    <div class="timelapse-card" onclick="openAvantApresPickerModal()" style="cursor:pointer;margin-top:10px;">
       <div class="timelapse-icon">🖼️</div>
       <div class="timelapse-body">
         <div class="timelapse-tag">Gratuit · Journal photos</div>
         <div class="timelapse-title">Avant / Après</div>
-        <div class="timelapse-sub">Collage automatique de la première et dernière photo du journal</div>
+        <div class="timelapse-sub">Choisissez 2 photos ou générez un collage par plante</div>
       </div>
-      <button class="btn-timelapse" onclick="openTimelapseModal();event.stopPropagation()">Voir →</button>
+      <button class="btn-timelapse" onclick="openAvantApresPickerModal();event.stopPropagation()">Créer →</button>
     </div>
     <!-- Série hebdo -->
     <div class="streak-card">
@@ -6350,7 +6350,7 @@ function openTimelapseModal() {
         return `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${totalPhotos})</div>
         ${grid}
         <div style="font-size:0.78rem;color:var(--text-mid);text-align:center;margin-bottom:16px;font-weight:500;">${statusLine}</div>
-        ${hasAvantApres ? `<button onclick="openAvantApresModal()" style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🖼️ Voir l'avant/après</button>` : ''}`;
+        ${hasAvantApres ? `<button onclick="openAvantApresPickerModal()" style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🖼️ Créer un Avant/Après</button>` : ''}`;
       })()
       : `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;margin-bottom:16px;">Aucune photo encore. Ajoutez votre première depuis le Journal 📖</div>`}
       <button onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();"
@@ -6362,11 +6362,132 @@ function openTimelapseModal() {
   document.body.appendChild(modal);
 }
 
-function openAvantApresModal() {
-  const photoEntries = (state.journalEntries||[]).filter(e=>e.photo);
-  if(photoEntries.length < 2) return;
-  const oldest = photoEntries[photoEntries.length-1];
-  const newest = photoEntries[0];
+function openAvantApresPickerModal() {
+  const allPhotos = (state.journalEntries||[]).filter(e=>e.photo);
+
+  // Per-plant suggestions from timelapse series (≥2 photos)
+  const plantSugg = Object.entries(state.timelapsePlants||{})
+    .filter(([k,s])=>s.photos && s.photos.length>=2 && PLANT_DB[k])
+    .map(([k,s])=>({ key:k, plant:PLANT_DB[k], count:s.photos.length,
+      first:s.photos[0], last:s.photos[s.photos.length-1] }));
+
+  let sel = []; // [{photo/id, ts}, ...]
+  const m = document.createElement('div');
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10000;display:flex;align-items:flex-end;';
+
+  const getP = e => getPhotoSync(e.photo||e.id||'');
+
+  const render = () => {
+    const hasTwo = sel.length === 2;
+    const stepMsg = sel.length===0
+      ? 'Tapez une photo pour la désigner comme <strong>Avant</strong>'
+      : sel.length===1
+      ? '✅ Avant choisi — tapez une 2ᵉ photo pour l\'<strong>Après</strong>'
+      : '✅ Deux photos sélectionnées';
+
+    const suggHtml = (plantSugg.length > 0 || allPhotos.length >= 2) ? `
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⚡ Suggestions</div>
+      <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-bottom:16px;">
+        ${plantSugg.map(sg=>{
+          const s1=getPhotoSync(sg.first.id), s2=getPhotoSync(sg.last.id);
+          return `<div onclick="_aaQuick('plant','${sg.key}')" style="flex-shrink:0;width:116px;background:white;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display:flex;height:58px;">
+              ${s1?`<img src="${s1}" style="width:50%;height:100%;object-fit:cover;" alt="">`:``}
+              ${s2?`<img src="${s2}" style="width:50%;height:100%;object-fit:cover;" alt="">`:``}
+            </div>
+            <div style="padding:5px 7px;">
+              <div style="font-size:0.75rem;font-weight:700;color:var(--text-dark);">${sg.plant.emoji} ${sg.plant.name}</div>
+              <div style="font-size:0.62rem;color:var(--text-light);">Timelapse · ${sg.count} photos</div>
+            </div>
+          </div>`;
+        }).join('')}
+        ${allPhotos.length >= 2 ? `<div onclick="_aaQuick('auto')" style="flex-shrink:0;width:116px;background:white;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+          <div style="display:flex;height:58px;">
+            ${getP(allPhotos[allPhotos.length-1])?`<img src="${getP(allPhotos[allPhotos.length-1])}" style="width:50%;height:100%;object-fit:cover;" alt="">`:``}
+            ${getP(allPhotos[0])?`<img src="${getP(allPhotos[0])}" style="width:50%;height:100%;object-fit:cover;" alt="">`:``}
+          </div>
+          <div style="padding:5px 7px;">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text-dark);">📖 Auto</div>
+            <div style="font-size:0.62rem;color:var(--text-light);">Plus ancien / récent</div>
+          </div>
+        </div>` : ''}
+      </div>` : '';
+
+    const gridHtml = allPhotos.length > 0 ? `
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📷 Journal (${allPhotos.length} photo${allPhotos.length>1?'s':''})</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:14px;">
+        ${allPhotos.map((e,i)=>{
+          const src=getP(e);
+          const si=sel.indexOf(e);
+          const isA=si===0, isP=si===1;
+          return `<div onclick="_aaPick(${i})" style="position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;cursor:pointer;transition:outline 0.1s;${isA||isP?'outline:3px solid var(--green-mid);outline-offset:-2px;':''}">
+            ${src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover;" alt="">`:`<div style="width:100%;height:100%;background:var(--green-mist);display:flex;align-items:center;justify-content:center;">📷</div>`}
+            ${isA?`<div style="position:absolute;bottom:3px;left:3px;background:var(--green-mid);color:white;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:5px;">AVANT</div>`:''}
+            ${isP?`<div style="position:absolute;bottom:3px;left:3px;background:var(--green-light);color:white;font-size:0.58rem;font-weight:700;padding:1px 5px;border-radius:5px;">APRÈS</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
+    const previewHtml = sel.length>0 ? `
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        ${sel.map((e,i)=>{
+          const src=getP(e);
+          return `<div style="flex:1;aspect-ratio:1;border-radius:10px;overflow:hidden;position:relative;background:var(--green-mist);">
+            ${src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover;" alt="">`:``}
+            <div style="position:absolute;bottom:4px;left:4px;background:${i===0?'var(--green-mid)':'var(--green-light)'};color:white;font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:6px;">${i===0?'AVANT':'APRÈS'}</div>
+          </div>`;
+        }).join('')}
+        ${sel.length===1?`<div style="flex:1;aspect-ratio:1;border-radius:10px;background:rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;font-size:0.72rem;color:var(--text-light);text-align:center;line-height:1.4;">Choisissez<br>l'Après</div>`:''}
+      </div>` : '';
+
+    m.innerHTML = `<div style="background:var(--paper);border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:22px 16px 40px;">
+      <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:700;margin-bottom:4px;">🖼️ Avant / Après</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:14px;line-height:1.5;">${stepMsg}</div>
+      ${suggHtml}${previewHtml}${gridHtml}
+      <button onclick="_aaGenerate()" ${!hasTwo?'disabled':''} style="width:100%;padding:13px;border-radius:14px;border:none;background:${hasTwo?'var(--green-mid)':'rgba(0,0,0,0.07)'};color:${hasTwo?'white':'var(--text-light)'};font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:${hasTwo?'pointer':'default'};margin-bottom:8px;transition:all 0.2s;">🖼️ Générer le collage</button>
+      <button onclick="document.getElementById('aa-picker').remove()" style="width:100%;padding:11px;border-radius:12px;border:none;background:transparent;color:var(--text-light);font-family:var(--ff-body);font-size:0.85rem;cursor:pointer;">Annuler</button>
+    </div>`;
+    m.id = 'aa-picker';
+
+    window._aaPick = i => {
+      const e = allPhotos[i];
+      const idx = sel.indexOf(e);
+      if(idx >= 0) { sel.splice(idx,1); }
+      else if(sel.length < 2) { sel.push(e); }
+      else { sel = [sel[1], e]; }
+      render();
+    };
+    window._aaQuick = (type, key) => {
+      m.remove();
+      delete window._aaPick; delete window._aaQuick; delete window._aaGenerate;
+      if(type==='plant') {
+        const s=getTlSeries(key);
+        openAvantApresModal(
+          {photo:s.photos[0].id, ts:new Date(s.photos[0].ts).getTime()},
+          {photo:s.photos[s.photos.length-1].id, ts:new Date(s.photos[s.photos.length-1].ts).getTime()}
+        );
+      } else {
+        openAvantApresModal();
+      }
+    };
+    window._aaGenerate = () => {
+      if(sel.length<2) return;
+      m.remove();
+      delete window._aaPick; delete window._aaQuick; delete window._aaGenerate;
+      openAvantApresModal(sel[0], sel[1]);
+    };
+  };
+
+  render();
+  document.body.appendChild(m);
+  m.addEventListener('click', e=>{ if(e.target===m) m.remove(); });
+}
+
+function openAvantApresModal(e1, e2) {
+  const photoEntries = (state.journalEntries||[]).filter(en=>en.photo);
+  const oldest = e1 || photoEntries[photoEntries.length-1];
+  const newest = e2 || photoEntries[0];
+  if(!oldest || !newest) return;
   const fmtDate = ts => new Date(ts||Date.now()).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
 
   const modal = document.createElement('div');
@@ -6395,7 +6516,8 @@ function openAvantApresModal() {
     const img = new Image(); img.onload = ()=>res(img); img.onerror=()=>res(null); img.src = src;
   });
 
-  Promise.all([loadImg(getPhotoSync(oldest.photo)), loadImg(getPhotoSync(newest.photo))]).then(([img1, img2]) => {
+  const getP = e => getPhotoSync(e.photo || e.id || '');
+  Promise.all([loadImg(getP(oldest)), loadImg(getP(newest))]).then(([img1, img2]) => {
     const drawCrop = (img, x) => {
       if(!img){ ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(x,0,S,S); return; }
       const s = Math.min(img.naturalWidth, img.naturalHeight);

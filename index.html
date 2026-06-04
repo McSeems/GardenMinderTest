@@ -21,8 +21,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.11.6';
-const APP_BUILD='4 juin 2026 à 00:23 (Paris)';
+const APP_VERSION='1.12.0';
+const APP_BUILD='4 juin 2026 à 17:49 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -375,6 +375,10 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .mini-bar.today{background:var(--green-mid);}
 .chart-labels{display:flex;gap:3px;margin-top:4px;}
 .chart-label{flex:1;text-align:center;font-size:0.62rem;color:var(--text-light);}
+.tl-plant-card{background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+.tl-thumb-strip{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:10px 0 4px;}
+.tl-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--green-mist);}
+.tl-reminder-card{background:linear-gradient(135deg,#1a3a2a,#2d5c3f);border-radius:14px;padding:14px 16px;margin:0 0 8px;display:flex;align-items:center;gap:12px;cursor:pointer;}
 .watering-entry{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--green-mist);}
 .watering-entry:last-child{border-bottom:none;}
 .watering-dot{width:8px;height:8px;border-radius:50%;background:var(--water);flex-shrink:0;}
@@ -1219,6 +1223,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div id="season-end-banner" style="display:none;padding:0 0 4px;"></div>
     <!-- Bannière alerte série hebdo -->
     <div id="streak-warn-banner" style="display:none;padding:0 0 4px;"></div>
+    <!-- Bannière rappels timelapse -->
+    <div id="tl-reminder-banner" style="padding:0 16px;"></div>
     <!-- Hero gauge card -->
     <div class="hero-card">
       <div style="padding:20px 24px 0;display:flex;flex-direction:column;align-items:center;">
@@ -1440,6 +1446,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <button class="btn-primary" id="detail-water-btn" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
       <button class="btn-secondary" onclick="openJournalFromPlant()" style="margin-bottom:0;padding:16px;border-radius:14px;border:2px solid var(--green-pale);background:white;color:var(--green-mid);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">📖 Journal</button>
     </div>
+    <!-- Timelapse par plante -->
+    <div id="plant-tl-section" style="margin:0 16px 16px;"></div>
     <!-- Graphique prévisionnel plante -->
     <div id="plant-forecast-chart" style="background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:16px;"></div>
   </div>
@@ -1558,13 +1566,23 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         <div style="margin-top:7px;font-size:0.68rem;color:rgba(255,255,255,0.38);">Appuyer sur la carte pour voir la progression →</div>
       </div>
     </div>
-    <!-- Timelapse -->
-    <div class="timelapse-card" onclick="openTimelapseModal()" style="cursor:pointer;">
-      <div class="timelapse-icon">🎬</div>
+    <!-- Timelapse par plante -->
+    <div class="timelapse-card" onclick="openTlPlantsSheet()" style="cursor:pointer;">
+      <div class="timelapse-icon">📽️</div>
       <div class="timelapse-body">
-        <div class="timelapse-tag">✨ Premium · Mémoire photo</div>
-        <div class="timelapse-title">Créez votre timelapse de saison</div>
-        <div class="timelapse-sub">Ajoutez des photos dans le Journal pour débloquer votre avant/après</div>
+        <div class="timelapse-tag">✨ Premium · Par plante</div>
+        <div class="timelapse-title">Timelapse de croissance</div>
+        <div class="timelapse-sub">Photo par photo, vidéo 9:16 prête à partager sur Instagram</div>
+      </div>
+      <button class="btn-timelapse" onclick="openTlPlantsSheet();event.stopPropagation()">Voir →</button>
+    </div>
+    <!-- Avant/Après journal -->
+    <div class="timelapse-card" onclick="openTimelapseModal()" style="cursor:pointer;margin-top:10px;">
+      <div class="timelapse-icon">🖼️</div>
+      <div class="timelapse-body">
+        <div class="timelapse-tag">Gratuit · Journal photos</div>
+        <div class="timelapse-title">Avant / Après</div>
+        <div class="timelapse-sub">Collage automatique de la première et dernière photo du journal</div>
       </div>
       <button class="btn-timelapse" onclick="openTimelapseModal();event.stopPropagation()">Voir →</button>
     </div>
@@ -2461,6 +2479,14 @@ async function preloadPhotos() {
   for(const key of keys) {
     const data = await loadPhotoFromDB(key);
     if(data) _photoCache.set(key, data);
+  }
+  for(const series of Object.values(state.timelapsePlants||{})) {
+    for(const p of (series.photos||[])) {
+      if(p.id && !p.id.startsWith('data:')) {
+        const data = await loadPhotoFromDB(p.id);
+        if(data) _photoCache.set(p.id, data);
+      }
+    }
   }
 }
 
@@ -3629,6 +3655,7 @@ function updateHeroScore(){
     }
     if(_nw)_nw.textContent=nextWater;
   }
+  renderTlReminders();
 }
 
 function renderPlantStrip(){
@@ -4262,6 +4289,7 @@ function openPlantDetail(key, fromScreen){
   // ──────────────────────────────────────────────────────────────────────────
   // Graphique prévisionnel pour cette plante
   renderForecastMoistureChart([key], PLANT_DB[key]?.name || key, 'plant-forecast-chart');
+  renderPlantTlSection(key);
   goTo('plant');
 }
 
@@ -6302,68 +6330,27 @@ function renderHomePrecipChart() {
 
 // ── TIMELAPSE MODAL ───────────────────────────────────────────────────────────
 function openTimelapseModal() {
-  const isPrem = isPremium();
   const allPhotos = (state.journalEntries||[]).filter(e=>e.photo);
-  const photos = allPhotos.slice(0, isPrem ? 20 : 2); // gratuit : 2 (avant/après) ; premium : jusqu'à 20
+  const photos = allPhotos.slice(0, 4);
   const totalPhotos = allPhotos.length;
   const modal = document.createElement('div');
   modal.id = 'timelapse-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.25s ease;';
-  const examples = [
-    { from:'🥀', to:'🍅', label:'Tomates cerises · 3 semaines', desc:'De la plantation à la 1ère récolte' },
-    { from:'🌱', to:'🌿', label:'Potager complet · 1 saison', desc:'Printemps → Automne en 12 photos' },
-    { from:'🪴', to:'🌸', label:'Hortensia · 2 mois', desc:'Bourgeon → floraison complète' },
-  ];
   modal.innerHTML = `
     <div style="background:var(--cream);border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
       <div style="width:36px;height:4px;background:rgba(0,0,0,0.12);border-radius:2px;margin:0 auto 20px;"></div>
-      <div style="font-size:1.6rem;text-align:center;margin-bottom:8px;">🎬</div>
-      <div style="font-family:var(--ff-display);font-size:1.15rem;font-weight:600;text-align:center;color:var(--text-dark);margin-bottom:6px;">Timelapse de saison</div>
-      <div style="font-size:0.85rem;color:var(--text-mid);text-align:center;margin-bottom:20px;line-height:1.5;">Photographiez régulièrement vos plantes depuis le Journal.<br>GardenMinder compose automatiquement votre timelapse.</div>
-      ${!isPrem ? `<div style="background:linear-gradient(135deg,var(--premium-pale),#e8e0ff);border-radius:12px;padding:12px 14px;margin-bottom:16px;border:1px solid #c8b8ff;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openPremiumModal('timelapse')">
-        <span style="font-size:1.4rem;">✨</span>
-        <div><div style="font-size:0.82rem;font-weight:700;color:var(--premium);">Timelapse complet — Premium</div>
-        <div style="font-size:0.75rem;color:#5a3a9a;">L'avant/après (2 photos) est gratuit. Le timelapse jusqu'à 20 photos est Premium →</div></div>
-      </div>` : ''}
-      <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">🖼️ Exemples de créations</div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
-        ${examples.map(ex => `<div style="background:white;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center;gap:14px;">
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            <div style="font-size:2rem;">${ex.from}</div>
-            <div style="font-size:0.65rem;color:var(--text-light);padding:0 2px;">→</div>
-            <div style="font-size:2rem;">${ex.to}</div>
-          </div>
-          <div><div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">${ex.label}</div>
-          <div style="font-size:0.75rem;color:var(--text-mid);margin-top:2px;">${ex.desc}</div></div>
-        </div>`).join('')}
-      </div>
-      <div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📷 Comment ça marche</div>
-      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:16px;">
-        ${[['1.','Prenez une photo depuis la même position à chaque visite'],['2.','Ajoutez-la dans le Journal (entrée photo)'],['3.','Après 5 photos minimum, le timelapse se génère automatiquement'],['4.','Partagez-le sur Instagram ou Facebook en un tap']].map(([n,t])=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--green-mist);">
-          <div style="font-size:0.78rem;font-weight:700;color:var(--green-mid);flex-shrink:0;width:16px;">${n}</div>
-          <div style="font-size:0.82rem;color:var(--text-mid);line-height:1.4;">${t}</div>
-        </div>`).join('')}
-      </div>
+      <div style="font-size:1.6rem;text-align:center;margin-bottom:8px;">🖼️</div>
+      <div style="font-family:var(--ff-display);font-size:1.15rem;font-weight:600;text-align:center;color:var(--text-dark);margin-bottom:6px;">Avant / Après</div>
+      <div style="font-size:0.85rem;color:var(--text-mid);text-align:center;margin-bottom:20px;line-height:1.5;">Ajoutez des photos dans le Journal pour générer<br>un collage Avant/Après partageable.</div>
       ${totalPhotos > 0 ? (() => {
-        const minFree = 2, minPrem = 5;
-        const hasAvantApres = totalPhotos >= minFree;
-        const hasTimelapse = totalPhotos >= minPrem;
-        const displayPhotos = photos; // already sliced
-        const grid = displayPhotos.length <= 3
-          ? `<div style="display:flex;gap:6px;margin-bottom:10px;">${displayPhotos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}${!isPrem && totalPhotos >= 2 ? '' : (totalPhotos < (isPrem?5:2) ? `<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>` : '')}</div>`
-          : `<div style="display:grid;grid-template-columns:repeat(${Math.min(displayPhotos.length,4)},1fr);gap:6px;margin-bottom:10px;">${displayPhotos.map(e=>`<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}${isPrem && totalPhotos < 5 ? `<div style="aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>` : ''}</div>`;
-        const statusLine = !hasAvantApres
-          ? `📷 Encore ${minFree - totalPhotos} photo pour l'avant/après`
-          : !isPrem
-          ? `✅ Avant/après disponible · ${!hasTimelapse ? `Encore ${minPrem - totalPhotos} photos pour le timelapse (Premium)` : 'Passez Premium pour le timelapse'}`
-          : !hasTimelapse
-          ? `✅ Avant/après disponible · Encore ${minPrem - totalPhotos} photo(s) pour le timelapse`
-          : `✅ Avant/après + Timelapse disponibles (${totalPhotos} photos)`;
+        const hasAvantApres = totalPhotos >= 2;
+        const displayPhotos = photos.slice(0,4);
+        const grid = `<div style="display:flex;gap:6px;margin-bottom:10px;">${displayPhotos.map(e=>`<div style="flex:1;aspect-ratio:1;border-radius:8px;overflow:hidden;"><img src="${getPhotoSync(e.photo)}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>`).join('')}${totalPhotos < 2 ? `<div style="flex:1;aspect-ratio:1;border-radius:8px;background:var(--green-mist);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;" onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();">➕</div>` : ''}</div>`;
+        const statusLine = !hasAvantApres ? `📷 Encore ${2-totalPhotos} photo pour l'avant/après` : `✅ Avant/après disponible (${totalPhotos} photo${totalPhotos>1?'s':''})`;
         return `<div style="font-size:0.72rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📸 Vos photos (${totalPhotos})</div>
         ${grid}
         <div style="font-size:0.78rem;color:var(--text-mid);text-align:center;margin-bottom:16px;font-weight:500;">${statusLine}</div>
-        ${hasAvantApres ? `<button onclick="openAvantApresModal()" style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🖼️ Voir l'avant/après</button>` : ''}
-        ${isPrem && hasTimelapse ? `<button onclick="openTimelapseViewer()" style="width:100%;padding:13px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--premium),#9060d8);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🎬 Lancer le timelapse</button>` : ''}`;
+        ${hasAvantApres ? `<button onclick="openAvantApresModal()" style="width:100%;padding:13px;border-radius:14px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:8px;">🖼️ Voir l'avant/après</button>` : ''}`;
       })()
       : `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;margin-bottom:16px;">Aucune photo encore. Ajoutez votre première depuis le Journal 📖</div>`}
       <button onclick="document.getElementById('timelapse-modal').remove();switchTab('journal',document.getElementById('nav-journal'));openEntrySheet();"
@@ -6451,10 +6438,11 @@ function openAvantApresModal() {
   });
 }
 
-function openTimelapseViewer() {
+function openTimelapseViewer(externalEntries) {
   if(!isPremium()){ openPremiumModal('timelapse'); return; }
-  const entries = (state.journalEntries||[]).filter(e=>e.photo).slice(0,20);
-  if(entries.length < 5) return;
+  const entries = externalEntries || (state.journalEntries||[]).filter(e=>e.photo).slice(0,20);
+  const minPh = externalEntries ? 10 : 5;
+  if(entries.length < minPh) return;
 
   let current = 0, playing = true, timer = null;
   const SPEEDS = [6000, 3000, 2000];
@@ -6681,6 +6669,225 @@ async function recordTimelapse(entries) {
   };
   document.getElementById('res-dl').onclick = ()=>{ const a=document.createElement('a'); a.href=objUrl; a.download=`timelapse-jardin.${ext}`; a.click(); };
   document.getElementById('res-close').onclick = ()=>{ modal.remove(); setTimeout(()=>URL.revokeObjectURL(objUrl),1000); };
+}
+
+// ── TIMELAPSE PAR PLANTE ──────────────────────────────────────────────────────
+
+function getTlSeries(key) {
+  if(!state.timelapsePlants) state.timelapsePlants = {};
+  if(!state.timelapsePlants[key]) state.timelapsePlants[key] = { active:false, notifFreq:2, notifEnabled:true, photos:[] };
+  return state.timelapsePlants[key];
+}
+
+function tlPhotoDue(key) {
+  const s = getTlSeries(key);
+  if(!s.active) return false;
+  if(!s.photos.length) return true;
+  const last = s.photos[s.photos.length-1];
+  const diff = (Date.now() - new Date(last.date+'T12:00:00').getTime()) / 86400000;
+  return diff >= s.notifFreq;
+}
+
+function renderPlantTlSection(key) {
+  const el = document.getElementById('plant-tl-section');
+  if(!el) return;
+  const s = getTlSeries(key);
+  const plant = PLANT_DB[key];
+  if(!plant) return;
+  const count = s.photos.length;
+  const due = tlPhotoDue(key);
+  const canWatch = count >= 10;
+
+  if(!s.active) {
+    el.innerHTML = `<div class="tl-plant-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="font-size:1.5rem;">📽️</span>
+        <div style="flex:1;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-dark);">Timelapse de croissance</div>
+          <div style="font-size:0.72rem;color:var(--text-light);">Une photo tous les ${s.notifFreq===1?'jour':'2 jours'} → vidéo spectaculaire</div>
+        </div>
+        ${isPremium()?'':'<div style="font-size:0.65rem;font-weight:700;color:var(--premium);background:var(--premium-light);padding:2px 8px;border-radius:10px;flex-shrink:0;">✨ Premium</div>'}
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.6;margin:0 0 12px;">Suivez la croissance de <strong>${plant.name}</strong> photo par photo. À partir de <strong>10 photos</strong>, GardenMinder crée une vidéo timelapse 9:16 prête à partager.</p>
+      <button onclick="toggleTlActive('${key}',true)" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">📽️ Activer le timelapse${isPremium()?'':' ✨'}</button>
+    </div>`;
+    return;
+  }
+
+  const recent = s.photos.slice(-6);
+  const thumbsHtml = recent.map(p=>{
+    const src = getPhotoSync(p.id);
+    return src?`<img class="tl-thumb" src="${src}" alt="">`:`<div class="tl-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.1rem;">📷</div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="tl-plant-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:1.3rem;">📽️</span>
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-dark);">Timelapse ${plant.emoji} ${plant.name}</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">${count} photo${count>1?'s':''} · ${s.notifFreq===1?'chaque jour':'tous les 2 jours'}</div>
+        </div>
+      </div>
+      <button onclick="openTlSettings('${key}')" style="border:none;background:var(--green-mist);border-radius:20px;padding:5px 12px;font-size:0.72rem;color:var(--green-mid);cursor:pointer;font-family:var(--ff-body);">⚙️</button>
+    </div>
+    ${count>0?`<div class="tl-thumb-strip">${thumbsHtml}</div>`:''}
+    ${count<10?`<div style="font-size:0.72rem;color:var(--text-light);margin:8px 0 4px;">📊 Encore ${10-count} photo${(10-count)>1?'s':''} avant la vidéo</div>
+      <div style="height:4px;background:var(--green-mist);border-radius:2px;margin-bottom:10px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(count/10)*100)}%;background:var(--green-mid);border-radius:2px;transition:width 0.4s;"></div></div>`:''}
+    <div style="display:grid;grid-template-columns:${canWatch?'1fr 1fr':'1fr'};gap:8px;margin-top:4px;">
+      <button id="tl-capture-btn-${key}" onclick="captureTlPhoto('${key}')" style="padding:11px;border-radius:12px;border:none;background:${due?'var(--green-mid)':'rgba(0,0,0,0.06)'};color:${due?'white':'var(--text-light)'};font-family:var(--ff-body);font-size:0.88rem;font-weight:600;cursor:pointer;">${due?'📸 Prendre la photo':'✅ Photo du jour prise'}</button>
+      ${canWatch?`<button onclick="openPlantTimelapse('${key}')" style="padding:11px;border-radius:12px;border:none;background:var(--green-light);color:white;font-family:var(--ff-body);font-size:0.88rem;font-weight:600;cursor:pointer;">▶ Voir le timelapse</button>`:''}
+    </div>
+    <input type="file" id="tl-file-${key}" accept="image/*" capture="environment" style="display:none;" onchange="handleTlPhoto('${key}',this)">
+  </div>`;
+}
+
+function toggleTlActive(key, active) {
+  if(active && !isPremium()){ openPremiumModal('timelapse'); return; }
+  const s = getTlSeries(key);
+  s.active = active;
+  saveState();
+  renderPlantTlSection(key);
+  renderTlReminders();
+}
+
+function captureTlPhoto(key) {
+  if(!isPremium()){ openPremiumModal('timelapse'); return; }
+  const input = document.getElementById('tl-file-'+key);
+  if(input) input.click();
+}
+
+function handleTlPhoto(key, input) {
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const photoId = 'tl_'+key+'_'+Date.now();
+    _photoCache.set(photoId, dataUrl);
+    savePhotoToDB(photoId, dataUrl);
+    const s = getTlSeries(key);
+    if(s.photos.length >= 30) {
+      deletePhotoFromDB(s.photos[0].id);
+      s.photos.shift();
+    }
+    s.photos.push({ id:photoId, date:localDateStr(), ts:new Date().toISOString() });
+    saveState();
+    renderPlantTlSection(key);
+    renderTlReminders();
+  };
+  reader.readAsDataURL(file);
+}
+
+function openTlSettings(key) {
+  const s = getTlSeries(key);
+  const plant = PLANT_DB[key];
+  const m = document.createElement('div');
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:flex-end;';
+  m.innerHTML = `<div style="background:var(--paper);border-radius:20px 20px 0 0;width:100%;padding:24px 20px 40px;">
+    <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:700;margin-bottom:16px;">📽️ Timelapse ${plant.emoji} ${plant.name}</div>
+    <div style="font-size:0.82rem;font-weight:600;color:var(--text-mid);margin-bottom:8px;">Fréquence des photos</div>
+    <div id="tl-freq-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;">
+      <button onclick="setTlFreq('${key}',1)" style="padding:12px;border-radius:12px;border:2px solid ${s.notifFreq===1?'var(--green-mid)':'var(--green-pale)'};background:${s.notifFreq===1?'var(--green-mist)':'white'};color:var(--text-dark);font-family:var(--ff-body);font-size:0.85rem;cursor:pointer;font-weight:${s.notifFreq===1?700:400};">📅 Chaque jour</button>
+      <button onclick="setTlFreq('${key}',2)" style="padding:12px;border-radius:12px;border:2px solid ${s.notifFreq===2?'var(--green-mid)':'var(--green-pale)'};background:${s.notifFreq===2?'var(--green-mist)':'white'};color:var(--text-dark);font-family:var(--ff-body);font-size:0.85rem;cursor:pointer;font-weight:${s.notifFreq===2?700:400};">📅 Tous les 2 jours</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:white;border-radius:12px;cursor:pointer;margin-bottom:18px;">
+      <input type="checkbox" ${s.notifEnabled?'checked':''} onchange="setTlNotif('${key}',this.checked)" style="width:18px;height:18px;accent-color:var(--green-mid);">
+      <div>
+        <div style="font-size:0.88rem;font-weight:600;color:var(--text-dark);">🔔 Rappels dans l'app</div>
+        <div style="font-size:0.72rem;color:var(--text-light);">Bannière à l'ouverture quand une photo est due</div>
+      </div>
+    </label>
+    ${s.photos.length>0?`<button onclick="confirmDeleteTl('${key}')" style="width:100%;padding:11px;border-radius:12px;border:1px solid rgba(224,80,80,0.3);background:rgba(224,80,80,0.06);color:#d04040;font-family:var(--ff-body);font-size:0.85rem;cursor:pointer;margin-bottom:10px;">🗑️ Supprimer toutes les photos (${s.photos.length})</button>`:''}
+    <button onclick="toggleTlActive('${key}',false);document.querySelector('#tl-settings-sheet')?.remove()" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--green-pale);background:white;color:var(--text-mid);font-family:var(--ff-body);font-size:0.85rem;cursor:pointer;margin-bottom:10px;">⏸️ Désactiver le timelapse</button>
+    <button onclick="this.closest('[style*=position]').remove()" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">Fermer</button>
+  </div>`;
+  m.id = 'tl-settings-sheet';
+  document.body.appendChild(m);
+  m.addEventListener('click', e=>{ if(e.target===m) m.remove(); });
+}
+
+function setTlFreq(key, freq) {
+  getTlSeries(key).notifFreq = freq;
+  saveState();
+  // Refresh button styles
+  const btns = document.querySelectorAll('#tl-freq-btns button');
+  btns.forEach((b,i)=>{
+    const sel = (i===0&&freq===1)||(i===1&&freq===2);
+    b.style.borderColor = sel?'var(--green-mid)':'var(--green-pale)';
+    b.style.background = sel?'var(--green-mist)':'white';
+    b.style.fontWeight = sel?'700':'400';
+  });
+}
+
+function setTlNotif(key, enabled) {
+  getTlSeries(key).notifEnabled = enabled;
+  saveState();
+}
+
+function confirmDeleteTl(key) {
+  if(!confirm('Supprimer toutes les photos timelapse de '+PLANT_DB[key].name+' ? Action irréversible.')) return;
+  const s = getTlSeries(key);
+  s.photos.forEach(p=>deletePhotoFromDB(p.id));
+  s.photos = [];
+  saveState();
+  document.getElementById('tl-settings-sheet')?.remove();
+  renderPlantTlSection(key);
+}
+
+function openPlantTimelapse(key) {
+  const s = getTlSeries(key);
+  if(!s || s.photos.length < 10) return;
+  const entries = s.photos.slice(-30).map(p=>({ photo:p.id, ts:new Date(p.ts).getTime() }));
+  openTimelapseViewer(entries);
+}
+
+function renderTlReminders() {
+  const el = document.getElementById('tl-reminder-banner');
+  if(!el) return;
+  if(!state.timelapsePlants || !isPremium()){ el.innerHTML=''; return; }
+  const due = Object.entries(state.timelapsePlants)
+    .filter(([k,s])=>s.active && s.notifEnabled && tlPhotoDue(k) && PLANT_DB[k])
+    .slice(0,3);
+  if(!due.length){ el.innerHTML=''; return; }
+  el.innerHTML = due.map(([k,s])=>{
+    const p=PLANT_DB[k], count=s.photos.length;
+    return `<div class="tl-reminder-card" onclick="openPlantDetail('${k}')">
+      <span style="font-size:1.4rem;">${p.emoji}</span>
+      <div style="flex:1;">
+        <div style="font-size:0.85rem;font-weight:700;color:white;">📽️ Photo timelapse due</div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:1px;">${p.name} · ${count} photo${count>1?'s':''}</div>
+      </div>
+      <span style="color:rgba(255,255,255,0.45);font-size:0.9rem;">›</span>
+    </div>`;
+  }).join('');
+}
+
+function openTlPlantsSheet() {
+  if(!isPremium()){ openPremiumModal('timelapse'); return; }
+  const plants = state.selectedPlants.filter(k=>PLANT_DB[k]);
+  const m = document.createElement('div');
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:flex-end;';
+  m.innerHTML = `<div style="background:var(--paper);border-radius:20px 20px 0 0;width:100%;padding:24px 20px 40px;max-height:80vh;overflow-y:auto;">
+    <div style="font-family:var(--ff-display);font-size:1.1rem;font-weight:700;margin-bottom:4px;">📽️ Timelapse par plante</div>
+    <div style="font-size:0.78rem;color:var(--text-light);margin-bottom:18px;">Ouvrez la fiche d'une plante pour activer et prendre les photos</div>
+    ${plants.map(k=>{
+      const p=PLANT_DB[k], s=getTlSeries(k);
+      const count=s.photos.length, active=s.active, due=tlPhotoDue(k);
+      return `<div onclick="this.closest('[style*=position]').remove();openPlantDetail('${k}')" style="display:flex;align-items:center;gap:12px;padding:14px;background:white;border-radius:14px;margin-bottom:8px;cursor:pointer;">
+        <span style="font-size:1.5rem;">${p.emoji}</span>
+        <div style="flex:1;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-dark);">${p.name}</div>
+          <div style="font-size:0.72rem;color:var(--text-light);margin-top:2px;">${active?(count+' photo'+(count>1?'s':'')+' · '+(due?'📸 Photo due':'✅ À jour')):'Non activé'}</div>
+        </div>
+        ${active&&due?`<div style="font-size:0.68rem;font-weight:700;color:var(--green-mid);background:var(--green-mist);padding:3px 10px;border-radius:10px;">Photo due</div>`:''}
+        <span style="color:var(--text-light);">›</span>
+      </div>`;
+    }).join('')}
+    <button onclick="this.closest('[style*=position]').remove()" style="width:100%;padding:12px;border-radius:12px;border:none;background:var(--green-mist);color:var(--green-mid);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:4px;">Fermer</button>
+  </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e=>{ if(e.target===m) m.remove(); });
 }
 
 function shareGardenScore() {
@@ -7312,6 +7519,7 @@ function renderAccountInHeader() {
   if (!state.gardenZones) state.gardenZones = [];
   if (!state.lastMoistureDate) state.lastMoistureDate = null;
   if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };
+  if (!state.timelapsePlants) state.timelapsePlants = {};
 
   // ── CORRECTIF ANTI-CORRUPTION ─────────────────────────────────────────────
   // Uniquement : corriger les valeurs franchement hors bornes (NaN, négatif, >100)

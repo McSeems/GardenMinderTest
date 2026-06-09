@@ -6190,6 +6190,7 @@ function renderJournalWatering() {
 function renderJournalStats() {
   const el = document.getElementById('journal-stats-content');
   if(!el) return;
+  const pts = state.gardenPoints || 0;
   const history = state.wateringHistory || [];
   const totalL = history.reduce((s,e) => s+e.liters, 0);
   const totalCost = (totalL/1000)*state.price;

@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.13.1';
-const APP_BUILD='14 juin 2026 à 00:53 (Paris)';
+const APP_VERSION='1.14.0';
+const APP_BUILD='14 juin 2026 à 01:30 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1904,6 +1904,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="settings-row" onclick="openEditModal('soil')"><div class="settings-row-icon">🪨</div><div class="settings-row-text"><div class="settings-row-label">Type de sol</div><div class="settings-row-val" id="set-soil">—</div></div><div class="settings-row-arrow">›</div></div>
       <div class="settings-row" onclick="openEditModal('expose')"><div class="settings-row-icon">☀️</div><div class="settings-row-text"><div class="settings-row-label">Exposition</div><div class="settings-row-val" id="set-expose">—</div></div><div class="settings-row-arrow">›</div></div>
       <div class="settings-row" onclick="relaunchWizard()"><div class="settings-row-icon">🔄</div><div class="settings-row-text"><div class="settings-row-label">Reconfigurer le jardin</div><div class="settings-row-val">Relancer l'assistant de démarrage</div></div><div class="settings-row-arrow">›</div></div>
+      <div class="settings-row" onclick="openOnboardingTour()"><div class="settings-row-icon">💡</div><div class="settings-row-text"><div class="settings-row-label">Revoir la présentation</div><div class="settings-row-val">Découvrir l'app, les onglets et les fonctionnalités</div></div><div class="settings-row-arrow">›</div></div>
     </div>
 
     <!-- Arrosage -->
@@ -3119,6 +3120,7 @@ function finalizeSetup(){
   initApp();
   goTo('app');
   fetchWeather().then(() => { updateHeroScore(); renderForecast(); renderHomePrecipChart(); }).catch(()=>{});
+  setTimeout(() => openOnboardingTour(), 700);
 }
 
 // Source unique pour la pluie d'aujourd'hui (prévision daily, pas current)
@@ -4752,6 +4754,132 @@ function purchasePremium(){
   renderPlantStrip();
 }
 
+// ── DIDACTICIEL D'ONBOARDING ─────────────────────────────────────────────────
+const ONBOARDING_SLIDES = [
+  { emoji:'🌡️', title:'Votre jardin en un coup d\'œil',
+    body:'L\'arc circulaire de l\'accueil affiche le score d\'hydratation du sol (0-100%), calculé à partir de la météo réelle, des pluies mesurées et de vos arrosages. La plante illustrée change d\'aspect selon son état : bien hydratée, à surveiller, sèche ou en urgence.' },
+  { emoji:'🧭', title:'Quatre onglets pour votre jardin',
+    body:'<strong>🏠 Accueil</strong> — score, prévisions météo et alertes du jour.<br><strong>📖 Journal</strong> — vos notes, photos, et l\'historique pluie / humidité / arrosages avec un bilan saisonnier.<br><strong>🏆 Mémoire</strong> — badges, score de jardinier, timelapse et avant/après photo.<br><strong>⚙️ Réglages</strong> — vos plantes, le sol, la calibration et les alertes.' },
+  { emoji:'🌱', title:'Ajoutez et gérez vos plantes',
+    body:'Dans <strong>Réglages → Mes plantes</strong>, ajoutez une espèce et précisez si elle est en <strong>pleine terre</strong> ou en <strong>pot</strong> (avec sa taille). Cela ajuste automatiquement la vitesse de séchage du sol et la fréquence d\'arrosage recommandée pour cette plante.' },
+  { emoji:'🪨', title:'Calibrez votre sol',
+    body:'Dans <strong>Réglages → Calibration sol</strong>, répondez à un petit test terrain (motte de terre, drainage...) ou entrez la valeur d\'un hygromètre physique si vous en avez un. Le modèle d\'humidité s\'ajuste alors à la réalité de votre jardin.' },
+  { emoji:'📽️', title:'Timelapse & souvenirs',
+    body:'Dans l\'onglet <strong>Mémoire</strong>, activez le timelapse d\'une plante (Premium) : prenez une photo régulière et obtenez une vidéo 9:16 de sa croissance, prête à partager. Vous pouvez aussi créer un <strong>Avant/Après</strong> à partir de vos photos de journal, gratuitement.' },
+  { emoji:'✨', title:'30 jours de Premium offerts',
+    body:'Votre essai Premium démarre maintenant : plantes illimitées, alertes intelligentes, historique 12 mois, timelapse, thèmes et titres exclusifs. Aucune carte bancaire requise — vous pouvez revoir cette présentation à tout moment depuis Réglages.' }
+];
+let _onbSlide = 0;
+function openOnboardingTour(){
+  _onbSlide = 0;
+  document.getElementById('onboarding-tour-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'onboarding-tour-modal';
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '500';
+  modal.innerHTML = `<div class="modal-sheet" style="text-align:center;padding-bottom:28px;">
+    <div class="modal-handle"></div>
+    <div id="onb-content"></div>
+    <div id="onb-dots" style="display:flex;justify-content:center;gap:6px;margin:18px 0;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button id="onb-next-btn" class="btn-next" onclick="onbNext()"></button>
+      <button onclick="closeOnboardingTour()" style="background:transparent;border:none;color:var(--text-light);font-family:var(--ff-body);font-size:0.85rem;padding:8px;cursor:pointer;">Passer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  renderOnbSlide();
+}
+function renderOnbSlide(){
+  const s = ONBOARDING_SLIDES[_onbSlide];
+  const content = document.getElementById('onb-content');
+  if(content) content.innerHTML = `<div style="font-size:3rem;margin-bottom:12px;">${s.emoji}</div>
+    <div style="font-family:var(--ff-display);font-size:1.25rem;font-weight:600;color:var(--text-dark);margin-bottom:10px;">${s.title}</div>
+    <div style="font-size:0.9rem;color:var(--text-mid);line-height:1.6;text-align:left;">${s.body}</div>`;
+  const dots = document.getElementById('onb-dots');
+  if(dots) dots.innerHTML = ONBOARDING_SLIDES.map((_,i)=>`<div style="width:${i===_onbSlide?'20px':'8px'};height:8px;border-radius:4px;background:${i===_onbSlide?'var(--green-mid)':'var(--green-pale)'};transition:all 0.2s;"></div>`).join('');
+  const btn = document.getElementById('onb-next-btn');
+  if(btn) btn.textContent = _onbSlide===ONBOARDING_SLIDES.length-1 ? '🌱 Découvrir mon jardin' : 'Suivant →';
+}
+function onbNext(){
+  if(_onbSlide < ONBOARDING_SLIDES.length-1){ _onbSlide++; renderOnbSlide(); }
+  else closeOnboardingTour();
+}
+function closeOnboardingTour(){
+  document.getElementById('onboarding-tour-modal')?.remove();
+}
+
+// ── INFOS PREMIUM ACTIF ───────────────────────────────────────────────────────
+function openPremiumInfoModal(){
+  document.getElementById('premium-info-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'premium-info-modal';
+  modal.className = 'modal-overlay open';
+  modal.style.zIndex = '500';
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
+  modal.innerHTML = `<div class="modal-sheet" style="position:relative;padding-bottom:32px;">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="document.getElementById('premium-info-modal').remove()">×</button>
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-size:2.5rem;margin-bottom:6px;">✨</div>
+      <div style="font-family:var(--ff-display);font-size:1.3rem;font-weight:600;color:var(--text-dark);">Vos avantages Premium</div>
+      <div style="font-size:0.85rem;color:var(--text-mid);margin-top:4px;">Merci pour votre soutien — voici tout ce qui est débloqué.</div>
+    </div>
+    <div class="premium-feature-list" style="margin-top:14px;">
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🌱</div>
+        <div class="premium-feature-text">
+          <div class="title">Plantes illimitées</div>
+          <div class="sub">Ajoutez toutes les espèces dont vous avez besoin, sans limite de 3 plantes.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🔔</div>
+        <div class="premium-feature-text">
+          <div class="title">Alertes intelligentes</div>
+          <div class="sub">Pluie, canicule, gel et vent — des alertes qui croisent météo et état réel du sol.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">📊</div>
+        <div class="premium-feature-text">
+          <div class="title">Historique 12 mois</div>
+          <div class="sub">Graphiques pluie / humidité / arrosages sur toute l'année dans l'onglet Journal.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">📽️</div>
+        <div class="premium-feature-text">
+          <div class="title">Timelapse par plante</div>
+          <div class="sub">Photos régulières → vidéo 9:16 de croissance, à partager sur Instagram/Facebook.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🌍</div>
+        <div class="premium-feature-text">
+          <div class="title">Multi-zones de jardin</div>
+          <div class="sub">Organisez vos plantes par zone (potager, balcon, serre...) et suivez chacune séparément.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🎨</div>
+        <div class="premium-feature-text">
+          <div class="title">Thèmes visuels exclusifs</div>
+          <div class="sub">Forêt, Terre, Rosée, Nuit — 4 palettes à débloquer en progressant.</div>
+        </div>
+      </div>
+      <div class="premium-feature-item">
+        <div class="premium-feature-icon">🏅</div>
+        <div class="premium-feature-text">
+          <div class="title">Titres de jardinage exclusifs</div>
+          <div class="sub">De "Apprenti Botaniste" à "Grand Maître Botaniste", visibles dans Mémoire.</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-next" style="width:100%;margin-top:16px;" onclick="document.getElementById('premium-info-modal').remove()">Fermer</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
 // ── CODE BÊTA ─────────────────────────────────────────────────────────────────
 function openBetaCodeModal() {
   const existing = document.getElementById('modal-beta-code');
@@ -4912,7 +5040,9 @@ function finalizePlantAdd(withDetails) {
   const containerType = window._pendingContainerType;
   if(!key) return;
   if(!state.plantContainers) state.plantContainers = {};
-  state.plantContainers[key] = containerType;
+  // containerType vient de l'étape 1 ('pot' ou 'terre') — convertir en type CONTAINER_TYPES valide
+  // pour que la sélection de taille de pot fonctionne ensuite (openContainerSheet attend {type:...})
+  state.plantContainers[key] = { type: containerType==='pot' ? 'medium_pot' : 'ground' };
   if(!state.selectedPlants.includes(key)) state.selectedPlants.push(key);
   if(!state.plantMoisture[key]) state.plantMoisture[key] = 60;
   // Sauvegarder les détails optionnels
@@ -5373,7 +5503,7 @@ function renderSettingsTab(){
   // Premium block
   const block=document.getElementById('settings-premium-block');
   if(state.premium.purchased){
-    block.innerHTML=`<div class="premium-active-card"><div class="premium-active-icon">✨</div><div class="premium-active-text"><div class="title">Premium actif — Merci !</div><div class="sub">Achat unique · Accès à vie à toutes les fonctionnalités</div></div></div>`;
+    block.innerHTML=`<div class="premium-active-card" onclick="openPremiumInfoModal()" style="cursor:pointer;"><div class="premium-active-icon">✨</div><div class="premium-active-text"><div class="title">Premium actif — Merci !</div><div class="sub">Achat unique · Accès à vie à toutes les fonctionnalités · Voir mes avantages ›</div></div></div>`;
     document.getElementById('plants-badge').className='premium-badge';
     document.getElementById('plants-badge').textContent='Premium illimité';
   } else {
@@ -7624,6 +7754,15 @@ function renderAccountInHeader() {
   if (!state.lastWatered) state.lastWatered = {};
   if (!state.dailyPoints) state.dailyPoints = {};
   if (!state.plantContainers) state.plantContainers = {};
+  // Migration : anciennes valeurs stockées comme string ('pot'/'terre') au lieu de {type:...}
+  // (bug fixé dans finalizePlantAdd) — convertir pour que la formule d'arrosage et la
+  // sélection de taille de pot fonctionnent.
+  Object.keys(state.plantContainers).forEach(k=>{
+    const c = state.plantContainers[k];
+    if(typeof c === 'string'){
+      state.plantContainers[k] = { type: c==='pot' ? 'medium_pot' : 'ground' };
+    }
+  });
   if (!state.gardenZones) state.gardenZones = [];
   if (!state.lastMoistureDate) state.lastMoistureDate = null;
   if (!state.smartAlerts) state.smartAlerts = { rain: true, heat: true, frost: true, wind: false };

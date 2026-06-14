@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.14.0';
-const APP_BUILD='14 juin 2026 à 01:30 (Paris)';
+const APP_VERSION='1.14.1';
+const APP_BUILD='14 juin 2026 à 22:59 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3585,8 +3585,9 @@ function updateHeroScore(){
   }
 
   const lvl=getMoistureLevel(pct);
+  const arcColor=pct>=70?'#4aad6a':pct>=50?'#f0c040':'#e05252';
   const arcEl=document.getElementById('gauge-arc');
-  if(arcEl){const total=386.4;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());}
+  if(arcEl){const total=386.4;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());arcEl.setAttribute('stroke',arcColor);}
   const cursor=document.getElementById('gauge-cursor');
   if(cursor){const angle=135+(pct/100*270);const rad=angle*Math.PI/180;const cx=100,cy=100,r=82;const x=cx+r*Math.cos(rad);const y=cy+r*Math.sin(rad);cursor.setAttribute('transform','translate('+x+','+y+')');}
   const plantEl=document.getElementById('hero-plant');
@@ -3599,7 +3600,7 @@ function updateHeroScore(){
   if(scoreEl)scoreEl.innerHTML=pct+'<span style="font-size:1.3rem;color:rgba(255,255,255,0.6);">%</span>';
   const statusEl=document.getElementById('hero-status-label');
   if(statusEl){
-    const dotColor=pct>=70?'#4aad6a':pct>=50?'#f0c040':'#e05252';
+    const dotColor=arcColor;
     const label=pct>=70?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
     statusEl.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor+';display:inline-block;"></span>'+label;
   }

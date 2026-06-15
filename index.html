@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.15.0';
-const APP_BUILD='15 juin 2026 à 08:12 (Paris)';
+const APP_VERSION='1.15.1';
+const APP_BUILD='15 juin 2026 à 14:34 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1236,6 +1236,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
             <div id="hero-score" style="font-family:'Fraunces',serif;font-size:3.6rem;font-weight:300;color:white;line-height:1;">72<span style="font-size:1.5rem;color:rgba(255,255,255,0.6);">%</span></div>
             <div id="hero-status-label" style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;color:white;font-weight:600;margin-top:10px;background:rgba(255,255,255,0.12);border-radius:20px;padding:6px 14px;">Bien hydraté</div>
             <div id="hero-avg-label" style="font-size:0.72rem;color:rgba(255,255,255,0.4);margin-top:8px;display:none;">Moyenne jardin : —</div>
+            <div id="hero-worst-link" style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:8px;display:none;cursor:pointer;font-weight:600;" onclick="if(_worstPlantKey)openPlantDetail(_worstPlantKey)"></div>
           </div>
           <div style="width:160px;height:160px;flex-shrink:0;position:relative;">
             <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
@@ -3615,6 +3616,16 @@ function updateHeroScore(){
     }
   }
   if(worstPlant) _worstPlantKey = worstPlant;
+  const worstLink=document.getElementById('hero-worst-link');
+  if(worstLink){
+    if(worstPlant && scores.length > 1){
+      const wp=PLANT_DB[worstPlant];
+      worstLink.innerHTML=wp.emoji+' '+wp.name+' →';
+      worstLink.style.display='block';
+    } else {
+      worstLink.style.display='none';
+    }
+  }
   const arrow=document.getElementById('hero-alert-arrow');
   if(arrow) arrow.style.display=worstPlant?'':'none';
   const alertText=document.getElementById('hero-alert-text');

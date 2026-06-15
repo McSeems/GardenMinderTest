@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.14.1';
-const APP_BUILD='14 juin 2026 à 22:59 (Paris)';
+const APP_VERSION='1.15.0';
+const APP_BUILD='15 juin 2026 à 08:12 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3149,7 +3149,7 @@ function daysUntilWatering(key){
     }
     score = score - baseET*heatFactor(tempMax) + forecastRain*rainEff;
     score = Math.min(100, Math.max(0, score));
-    if(score < 70){
+    if(score < 80){
       if(i===0){
         // Plante non-critique + pluie efficace demain → reporter l'arrosage
         if(score >= 40 && state.forecast && state.forecast.time){
@@ -3422,8 +3422,8 @@ function getTempMaxForDate(dateStr){
 // Plafonné à 1.5 (équivaut à 35°C) — au-delà le sol forme une croûte qui ralentit
 // l'évaporation en profondeur, donc le facteur ne monte pas linéairement indéfiniment
 function heatFactor(tempMax){
-  if(tempMax <= 25) return 1.0;
-  return Math.min(1.5, 1.0 + (tempMax - 25) * 0.05); // cap à 1.5
+  if(tempMax <= 23) return 1.0;
+  return Math.min(1.7, 1.0 + (tempMax - 23) * 0.07); // cap à 1.7
 }
 
 // Retourne UNIQUEMENT la pluie MESURÉE (precipLocalHistory)
@@ -3565,7 +3565,7 @@ function refreshAllMoisture(forceToday){
 function getMoistureLevel(pct){
   if(pct<30)return{label:'Urgence',   cls:'red',    action:'danger', badge:'🔴 Urgence survie'};
   if(pct<50)return{label:'Arroser',   cls:'red',    action:'danger', badge:'🔴 Arroser maintenant'};
-  if(pct<70)return{label:'Surveiller',cls:'yellow', action:'warn',   badge:'🟡 À surveiller'};
+  if(pct<80)return{label:'Surveiller',cls:'yellow', action:'warn',   badge:'🟡 À surveiller'};
   return          {label:'OK',        cls:'green',  action:'ok',     badge:'🟢 Bien hydraté'};
 }
 function updateHeroScore(){
@@ -3585,14 +3585,14 @@ function updateHeroScore(){
   }
 
   const lvl=getMoistureLevel(pct);
-  const arcColor=pct>=70?'#4aad6a':pct>=50?'#f0c040':'#e05252';
+  const arcColor=pct>=80?'#4aad6a':pct>=50?'#f0c040':'#e05252';
   const arcEl=document.getElementById('gauge-arc');
   if(arcEl){const total=386.4;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());arcEl.setAttribute('stroke',arcColor);}
   const cursor=document.getElementById('gauge-cursor');
   if(cursor){const angle=135+(pct/100*270);const rad=angle*Math.PI/180;const cx=100,cy=100,r=82;const x=cx+r*Math.cos(rad);const y=cy+r*Math.sin(rad);cursor.setAttribute('transform','translate('+x+','+y+')');}
   const plantEl=document.getElementById('hero-plant');
   if(plantEl){
-    const heroImgKey = pct>=70?'ok':pct>=50?'warn':pct>=20?'low':'critical';
+    const heroImgKey = pct>=80?'ok':pct>=50?'warn':pct>=20?'low':'critical';
     const heroImg = plantEl.querySelector('image');
     if(heroImg) heroImg.setAttribute('href', HERO_PLANT_IMG[heroImgKey]);
   }
@@ -3601,7 +3601,7 @@ function updateHeroScore(){
   const statusEl=document.getElementById('hero-status-label');
   if(statusEl){
     const dotColor=arcColor;
-    const label=pct>=70?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
+    const label=pct>=80?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
     statusEl.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor+';display:inline-block;"></span>'+label;
   }
   // Afficher la moyenne seulement si >1 plante et si elle diffère du min
@@ -3633,7 +3633,7 @@ function updateHeroScore(){
     } else if(pct<50){
       if(alertIcon)alertIcon.textContent='⚠️';
       alertText.textContent=p.emoji+' '+p.name+' — arrosage requis aujourd\'hui.';
-    } else if(pct<70){
+    } else if(pct<80){
       if(alertIcon)alertIcon.textContent='👁️';
       alertText.textContent=p.emoji+' '+p.name+' commence à manquer d\'eau. Arrosage prévu '+nextWater+'.';
     } else {
@@ -3998,7 +3998,7 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
     for(let d=1; d<=DAYS; d++){
       const dateStr = addDays(localDateStr(),d);
       const tempMax = getTempMaxForDate(dateStr);
-      const heat = heatFactor(tempMax); // déjà capé à 1.5
+      const heat = heatFactor(tempMax); // déjà capé à 1.7
       const rain = getRainForDate(dateStr); // forecast ok pour les jours futurs
       score = score - Math.min(6.0, baseET)*heat + rain*rainEff;
       score = Math.min(100, Math.max(2, score));
@@ -4016,7 +4016,7 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   }
 
   // Trouver le jour d'alerte jaune et rouge pour la moyenne
-  const alertYellow = avgSeries.findIndex(v=>v<70);
+  const alertYellow = avgSeries.findIndex(v=>v<80);
   const alertRed    = avgSeries.findIndex(v=>v<50);
 
   // Labels
@@ -4183,7 +4183,7 @@ function openPlantDetail(key, fromScreen){
       (plan ? 'Plan en cours : encore '+sessionsLeft+' session'+(sessionsLeft>1?'s':'')+'.' :
        'Arrosage intensif : 3 sessions recommandées sur 3 jours consécutifs (+20%/session).')+
       ' La récupération complète prend 3-5 jours (littérature agronomique FAO).';
-  } else if(pct<70){
+  } else if(pct<80){
     document.getElementById('detail-action-title').textContent='👁️ À surveiller — arrosage bientôt';
     document.getElementById('detail-action-body').textContent=plant.name+' commencent à manquer d\'eau ('+pct+'%). Prochain arrosage recommandé '+nextWaterTxt+'.';
   } else {
@@ -4218,7 +4218,7 @@ function openPlantDetail(key, fromScreen){
   // Si on n'a que la valeur d'aujourd'hui, afficher quand même les trous en grisé
   function humColor7(v){
     if(v===null) return 'rgba(0,0,0,0.07)';
-    if(v<30) return '#d94f3d'; if(v<50) return '#e07830'; if(v<70) return '#c9a020'; return '#4a9c5e';
+    if(v<30) return '#d94f3d'; if(v<50) return '#e07830'; if(v<80) return '#c9a020'; return '#4a9c5e';
   }
   // Rendu manuel des barres (échelle fixe 0–100)
   const chartW = chart.parentElement ? chart.parentElement.offsetWidth : 280;
@@ -4646,11 +4646,11 @@ function openFormulaStressTest(){
 
   const rows = SCENARIOS.map(s=>{
     const r = sim(s.wn,s.soil,s.exp,s.dr,s.days,s.rain,s.temp,s.waterings||[],s.start);
-    const color = r.final>=70?'#2d8a4e':r.final>=50?'#c07010':r.final>=30?'#c04010':'#900000';
+    const color = r.final>=80?'#2d8a4e':r.final>=50?'#c07010':r.final>=30?'#c04010':'#900000';
     const bug = r.final>100?'⚠️ >100!':r.final<2?'⚠️ <2':r.final===100?'🔒 100%':'';
     const bar = r.traj.map(v=>{
       const h=Math.round(v/100*28);
-      const c=v>=70?'#4aad6a':v>=50?'#e09020':v>=30?'#e05030':'#c02020';
+      const c=v>=80?'#4aad6a':v>=50?'#e09020':v>=30?'#e05030':'#c02020';
       return '<div style="display:inline-block;width:4px;height:'+h+'px;background:'+c+';border-radius:1px;vertical-align:bottom;margin-right:1px;"></div>';
     }).join('');
     return `<tr>
@@ -4686,7 +4686,7 @@ function openFormulaStressTest(){
         <div style="font-size:0.72rem;color:var(--text-light);line-height:1.6;background:#f8f8f8;border-radius:10px;padding:10px 12px;">
           <strong>Config actuelle :</strong> ${state.soil||'?'} · ${state.expose||'?'} ·
           calibration appliquée une fois : ×${(state.calibration.soilMultiplier||1).toFixed(2)} +${state.calibration.offset||0}pts<br>
-          <strong>Protections actives :</strong> baseET ≤6%/j · heatFactor ≤1.5 · cap 14j · pluie=mesures uniquement · calibration appliquée une seule fois (non rejouée jour après jour)
+          <strong>Protections actives :</strong> baseET ≤6%/j · heatFactor ≤1.7 · cap 14j · pluie=mesures uniquement · calibration appliquée une seule fois (non rejouée jour après jour)
         </div>
       </div>
       <button onclick="this.closest('div').parentElement.remove()" style="margin:14px 20px 0;width:calc(100% - 40px);padding:13px;background:var(--green-mid);color:white;border:none;border-radius:14px;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">Fermer</button>
@@ -5353,7 +5353,7 @@ function buildLabels(period, n) {
   return Array.from({length:12},(_,i)=>{const m=new Date(now);m.setMonth(m.getMonth()-(11-i));return MONTHS[m.getMonth()];});
 }
 
-const HYGRO_COLOR=(v,last)=>v>=70?(last?'var(--ok)':'rgba(58,173,92,0.45)'):v>=40?(last?'#d09030':'rgba(208,144,48,0.55)'):(last?'var(--danger)':'rgba(224,82,82,0.5)');
+const HYGRO_COLOR=(v,last)=>v>=80?(last?'var(--ok)':'rgba(58,173,92,0.45)'):v>=40?(last?'#d09030':'rgba(208,144,48,0.55)'):(last?'var(--danger)':'rgba(224,82,82,0.5)');
 function renderBarChart(containerId, data, colorActive, colorNormal, unit, colorFn) {
   const el = document.getElementById(containerId);
   if(!el) return;
@@ -7467,7 +7467,7 @@ function openSeasonRecap(seasonKey){
   let congrats='';
   if(ws.length>0||je.length>0){
     if(avgHygro!==null){
-      if(avgHygro>=70) congrats=`🌟 Excellent travail ! Votre jardin a maintenu une humidité moyenne de ${avgHygro}% cette saison — vos plantes ont été choyées.`;
+      if(avgHygro>=80) congrats=`🌟 Excellent travail ! Votre jardin a maintenu une humidité moyenne de ${avgHygro}% cette saison — vos plantes ont été choyées.`;
       else if(avgHygro>=50) congrats=`👍 Bonne saison ! Humidité moyenne à ${avgHygro}% — quelques plantes ont eu soif, mais l'ensemble s'en sort bien.`;
       else congrats=`💪 Saison difficile (${avgHygro}% moy.) — vos plantes ont souffert du manque d'eau. La prochaine saison sera l'occasion de mieux les hydrater !`;
     } else {
@@ -7494,8 +7494,8 @@ function openSeasonRecap(seasonKey){
       </div>
       ${avgHygro!==null?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;">
         <div style="font-size:0.75rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💧 Hygrométrie de la saison</div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--green-mist);"><span style="font-size:0.88rem;color:var(--text-dark);">Moyenne</span><span style="font-weight:700;color:${avgHygro>=70?'var(--ok)':avgHygro>=40?'#d09030':'var(--danger)'};">${avgHygro}%</span></div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;"><span style="font-size:0.88rem;color:var(--text-dark);">Pire moment</span><span style="font-weight:700;color:${worstHygro>=70?'var(--ok)':worstHygro>=40?'#d09030':'var(--danger)'};">${worstHygro}%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--green-mist);"><span style="font-size:0.88rem;color:var(--text-dark);">Moyenne</span><span style="font-weight:700;color:${avgHygro>=80?'var(--ok)':avgHygro>=40?'#d09030':'var(--danger)'};">${avgHygro}%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;"><span style="font-size:0.88rem;color:var(--text-dark);">Pire moment</span><span style="font-weight:700;color:${worstHygro>=80?'var(--ok)':worstHygro>=40?'#d09030':'var(--danger)'};">${worstHygro}%</span></div>
       </div>`:''}
       ${precip>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">🌧️ Pluie reçue</span><span style="font-weight:700;color:var(--water);">${Math.round(precip)} mm</span></div>`:''}
       ${cost>0?`<div style="background:white;border-radius:12px;padding:13px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:0.88rem;color:var(--text-dark);">💶 Coût eau</span><span style="font-weight:700;">${cost.toFixed(2)} €</span></div>`:''}

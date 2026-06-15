@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.15.3';
-const APP_BUILD='15 juin 2026 à 23:43 (Paris)';
+const APP_VERSION='1.15.4';
+const APP_BUILD='15 juin 2026 à 23:50 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1241,10 +1241,12 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
           <div style="width:160px;height:160px;flex-shrink:0;position:relative;">
             <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
               <defs>
-                <linearGradient id="arcGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#e05252"/>
+                <linearGradient id="arcGrad" gradientUnits="userSpaceOnUse" x1="42.02" y1="157.98" x2="157.98" y2="157.98">
+                  <stop offset="0%" stop-color="#e0524f"/>
+                  <stop offset="25%" stop-color="#f0935a"/>
                   <stop offset="50%" stop-color="#f0c040"/>
-                  <stop offset="100%" stop-color="#4aad6a"/>
+                  <stop offset="75%" stop-color="#9ed46a"/>
+                  <stop offset="100%" stop-color="#3a8a55"/>
                 </linearGradient>
               </defs>
               <path d="M 42.02 157.98 A 82 82 0 1 1 157.98 157.98" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" stroke-linecap="round"/>
@@ -3597,7 +3599,7 @@ function updateHeroScore(){
   const lvl=getMoistureLevel(pct);
   const arcColor=pctToArcColor(pct);
   const arcEl=document.getElementById('gauge-arc');
-  if(arcEl){const total=386.4;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());arcEl.setAttribute('stroke',arcColor);}
+  if(arcEl){const total=386.4;arcEl.setAttribute('stroke-dashoffset',(total-total*pct/100).toString());}
   const cursor=document.getElementById('gauge-cursor');
   if(cursor){const angle=135+(pct/100*270);const rad=angle*Math.PI/180;const cx=100,cy=100,r=82;const x=cx+r*Math.cos(rad);const y=cy+r*Math.sin(rad);cursor.setAttribute('transform','translate('+x+','+y+')');}
   const plantEl=document.getElementById('hero-plant');

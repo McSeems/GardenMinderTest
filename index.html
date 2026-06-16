@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.16.2';
-const APP_BUILD='16 juin 2026 à 00:08 (Paris)';
+const APP_VERSION='1.16.3';
+const APP_BUILD='16 juin 2026 à 07:29 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3212,7 +3212,7 @@ async function fetchWeather(){
       else{state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
     }
     const url='https://api.open-meteo.com/v1/forecast?latitude='+state.lat+'&longitude='+state.lon
-      +'&current=temperature_2m,windspeed_10m,precipitation&daily=precipitation_sum,temperature_2m_max,weathercode'
+      +'&current=temperature_2m,windspeed_10m,precipitation&daily=precipitation_sum,temperature_2m_max,weather_code'
       +'&forecast_days=7&past_days=92&timezone=auto';
     const d=await fetch(url).then(r=>r.json());
     state.weather=d.current;
@@ -3224,7 +3224,7 @@ async function fetchWeather(){
   } catch(e) {
     if(!state.lat){state.lat=48.8566;state.lon=2.3522;state.city=state.city||'Paris';}
     state.weather={temperature_2m:22,windspeed_10m:15,precipitation:0};
-    state.forecast={time:[],precipitation_sum:[0,2,0,0,5,1,0],temperature_2m_max:[24,22,25,27,20,21,23],weathercode:[1,61,1,1,80,2,1]};
+    state.forecast={time:[],precipitation_sum:[0,2,0,0,5,1,0],temperature_2m_max:[24,22,25,27,20,21,23],weather_code:[1,61,1,1,80,2,1]};
     state.precipHistory=[3,0,8,2,0,1,0];
   }
 }
@@ -4136,7 +4136,7 @@ function renderForecast(){
     const i=startIdx+j;
     const d=new Date(state.forecast.time[i]+'T12:00:00');
     const rain=(state.forecast.precipitation_sum[i]||0);
-    const code=state.forecast.weathercode[i]||0;
+    const code=state.forecast.weather_code[i]||0;
     const card=document.createElement('div');
     card.className='forecast-card';
     card.innerHTML='<div class="forecast-day">'+(j===0?'Auj.':days[d.getDay()])+'</div>'

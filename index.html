@@ -3331,8 +3331,9 @@ function updateHeroWeatherAlerts(){
   const precips=state.forecast.precipitation_sum||[];
   const alerts=[];
   let maxNext3=0, joursChauds28=0, joursChauds32=0;
-  for(let i=0;i<Math.min(dates.length,7);i++){
-    if(dates[i]>=today && i<(dates.indexOf(today)+4)){
+  const day3=addDays(today,3);
+  for(let i=0;i<dates.length;i++){
+    if(dates[i]>=today && dates[i]<day3){
       maxNext3=Math.max(maxNext3,temps[i]||0);
       if((temps[i]||0)>=28) joursChauds28++;
       if((temps[i]||0)>=32) joursChauds32++;

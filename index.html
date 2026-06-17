@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.18.0';
-const APP_BUILD='18 juin 2026 à 01:06 (Paris)';
+const APP_VERSION='1.18.1';
+const APP_BUILD='18 juin 2026 à 01:20 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1659,13 +1659,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     </div>
   </div>
   <div style="margin-bottom:14px;">
-    <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Partager cette entrée</div>
-    <div style="display:flex;gap:8px;">
-      <button type="button" class="share-social-btn share-btn-insta" onclick="shareEntryOnSave('instagram')" id="share-entry-insta" style="flex:1;opacity:0.5;pointer-events:none;">📸 Instagram</button>
-      <button type="button" class="share-social-btn share-btn-facebook" onclick="shareEntryOnSave('facebook')" id="share-entry-fb" style="flex:1;opacity:0.5;pointer-events:none;">👍 Facebook</button>
-      <button type="button" class="share-social-btn share-btn-copy" onclick="shareEntryOnSave('copy')" id="share-entry-copy" style="flex:1;opacity:0.5;pointer-events:none;">📋 Copier</button>
-    </div>
-    <div style="font-size:0.72rem;color:var(--text-light);margin-top:6px;" class="share-hint-msg">Disponible après enregistrement</div>
+    <button type="button" class="share-social-btn" onclick="shareEntryOnSave('native')" id="share-entry-btn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;border:1px solid var(--green-pale);background:var(--green-mist);color:var(--green-deep);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">📤 Partager (Instagram, Facebook…)</button>
+    <div style="font-size:0.72rem;color:var(--text-light);margin-top:6px;" class="share-hint-msg">Le partage enregistre automatiquement l'entrée</div>
   </div>
   <button class="btn-submit-entry" onclick="submitJournalEntry()">Enregistrer dans le journal ✓</button>
 </div>
@@ -6077,11 +6072,12 @@ function shareEntryOnSave(platform) {
     submitJournalEntry();
     return;
   }
+  _editingEntryId = _lastSavedEntryId;
   const entry = (state.journalEntries||[]).find(e => e.id === _lastSavedEntryId);
   if(!entry) return;
   const t = ENTRY_TYPES[entry.type] || ENTRY_TYPES.note;
   const text = `${t.icon} ${entry.plant} — ${entry.text}\n🌱 Mon jardin · GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
-  _shareVia(platform, encodeURIComponent(text));
+  _shareEntry(entry, text);
   entry.sharedSocial = true;
   saveState(); checkBadges(); renderJournalTab();
 }
@@ -6176,13 +6172,8 @@ function openEntrySheet(editId) {
   if(inp) inp.value = '';
   const cam = document.getElementById('entry-camera-input');
   if(cam) cam.value = '';
-  // Boutons de partage actifs immédiatement
-  ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
-    const btn = document.getElementById(id);
-    if(btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
-  });
-  const hint = document.querySelector('.share-hint-msg');
-  if(hint) hint.textContent = 'Le partage enregistre automatiquement l\'entrée';
+  const shareBtn = document.getElementById('share-entry-btn');
+  if(shareBtn) { shareBtn.style.opacity='1'; shareBtn.style.pointerEvents='auto'; }
   // Type
   const editType = entry ? entry.type : 'action';
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
@@ -6566,7 +6557,7 @@ function shareJournalEntry(entryId) {
   if(!entry) return;
   const t = ENTRY_TYPES[entry.type] || ENTRY_TYPES.note;
   const text = `${t.icon} ${entry.plant} — ${entry.text}\n🌱 Mon jardin · GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
-  _showShareSheet(text, () => {
+  _shareEntry(entry, text).then(() => {
     entry.sharedSocial = true;
     saveState();
     checkBadges();
@@ -7384,9 +7375,8 @@ function openProgressionTree(){
 }
 
 function _showShareSheet(text, onShared) {
-  // Essayer l'API Web Share native (mobile)
   if(navigator.share) {
-    navigator.share({ text }).then(() => { if(onShared) onShared(); }).catch(() => {});
+    navigator.share({ text }).then(() => { if(onShared) onShared(); }).catch(e => { if(e.name!=='AbortError' && onShared) onShared(); });
     return;
   }
   // Fallback : bottom sheet avec options
@@ -7416,16 +7406,31 @@ function _showShareSheet(text, onShared) {
   document.body.appendChild(modal);
 }
 
+async function _shareEntry(entry, text) {
+  const files = [];
+  if(entry && entry.photo){
+    const dataUrl = getPhotoSync(entry.photo);
+    if(dataUrl){
+      try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const ext = blob.type.includes('png') ? 'png' : 'jpg';
+        files.push(new File([blob], 'gardenminder.'+ext, {type: blob.type}));
+      } catch(e){}
+    }
+  }
+  if(navigator.canShare && files.length && navigator.canShare({files})){
+    try { await navigator.share({text, files}); showToast('✅ Partagé !'); return; } catch(e){ if(e.name==='AbortError') return; }
+  }
+  if(navigator.share){
+    try { await navigator.share({text}); showToast('✅ Partagé !'); return; } catch(e){ if(e.name==='AbortError') return; }
+  }
+  navigator.clipboard.writeText(text).then(()=>showToast('📋 Texte copié !')).catch(()=>prompt('Copiez ce texte :',text));
+}
+
 function _shareVia(platform, encodedText) {
   const text = decodeURIComponent(encodedText);
-  if(platform === 'copy' || platform === 'instagram') {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast(platform === 'instagram' ? '📋 Texte copié — collez-le dans Instagram !' : '📋 Texte copié !');
-    }).catch(() => { prompt('Copiez ce texte :', text); });
-  } else if(platform === 'facebook') {
-    const fbUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://gardenminder.app') + '&quote=' + encodeURIComponent(text);
-    window.open(fbUrl, '_blank');
-  }
+  _shareEntry(null, text);
   const modal = window._shareModal;
   if(modal) {
     if(modal._onShared) modal._onShared();

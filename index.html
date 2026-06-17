@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.17.0';
-const APP_BUILD='18 juin 2026 à 00:47 (Paris)';
+const APP_VERSION='1.17.1';
+const APP_BUILD='18 juin 2026 à 00:56 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3213,10 +3213,23 @@ async function fetchWeather(){
     }
     const url='https://api.open-meteo.com/v1/forecast?latitude='+state.lat+'&longitude='+state.lon
       +'&current=temperature_2m,windspeed_10m,precipitation&daily=precipitation_sum,temperature_2m_max,weather_code'
-      +'&forecast_days=7&past_days=92&timezone=auto';
+      +'&hourly=weather_code&forecast_days=7&past_days=92&timezone=auto';
     const d=await fetch(url).then(r=>r.json());
     state.weather=d.current;
     state.forecast=d.daily;
+    if(d.hourly && d.hourly.weather_code && d.hourly.time && d.daily && d.daily.time){
+      state.forecast.weather_code = d.daily.time.map(day => {
+        const codes = [];
+        d.hourly.time.forEach((h,i) => {
+          if(h.startsWith(day) && parseInt(h.substr(11,2))>=8 && parseInt(h.substr(11,2))<=20)
+            codes.push(d.hourly.weather_code[i]);
+        });
+        if(!codes.length) return d.daily.weather_code[d.daily.time.indexOf(day)]||0;
+        const freq={};
+        codes.forEach(c => { freq[c]=(freq[c]||0)+1; });
+        return parseInt(Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0]);
+      });
+    }
     state.precipHistory=(d.daily&&d.daily.precipitation_sum)?d.daily.precipitation_sum.slice(0,7):[];
     mergePrecipToLocal(d.daily&&d.daily.time, d.daily&&d.daily.precipitation_sum);
     // ── Détection canicule ──────────────────────────────────────────────────

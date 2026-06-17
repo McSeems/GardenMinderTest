@@ -6069,6 +6069,7 @@ function showLevelUpModal(idx, lvl) {
 let currentEntryType = 'action';
 let _lastSavedEntryId = null;
 let _editingEntryId = null;
+let _submittingEntry = false;
 
 function shareEntryOnSave(platform) {
   if(!_lastSavedEntryId) {
@@ -6163,6 +6164,7 @@ function openEntrySheet(editId) {
   _lastSavedEntryId = null;
   _editingEntryId = editId || null;
   _pendingSharePlatform = null;
+  _submittingEntry = false;
   const entry = editId ? (state.journalEntries||[]).find(e=>e.id===editId) : null;
   document.getElementById('entry-overlay').classList.add('open');
   document.getElementById('entry-sheet').classList.add('open');
@@ -6230,19 +6232,21 @@ function selectEntryPlant(chip) {
 }
 
 function submitJournalEntry() {
+  if(_submittingEntry) return;
+  _submittingEntry = true;
   const text = document.getElementById('entry-text').value.trim();
   const plantEl = document.querySelector('.plant-chip-pick.selected');
   const plant = plantEl ? plantEl.textContent.trim() : '🌱 Jardin';
   const now = new Date();
 
-  // ── Plafond 50 pts/jour ──────────────────────────────────────────────────
+  // ── Plafond 50 pts/jour (sauf édition) ────────────────────────────────
   const todayStr = localDateStr();
   if(!state.dailyPoints) state.dailyPoints = {};
   const usedToday = state.dailyPoints[todayStr] || 0;
   const DAILY_CAP = 50;
-  if(usedToday >= DAILY_CAP){
+  if(!_editingEntryId && usedToday >= DAILY_CAP){
     showToast('⏳ Limite de ' + DAILY_CAP + ' pts/jour atteinte — revenez demain !');
-    setTimeout(() => closeEntrySheet(), 800);
+    setTimeout(() => { closeEntrySheet(); _submittingEntry = false; }, 800);
     return;
   }
   // ─────────────────────────────────────────────────────────────────────────
@@ -6259,8 +6263,8 @@ function submitJournalEntry() {
     saveState();
     showToast('✅ Entrée modifiée');
     renderJournalTab();
-    if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>shareEntryOnSave(p),200); }
-    else setTimeout(() => closeEntrySheet(), 600);
+    if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>{shareEntryOnSave(p);_submittingEntry=false;},200); }
+    else setTimeout(() => { closeEntrySheet(); _submittingEntry = false; }, 600);
     _editingEntryId = null;
     return;
   }
@@ -6298,8 +6302,8 @@ function submitJournalEntry() {
   checkLevelUp(prevPoints);
   renderJournalTab();
   if (document.getElementById('tab-memory') && !document.getElementById('tab-memory').classList.contains('hidden')) renderMemoryTab();
-  if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>shareEntryOnSave(p),200); }
-  else setTimeout(() => closeEntrySheet(), 1200);
+  if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>{shareEntryOnSave(p);_submittingEntry=false;},200); }
+  else setTimeout(() => { closeEntrySheet(); _submittingEntry = false; }, 1200);
 }
 function setJournalSeg(btn, mode) {
   document.querySelectorAll('.journal-seg-btn').forEach(b => b.classList.remove('active'));

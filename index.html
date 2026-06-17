@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.16.5';
-const APP_BUILD='18 juin 2026 à 00:41 (Paris)';
+const APP_VERSION='1.17.0';
+const APP_BUILD='18 juin 2026 à 00:47 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -5996,16 +5996,23 @@ function showLevelUpModal(idx, lvl) {
 
 let currentEntryType = 'action';
 let _lastSavedEntryId = null;
+let _editingEntryId = null;
 
 function shareEntryOnSave(platform) {
+  if(!_lastSavedEntryId) {
+    _pendingSharePlatform = platform;
+    submitJournalEntry();
+    return;
+  }
   const entry = (state.journalEntries||[]).find(e => e.id === _lastSavedEntryId);
-  if(!entry) { showToast('Enregistrez d\'abord l\'entrée'); return; }
+  if(!entry) return;
   const t = ENTRY_TYPES[entry.type] || ENTRY_TYPES.note;
   const text = `${t.icon} ${entry.plant} — ${entry.text}\n🌱 Mon jardin · GardenMinder\n#GardenMinder #MonJardin #Jardinage`;
   _shareVia(platform, encodeURIComponent(text));
   entry.sharedSocial = true;
-  saveState(); checkBadges();
+  saveState(); checkBadges(); renderJournalTab();
 }
+let _pendingSharePlatform = null;
 
 // ── TAB SWITCHING (extended for new tabs) ─────────────────────────────────────
 function switchTab(tab, el) {
@@ -6079,12 +6086,14 @@ function removeEntryPhoto() {
   if(inp) inp.value = '';
 }
 
-function openEntrySheet() {
+function openEntrySheet(editId) {
   _entryPhotoData = null;
   _lastSavedEntryId = null;
+  _editingEntryId = editId || null;
+  _pendingSharePlatform = null;
+  const entry = editId ? (state.journalEntries||[]).find(e=>e.id===editId) : null;
   document.getElementById('entry-overlay').classList.add('open');
   document.getElementById('entry-sheet').classList.add('open');
-  // Reset photo UI
   const prev = document.getElementById('entry-photo-preview');
   const lbl = document.getElementById('entry-photo-label');
   const inp = document.getElementById('entry-photo-input');
@@ -6093,25 +6102,46 @@ function openEntrySheet() {
   if(inp) inp.value = '';
   const cam = document.getElementById('entry-camera-input');
   if(cam) cam.value = '';
-  // Reset share buttons
+  // Boutons de partage actifs immédiatement
   ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
     const btn = document.getElementById(id);
-    if(btn) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; }
+    if(btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
   });
   const hint = document.querySelector('.share-hint-msg');
-  if(hint) hint.textContent = 'Disponible après enregistrement';
-  // Reset to default type
+  if(hint) hint.textContent = 'Le partage enregistre automatiquement l\'entrée';
+  // Type
+  const editType = entry ? entry.type : 'action';
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
-  const firstBtn = document.querySelector('.type-btn');
-  if(firstBtn) firstBtn.classList.add('selected');
-  currentEntryType = 'action';
-  // Populate plant picker
+  document.querySelectorAll('.type-btn').forEach(b => {
+    if(b.getAttribute('onclick')?.includes("'"+editType+"'")) b.classList.add('selected');
+  });
+  currentEntryType = editType;
+  // Plant picker
   const picker = document.getElementById('entry-plant-picker');
+  const editPlant = entry ? entry.plant : null;
   picker.innerHTML = state.selectedPlants.map((k,i) => {
     const p = PLANT_DB[k];
-    return `<div class="plant-chip-pick ${i===0?'selected':''}" onclick="selectEntryPlant(this)">${p.emoji} ${p.name}</div>`;
-  }).join('') + '<div class="plant-chip-pick" onclick="selectEntryPlant(this)">🌱 Tout le jardin</div>';
-  document.getElementById('entry-text').value = '';
+    const label = p.emoji+' '+p.name;
+    const sel = editPlant ? label===editPlant : i===0;
+    return `<div class="plant-chip-pick ${sel?'selected':''}" onclick="selectEntryPlant(this)">${label}</div>`;
+  }).join('') + `<div class="plant-chip-pick ${editPlant==='🌱 Tout le jardin'?'selected':''}" onclick="selectEntryPlant(this)">🌱 Tout le jardin</div>`;
+  document.getElementById('entry-text').value = entry ? entry.text : '';
+  // Photo existante
+  if(entry && entry.photo){
+    _entryPhotoData = entry.photo;
+    const imgSrc = getPhotoSync(entry.photo);
+    if(imgSrc && prev){
+      const imgEl = document.getElementById('entry-photo-img');
+      if(imgEl) imgEl.src = imgSrc;
+      prev.style.display = 'block';
+      if(lbl) lbl.style.display = 'none';
+    }
+  }
+  // Titre et bouton
+  const title = document.querySelector('.sheet-title');
+  if(title) title.innerHTML = entry ? 'Modifier l\'<em>entrée</em>' : 'Nouvelle <em>entrée</em>';
+  const submitBtn = document.querySelector('.btn-submit-entry');
+  if(submitBtn) submitBtn.textContent = entry ? 'Enregistrer les modifications ✓' : 'Enregistrer dans le journal ✓';
 }
 function closeEntrySheet() {
   document.getElementById('entry-overlay').classList.remove('open');
@@ -6145,6 +6175,23 @@ function submitJournalEntry() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  if(_editingEntryId) {
+    const existing = (state.journalEntries||[]).find(e=>e.id===_editingEntryId);
+    if(existing){
+      existing.type = currentEntryType;
+      existing.plant = plant;
+      existing.text = text || ENTRY_TYPES[currentEntryType].label + ' enregistré';
+      existing.photo = _entryPhotoData || existing.photo || null;
+    }
+    _lastSavedEntryId = _editingEntryId;
+    saveState();
+    showToast('✅ Entrée modifiée');
+    renderJournalTab();
+    if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>shareEntryOnSave(p),200); }
+    else setTimeout(() => closeEntrySheet(), 600);
+    _editingEntryId = null;
+    return;
+  }
   const entry = {
     id: Date.now(),
     type: currentEntryType,
@@ -6160,14 +6207,6 @@ function submitJournalEntry() {
   logWeeklyActivity('journal');
   requestNotifPermission();
   _lastSavedEntryId = entry.id;
-  // Activer les boutons de partage
-  ['share-entry-insta','share-entry-fb','share-entry-copy'].forEach(id => {
-    const btn = document.getElementById(id);
-    if(btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
-  });
-  const hint = document.querySelector('.share-hint-msg');
-  if(hint) hint.textContent = '✅ Entrée enregistrée — vous pouvez maintenant partager';
-  // Add garden points + bonus for photo (plafonné au reste de la limite journalière)
   const pts = { action:5, note:3, harvest:10, problem:4, treatment:6, taille:7 };
   const prevPoints = state.gardenPoints || 0;
   let earnedPts = pts[currentEntryType] || 5;
@@ -6175,7 +6214,6 @@ function submitJournalEntry() {
   const remaining = DAILY_CAP - usedToday;
   earnedPts = Math.min(earnedPts, remaining);
   state.dailyPoints[todayStr] = usedToday + earnedPts;
-  // Nettoyer les vieux jours (garder seulement les 7 derniers)
   const keys = Object.keys(state.dailyPoints).sort();
   if(keys.length > 7) keys.slice(0, keys.length-7).forEach(k => delete state.dailyPoints[k]);
   state.gardenPoints = prevPoints + earnedPts;
@@ -6188,8 +6226,8 @@ function submitJournalEntry() {
   checkLevelUp(prevPoints);
   renderJournalTab();
   if (document.getElementById('tab-memory') && !document.getElementById('tab-memory').classList.contains('hidden')) renderMemoryTab();
-  // Fermer la sheet après un court délai pour laisser voir les boutons de partage
-  setTimeout(() => closeEntrySheet(), 1200);
+  if(_pendingSharePlatform){ const p=_pendingSharePlatform; _pendingSharePlatform=null; setTimeout(()=>shareEntryOnSave(p),200); }
+  else setTimeout(() => closeEntrySheet(), 1200);
 }
 function setJournalSeg(btn, mode) {
   document.querySelectorAll('.journal-seg-btn').forEach(b => b.classList.remove('active'));
@@ -6434,7 +6472,11 @@ function renderJournalTab() {
         ${e.photo ? `<img src="${getPhotoSync(e.photo)}" style="width:100%;border-radius:8px;margin-top:8px;max-height:180px;object-fit:cover;display:block;" alt="Photo">` : ''}
         <div class="jcard-chips">
           ${e.sharedSocial ? '<span class="jcard-chip">📲 Partagée</span>' : ''}
-          <button onclick="shareJournalEntry(${e.id})" style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--green-pale);background:white;font-size:0.75rem;color:var(--text-mid);cursor:pointer;font-family:var(--ff-body);">📲 Partager</button>
+          <div style="margin-left:auto;display:flex;gap:4px;">
+            <button onclick="openEntrySheet(${e.id})" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid var(--green-pale);background:white;font-size:0.75rem;color:var(--text-mid);cursor:pointer;font-family:var(--ff-body);">✏️</button>
+            <button onclick="deleteJournalEntry(${e.id})" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid #e8c0c0;background:white;font-size:0.75rem;color:#c04040;cursor:pointer;font-family:var(--ff-body);">🗑️</button>
+            <button onclick="shareJournalEntry(${e.id})" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid var(--green-pale);background:white;font-size:0.75rem;color:var(--text-mid);cursor:pointer;font-family:var(--ff-body);">📲</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -6454,6 +6496,18 @@ function shareJournalEntry(entryId) {
     checkBadges();
     renderJournalTab();
   });
+}
+
+function deleteJournalEntry(entryId){
+  const idx = (state.journalEntries||[]).findIndex(e=>e.id===entryId);
+  if(idx===-1) return;
+  const entry = state.journalEntries[idx];
+  const t = ENTRY_TYPES[entry.type]||ENTRY_TYPES.note;
+  if(!confirm(t.icon+' '+entry.plant+'\n«'+entry.text.slice(0,60)+'»\n\nSupprimer cette entrée du journal ?')) return;
+  state.journalEntries.splice(idx,1);
+  saveState();
+  showToast('🗑️ Entrée supprimée');
+  renderJournalTab();
 }
 
 // ── GRAPHIQUE PRÉCIPITATIONS ACCUEIL ─────────────────────────────────────────

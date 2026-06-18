@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.19.0';
-const APP_BUILD='18 juin 2026 à 01:45 (Paris)';
+const APP_VERSION='1.19.1';
+const APP_BUILD='19 juin 2026 à 01:30 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3611,6 +3611,7 @@ function computeMoisture(key){
 
 // Applique computeMoisture et ÉCRIT dans state
 // Appelé : au boot (une fois/jour), ET après chaque arrosage pour recalculer depuis today
+// forceToday=true → rembobine 3 jours pour ré-appliquer la pluie mise à jour par Open-Meteo
 function refreshAllMoisture(forceToday){
   const todayStr = localDateStr();
 
@@ -3620,6 +3621,26 @@ function refreshAllMoisture(forceToday){
   if(!forceToday && !hasOverflow && state.lastMoistureDate === todayStr &&
      state.selectedPlants.every(k=>state.plantMoisture[k]!==undefined)){
     return;
+  }
+
+  // ── Checkpoint : sauvegarder les valeurs d'il y a 4 jours pour pouvoir rembobiner ──
+  if(!state.moistureCheckpoint) state.moistureCheckpoint = {};
+  const cpDate = state.moistureCheckpoint.date;
+  const anchorDate = addDays(todayStr, -4);
+  if(!cpDate || cpDate < anchorDate){
+    state.moistureCheckpoint = {
+      date: state.lastMoistureDate || todayStr,
+      values: Object.assign({}, state.plantMoisture)
+    };
+  }
+
+  // ── Rembobinage : restaurer le checkpoint et recomputer depuis 3j ──
+  if(forceToday && state.moistureCheckpoint && state.moistureCheckpoint.date){
+    const cp = state.moistureCheckpoint;
+    state.selectedPlants.forEach(k=>{
+      if(cp.values[k] !== undefined) state.plantMoisture[k] = cp.values[k];
+    });
+    state.lastMoistureDate = cp.date;
   }
 
   // Calculer ET écrire, avec clamp strict 0–100
@@ -7918,6 +7939,7 @@ function renderAccountInHeader() {
   if (!state.plantInfos) state.plantInfos = {};
   if (!state.heatwaveSurvived) state.heatwaveSurvived = false;
   if (!state.heatwaveAlertSent) state.heatwaveAlertSent = null;
+  if (!state.moistureCheckpoint) state.moistureCheckpoint = {};
   if (!state.notifTimeMorning) state.notifTimeMorning = '07:00';
   if (!state.notifTimeEvening) state.notifTimeEvening = '20:00';
   if (!state.setupDate && state.selectedPlants && state.selectedPlants.length > 0) {

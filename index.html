@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.19.1';
-const APP_BUILD='19 juin 2026 à 01:30 (Paris)';
+const APP_VERSION='1.20.0';
+const APP_BUILD='19 juin 2026 à 02:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2666,74 +2666,7 @@ function wizardNext(){
   wizardStep++;updateWizard();
 }
 function resetMoisture(){
-  // ── RECONSTITUTION RÉELLE depuis 15 jours ──────────────────────────────────
-  // Principe : on part de 100% il y a 15 jours (sol pleinement hydraté avant toute mesure)
-  // puis on applique jour par jour : ET (météo réelle) - pluie mesurée + arrosages enregistrés
-  // C'est la meilleure estimation possible du "vrai" état actuel sans capteur physique
-
-  const todayStr = localDateStr();
-  const WINDOW = 15; // jours de reconstitution
-
-  // Construire la liste des 15 derniers jours (excl. today)
-  const days = [];
-  for(let i = WINDOW; i >= 1; i--){
-    days.push(addDays(localDateStr(),-i));
-  }
-
-  state.selectedPlants.forEach(key => {
-    const plant = PLANT_DB[key];
-    if(!plant){ state.plantMoisture[key] = 65; return; }
-
-    const baseET = plantET(key);
-    const rainEff = plantRainEff(key);
-
-    let score = 100; // hypothèse de départ : sol pleinement hydraté 15 jours avant
-
-    days.forEach(dateStr => {
-      // Pluie mesurée ce jour-là
-      const rain = getRainMeasuredOnly(dateStr);
-
-      // Température max ce jour-là
-      const tempMax = getTempMaxForDate(dateStr);
-      const heat = heatFactor(tempMax);
-
-      // Arrosages enregistrés ce jour-là pour cette plante
-      const waterings = (state.wateringHistory||[]).filter(w => {
-        const wDate = (w.ts || w.date || '').slice(0,10);
-        if(wDate !== dateStr) return false;
-        // Arrosage global (sans plante spécifique) ou arrosage de cette plante
-        return !w.plant || w.plant === key;
-      });
-      // Convertir les litres en gain d'humidité
-      // Référence : waterGain utilisé dans confirmWatering
-      const surface = state.surface || 30;
-      let waterGain = 0;
-      waterings.forEach(w => {
-        const liters = w.liters || 0;
-        const mm = liters / surface; // L → mm (1L/m² = 1mm)
-        waterGain += mm * rainEff * 2.5; // même coefficient que dans confirmWatering
-      });
-
-      score = score - baseET * heat + rain * rainEff + waterGain;
-      score = Math.min(100, Math.max(2, score));
-    });
-
-    // Appliquer calibration (avec gardes strictes)
-    const safeMult = Math.min(1.2, Math.max(0.8, state.calibration?.soilMultiplier||1.0));
-    const safeOffset = Math.min(15, Math.max(-15, state.calibration?.offset||0));
-    score = score * safeMult + safeOffset;
-
-    state.plantMoisture[key] = Math.min(100, Math.max(2, Math.round(score)));
-  });
-
-  // Mettre à jour lastMoistureDate à aujourd'hui pour déclencher un recalcul demain
-  state.lastMoistureDate = todayStr;
-  saveState();
-  updateHeroScore();
-  renderPlantStrip();
-  updateStats();
-
-  // Afficher un résumé des valeurs recalculées
+  refreshAllMoisture(true);
   const lines = state.selectedPlants.map(k =>
     `${PLANT_DB[k]?.emoji||'🌱'} ${PLANT_DB[k]?.name||k} → ${state.plantMoisture[k]}%`
   ).join('\n');
@@ -3451,24 +3384,8 @@ function initApp(){
     if(days>0&&days<=7){if(nudge)nudge.style.display='flex';if(daysEl)daysEl.textContent=days;}
     else if(days===0){goTo('trial-end');return;}
   }
-  // refreshAllMoisture uniquement si pas déjà fait aujourd'hui
-  const todayForInit = localDateStr();
-  if(state.lastMoistureDate !== todayForInit) {
-    // Vérifier si les plantes sont toutes à 70% exactement = valeur par défaut non calculée
-    // → indique une réinitialisation accidentelle : lancer la reconstitution complète
-    const allAtDefault = state.selectedPlants.length > 0 &&
-      state.selectedPlants.every(k => state.plantMoisture[k] === 70 || state.plantMoisture[k] === undefined);
-    if(allAtDefault && state.wateringHistory && state.wateringHistory.length > 0){
-      // Des arrosages existent mais les taux sont à la valeur par défaut : reconstituer
-      console.info('GardenMinder: valeurs par défaut détectées avec historique existant → reconstitution 15j');
-      setTimeout(() => {
-        resetMoisture();
-        showToast('🔄 Données recalculées automatiquement sur 15 jours');
-      }, 1500); // après fetchWeather pour avoir les données météo
-    } else {
-      refreshAllMoisture();
-    }
-  }
+  // computeMoisture recompute toujours depuis 15j → appeler à chaque init
+  refreshAllMoisture();
   updateHeroScore();
   renderPlantStrip();
   renderForecast();
@@ -3521,41 +3438,23 @@ function getRainMeasuredOnly(dateStr){
   return 0; // pas de mesure = on ne préjuge pas
 }
 
-// Calcule l'humidité d'une plante jour par jour depuis lastMoistureDate
-// Intègre les arrosages enregistrés dans wateringHistory pour la période concernée
+// Calcule l'humidité d'une plante en recomputant jour par jour sur les 15 derniers jours
+// Part du premier jour ayant des données (pluie ou arrosage), ou 80% par défaut
 function computeMoisture(key){
   const plant = PLANT_DB[key];
   if(!plant) return 60;
 
-  // Score de départ — JAMAIS au-dessus de 100
-  let score = Math.min(100, state.plantMoisture[key]||65);
-
   const todayStr = localDateStr();
-  const lastDate = state.lastMoistureDate;
-
-  if(!lastDate){
-    return Math.min(100, Math.max(2, score));
-  }
-
-  const daysDiff = Math.round((new Date(todayStr) - new Date(lastDate)) / 86400000);
-
-  if(daysDiff <= 0){
-    return Math.min(100, Math.max(2, score));
-  }
-
-  const cappedDays = Math.min(daysDiff, 14);
-
+  const WINDOW = 15;
   const baseET = plantET(key);
   const rainEff = plantRainEff(key);
+  const isGazon = plant.family === 'gazon';
 
   // Construire un index des arrosages par date pour cette plante
-  // Un arrosage est "pour cette plante" si plant===key ou plant===null (tout le jardin)
   const wateringByDate = {};
   if(state.wateringHistory){
     state.wateringHistory.forEach(entry=>{
       if(!entry.ts) return;
-      // Concerne cette plante si : dans la liste targets, ou arrosage explicitement sur cette plante,
-      // OU ancien arrosage global (plant null sans targets = tout le jardin)
       const concerns = entry.targets ? entry.targets.includes(key) : (!entry.plant || entry.plant === key);
       if(!concerns) return;
       const ds = localDateStr(new Date(entry.ts));
@@ -3564,29 +3463,41 @@ function computeMoisture(key){
     });
   }
 
-  for(let d = 1; d <= cappedDays; d++){
-    const dateStr = addDays(lastDate, d);
+  // Trouver le premier jour avec des données dans la fenêtre de 15j
+  const days = [];
+  for(let i = WINDOW; i >= 1; i--) days.push(addDays(todayStr, -i));
+  days.push(todayStr);
+
+  let startIdx = 0;
+  let hasAnyData = false;
+  for(let i = 0; i < days.length; i++){
+    const d = days[i];
+    const hasRain = state.precipLocalHistory && state.precipLocalHistory.some(e=>e.date===d && e.mm > 0);
+    const hasWatering = !!wateringByDate[d];
+    const hasTemp = state.forecast && state.forecast.time && state.forecast.time.includes(d);
+    if(hasRain || hasWatering || hasTemp){ startIdx = i; hasAnyData = true; break; }
+  }
+  if(!hasAnyData) return Math.min(100, Math.max(2, state.plantMoisture[key]||80));
+
+  let score = 80;
+
+  for(let i = startIdx; i < days.length; i++){
+    const dateStr = days[i];
     const tempMax = getTempMaxForDate(dateStr);
     const heat = heatFactor(tempMax);
     const rain = getRainMeasuredOnly(dateStr);
 
-    // Appliquer l'ET et la pluie
     score = score - baseET * heat + rain * rainEff;
     score = Math.min(100, Math.max(2, score));
 
-    // Rejouer les arrosages de ce jour s'ils existent
     const dayWaterings = wateringByDate[dateStr] || [];
     if(dayWaterings.length > 0){
-      const isGazon = plant.family === 'gazon';
       if(isGazon){
-        // Gazon : on applique tous les arrosages du jour
         dayWaterings.forEach(w=>{
           const gain = Math.min(40, (w.liters||0) / Math.max(1, state.surface) * 8);
           score = Math.min(100, score + gain);
         });
       } else {
-        // Plantes : on applique le dernier arrosage du jour (le plus récent)
-        // Logique identique à confirmWatering
         const prevScore = score;
         if(prevScore < 30){
           score = Math.min(45, prevScore + 15);
@@ -3600,54 +3511,52 @@ function computeMoisture(key){
     }
   }
 
-  // La calibration (offset/multiplicateur) est déjà appliquée UNE FOIS, directement sur
-  // state.plantMoisture, au moment où l'utilisateur calibre (cf applyHygrometerCalibration /
-  // applyCalibration). La réappliquer ici chaque jour créait un point fixe à 100% :
-  // un score élevé (proche de 100) repassait toujours au-dessus de 100 après
-  // multiplication/offset, quel que soit l'assèchement réel (ET, absence de pluie).
-
   return Math.min(100, Math.max(2, score));
 }
 
 // Applique computeMoisture et ÉCRIT dans state
-// Appelé : au boot (une fois/jour), ET après chaque arrosage pour recalculer depuis today
-// forceToday=true → rembobine 3 jours pour ré-appliquer la pluie mise à jour par Open-Meteo
+// computeMoisture recompute toujours depuis 15j → pas de risque de décalage
 function refreshAllMoisture(forceToday){
   const todayStr = localDateStr();
 
   // Garde : si déjà fait aujourd'hui et pas de forceToday, on ne recalcule pas
-  // EXCEPTION : si une valeur dépasse 100 (bug), on force quand même
-  const hasOverflow = state.selectedPlants.some(k=>(state.plantMoisture[k]||0) > 100);
-  if(!forceToday && !hasOverflow && state.lastMoistureDate === todayStr &&
+  if(!forceToday && state.lastMoistureDate === todayStr &&
      state.selectedPlants.every(k=>state.plantMoisture[k]!==undefined)){
     return;
   }
 
-  // ── Checkpoint : sauvegarder les valeurs d'il y a 4 jours pour pouvoir rembobiner ──
-  if(!state.moistureCheckpoint) state.moistureCheckpoint = {};
-  const cpDate = state.moistureCheckpoint.date;
-  const anchorDate = addDays(todayStr, -4);
-  if(!cpDate || cpDate < anchorDate){
-    state.moistureCheckpoint = {
-      date: state.lastMoistureDate || todayStr,
-      values: Object.assign({}, state.plantMoisture)
-    };
-  }
-
-  // ── Rembobinage : restaurer le checkpoint et recomputer depuis 3j ──
-  if(forceToday && state.moistureCheckpoint && state.moistureCheckpoint.date){
-    const cp = state.moistureCheckpoint;
-    state.selectedPlants.forEach(k=>{
-      if(cp.values[k] !== undefined) state.plantMoisture[k] = cp.values[k];
-    });
-    state.lastMoistureDate = cp.date;
-  }
-
-  // Calculer ET écrire, avec clamp strict 0–100
+  // Calculer ET écrire, avec clamp strict 2–100
+  const prevValues = {};
+  state.selectedPlants.forEach(k=>{ prevValues[k] = state.plantMoisture[k]; });
   state.selectedPlants.forEach(k=>{
     const newVal = computeMoisture(k);
     state.plantMoisture[k] = Math.min(100, Math.max(2, Math.round(newVal)));
   });
+
+  // ── Vérification de cohérence ──
+  // Double-calcul : recomputer une 2e fois et comparer (détecte les effets de bord)
+  const verified = {};
+  state.selectedPlants.forEach(k=>{
+    verified[k] = Math.min(100, Math.max(2, Math.round(computeMoisture(k))));
+  });
+  state.selectedPlants.forEach(k=>{
+    if(state.plantMoisture[k] !== verified[k]){
+      console.warn('GardenMinder coherence: '+k+' = '+state.plantMoisture[k]+'% vs verified '+verified[k]+'% → corrigé');
+      state.plantMoisture[k] = verified[k];
+    }
+  });
+
+  // ── Vérification fin de journée ──
+  // Quand le jour change, forcer un log de cohérence
+  if(state.lastMoistureDate && state.lastMoistureDate !== todayStr){
+    console.info('GardenMinder: changement de jour '+state.lastMoistureDate+' → '+todayStr);
+    state.selectedPlants.forEach(k=>{
+      const prev = prevValues[k]||0;
+      const curr = state.plantMoisture[k];
+      const rain = getRainMeasuredOnly(state.lastMoistureDate);
+      console.info('  '+k+': '+prev+'% → '+curr+'% (pluie hier: '+rain+'mm)');
+    });
+  }
 
   state.lastMoistureDate = todayStr;
 
@@ -7939,7 +7848,6 @@ function renderAccountInHeader() {
   if (!state.plantInfos) state.plantInfos = {};
   if (!state.heatwaveSurvived) state.heatwaveSurvived = false;
   if (!state.heatwaveAlertSent) state.heatwaveAlertSent = null;
-  if (!state.moistureCheckpoint) state.moistureCheckpoint = {};
   if (!state.notifTimeMorning) state.notifTimeMorning = '07:00';
   if (!state.notifTimeEvening) state.notifTimeEvening = '20:00';
   if (!state.setupDate && state.selectedPlants && state.selectedPlants.length > 0) {

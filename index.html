@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.20.0';
-const APP_BUILD='19 juin 2026 à 02:00 (Paris)';
+const APP_VERSION='1.20.1';
+const APP_BUILD='19 juin 2026 à 03:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -3438,14 +3438,14 @@ function getRainMeasuredOnly(dateStr){
   return 0; // pas de mesure = on ne préjuge pas
 }
 
-// Calcule l'humidité d'une plante en recomputant jour par jour sur les 15 derniers jours
-// Part du premier jour ayant des données (pluie ou arrosage), ou 80% par défaut
+// Calcule l'humidité d'une plante en recomputant jour par jour sur les 7 derniers jours
+// Part du score stocké dans moistureHistory 7j avant, ou 80% si pas de données
 function computeMoisture(key){
   const plant = PLANT_DB[key];
   if(!plant) return 60;
 
   const todayStr = localDateStr();
-  const WINDOW = 15;
+  const WINDOW = 7;
   const baseET = plantET(key);
   const rainEff = plantRainEff(key);
   const isGazon = plant.family === 'gazon';
@@ -3463,25 +3463,30 @@ function computeMoisture(key){
     });
   }
 
-  // Trouver le premier jour avec des données dans la fenêtre de 15j
+  // Construire la liste des jours à recomputer
+  const anchorDate = addDays(todayStr, -WINDOW);
   const days = [];
-  for(let i = WINDOW; i >= 1; i--) days.push(addDays(todayStr, -i));
-  days.push(todayStr);
+  for(let i = WINDOW; i >= 0; i--) days.push(addDays(todayStr, -i));
 
-  let startIdx = 0;
-  let hasAnyData = false;
-  for(let i = 0; i < days.length; i++){
-    const d = days[i];
-    const hasRain = state.precipLocalHistory && state.precipLocalHistory.some(e=>e.date===d && e.mm > 0);
-    const hasWatering = !!wateringByDate[d];
-    const hasTemp = state.forecast && state.forecast.time && state.forecast.time.includes(d);
-    if(hasRain || hasWatering || hasTemp){ startIdx = i; hasAnyData = true; break; }
-  }
-  if(!hasAnyData) return Math.min(100, Math.max(2, state.plantMoisture[key]||80));
-
+  // Score de départ : chercher dans moistureHistory le score au jour anchor
+  // On cherche l'entrée la plus proche <= anchorDate
   let score = 80;
+  if(state.moistureHistory && state.moistureHistory.length > 0){
+    let best = null;
+    state.moistureHistory.forEach(h=>{
+      if(h.date <= anchorDate && (!best || h.date > best.date)) best = h;
+    });
+    if(best && best.plants && best.plants[key] !== undefined) score = best.plants[key];
+    else if(best) score = best.value;
+  }
+  // Si on a un score stocké pour cette plante et pas d'historique, utiliser le score actuel
+  // (cas de premier lancement après mise à jour)
+  if(!state.moistureHistory || state.moistureHistory.length === 0){
+    score = state.plantMoisture[key] || 80;
+  }
 
-  for(let i = startIdx; i < days.length; i++){
+  // Boucler jour par jour depuis anchor+1 (le jour après l'anchor) jusqu'à aujourd'hui
+  for(let i = 1; i < days.length; i++){
     const dateStr = days[i];
     const tempMax = getTempMaxForDate(dateStr);
     const heat = heatFactor(tempMax);
@@ -3566,12 +3571,16 @@ function refreshAllMoisture(forceToday){
     const avg = Math.min(100, Math.round(
       Math.min(...state.selectedPlants.map(k=>state.plantMoisture[k]||60))
     ));
+    // Snapshot par plante pour ancrage du recompute
+    const perPlant = {};
+    state.selectedPlants.forEach(k=>{ perPlant[k] = state.plantMoisture[k]; });
     const lastEntry = state.moistureHistory[state.moistureHistory.length-1];
     if(!lastEntry || lastEntry.date !== todayStr){
-      state.moistureHistory.push({ date: todayStr, value: avg, ts: new Date().toISOString() });
+      state.moistureHistory.push({ date: todayStr, value: avg, plants: perPlant, ts: new Date().toISOString() });
       if(state.moistureHistory.length > 400) state.moistureHistory = state.moistureHistory.slice(-400);
     } else {
       lastEntry.value = avg;
+      lastEntry.plants = perPlant;
       lastEntry.ts = new Date().toISOString();
     }
   }

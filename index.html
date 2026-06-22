@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.21.0';
-const APP_BUILD='22 juin 2026 à 14:00 (Paris)';
+const APP_VERSION='1.21.1';
+const APP_BUILD='23 juin 2026 à 00:30 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2386,7 +2386,8 @@ function plantET(key){
   const expose=EXPOSE_FACTOR[state.expose]||1;
   const drainage=getPlantDrainage(key);
   const soilF=drainage>1.0?1.0+(retention-1.0)*0.3:retention;
-  return Math.min(12.0,(plant.waterNeed*expose*drainage/soilF)/0.8);
+  const drainF=drainage<=1.0?1.0:1.0+(drainage-1.0)*0.5;
+  return (plant.waterNeed*expose*drainF/soilF)/0.8;
 }
 function plantRainEff(key){
   return getPlantDrainage(key)>1.5?0.15:0.65;
@@ -3425,7 +3426,7 @@ function getTempMaxForDate(dateStr){
 // l'évaporation en profondeur, donc le facteur ne monte pas linéairement indéfiniment
 function heatFactor(tempMax){
   if(tempMax <= 23) return 1.0;
-  return Math.min(2.2, 1.0 + (tempMax - 23) * 0.07);
+  return Math.min(1.85, 1.0 + (tempMax - 23) * 0.07);
 }
 
 // Retourne UNIQUEMENT la pluie MESURÉE (precipLocalHistory)
@@ -3504,15 +3505,15 @@ function computeMoisture(key){
         });
       } else {
         const prevScore = score;
-        const dr = getPlantDrainage(key);
+        const isPot = getPlantDrainage(key) > 1.0;
         if(prevScore < 30){
-          score = prevScore + (dr >= 2.0 ? 45 : 25);
+          score = prevScore + (isPot ? 45 : 25);
         } else if(prevScore < 50){
-          score = prevScore + (dr >= 2.0 ? 35 : 20);
+          score = prevScore + (isPot ? 35 : 20);
         } else if(prevScore < 70){
-          score = prevScore + (dr >= 2.0 ? 25 : 15);
+          score = prevScore + (isPot ? 25 : 15);
         } else {
-          score = prevScore + (dr >= 2.0 ? 15 : 10);
+          score = prevScore + (isPot ? 15 : 10);
         }
         score = Math.min(95, score);
       }
@@ -4650,7 +4651,8 @@ function openFormulaStressTest(){
     const retention = SOIL_RET[soil]||1;
     const expF = EXP_F[expose]||1;
     const soilF = drainage>1.0 ? 1.0+(retention-1.0)*0.3 : retention;
-    const baseET = Math.min(12.0,(waterNeed*expF*drainage/soilF)/0.8);
+    const drainF = drainage<=1.0?1.0:1.0+(drainage-1.0)*0.5;
+    const baseET = (waterNeed*expF*drainF/soilF)/0.8;
     const rainEff = drainage>1.5?0.15:0.65;
     const heat = Math.min(1.5, tempMax<=25?1.0:1.0+(tempMax-25)*0.05);
     let score=startScore||70;

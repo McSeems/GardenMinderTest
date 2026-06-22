@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.20.1';
-const APP_BUILD='19 juin 2026 à 03:00 (Paris)';
+const APP_VERSION='1.21.0';
+const APP_BUILD='22 juin 2026 à 14:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -2386,7 +2386,7 @@ function plantET(key){
   const expose=EXPOSE_FACTOR[state.expose]||1;
   const drainage=getPlantDrainage(key);
   const soilF=drainage>1.0?1.0+(retention-1.0)*0.3:retention;
-  return Math.min(6.0,(plant.waterNeed*expose*drainage/soilF)/0.8);
+  return Math.min(12.0,(plant.waterNeed*expose*drainage/soilF)/0.8);
 }
 function plantRainEff(key){
   return getPlantDrainage(key)>1.5?0.15:0.65;
@@ -3425,7 +3425,7 @@ function getTempMaxForDate(dateStr){
 // l'évaporation en profondeur, donc le facteur ne monte pas linéairement indéfiniment
 function heatFactor(tempMax){
   if(tempMax <= 23) return 1.0;
-  return Math.min(1.7, 1.0 + (tempMax - 23) * 0.07); // cap à 1.7
+  return Math.min(2.2, 1.0 + (tempMax - 23) * 0.07);
 }
 
 // Retourne UNIQUEMENT la pluie MESURÉE (precipLocalHistory)
@@ -3504,13 +3504,17 @@ function computeMoisture(key){
         });
       } else {
         const prevScore = score;
+        const dr = getPlantDrainage(key);
         if(prevScore < 30){
-          score = Math.min(45, prevScore + 15);
+          score = prevScore + (dr >= 2.0 ? 45 : 25);
         } else if(prevScore < 50){
-          score = Math.min(70, prevScore + 20);
+          score = prevScore + (dr >= 2.0 ? 35 : 20);
+        } else if(prevScore < 70){
+          score = prevScore + (dr >= 2.0 ? 25 : 15);
         } else {
-          score = 100;
+          score = prevScore + (dr >= 2.0 ? 15 : 10);
         }
+        score = Math.min(95, score);
       }
       score = Math.min(100, Math.max(2, score));
     }
@@ -3589,7 +3593,7 @@ function refreshAllMoisture(forceToday){
 function getMoistureLevel(pct){
   if(pct<30)return{label:'Urgence',   cls:'red',    action:'danger', badge:'🔴 Urgence survie'};
   if(pct<50)return{label:'Arroser',   cls:'red',    action:'danger', badge:'🔴 Arroser maintenant'};
-  if(pct<80)return{label:'Surveiller',cls:'yellow', action:'warn',   badge:'🟡 À surveiller'};
+  if(pct<65)return{label:'Surveiller',cls:'yellow', action:'warn',   badge:'🟡 À surveiller'};
   return          {label:'OK',        cls:'green',  action:'ok',     badge:'🟢 Bien hydraté'};
 }
 // Dégradé continu rouge (0%) → vert (100%) selon le score
@@ -3634,7 +3638,7 @@ function updateHeroScore(){
   const statusEl=document.getElementById('hero-status-label');
   if(statusEl){
     const dotColor=arcColor;
-    const label=pct>=80?'Bien hydraté':pct>=50?'À surveiller':pct>=30?'Arrosage requis':'Urgence !';
+    const label=pct>=80?'Bien hydraté':pct>=60?'À surveiller':pct>=40?'Arrosage requis':'Urgence !';
     statusEl.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor+';display:inline-block;"></span>'+label;
   }
   // Afficher la moyenne seulement si >1 plante et si elle diffère du min
@@ -4026,25 +4030,21 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   if(!container) return;
 
   const DAYS = 15;
-  const retention = SOIL_RETENTION[state.soil]||1;
-  const expose = EXPOSE_FACTOR[state.expose]||1;
-  const rainEff = 0.65;
 
   // Simuler chaque plante sur 15 jours
   const series = plantKeys.map(k=>{
     const plant = PLANT_DB[k];
     if(!plant) return null;
-    const drainage = getPlantDrainage(k);
-    const soilF = drainage > 1.0 ? 1.0+(retention-1.0)*0.3 : retention;
-    const baseET = (plant.waterNeed * expose * drainage / soilF) / 0.8;
+    const baseET = plantET(k);
+    const rainEff = plantRainEff(k);
     let score = Math.min(100, state.plantMoisture[k]||65);
     const vals = [Math.round(score)];
     for(let d=1; d<=DAYS; d++){
       const dateStr = addDays(localDateStr(),d);
       const tempMax = getTempMaxForDate(dateStr);
-      const heat = heatFactor(tempMax); // déjà capé à 1.7
-      const rain = getRainForDate(dateStr); // forecast ok pour les jours futurs
-      score = score - Math.min(6.0, baseET)*heat + rain*rainEff;
+      const heat = heatFactor(tempMax);
+      const rain = getRainForDate(dateStr);
+      score = score - baseET*heat + rain*rainEff;
       score = Math.min(100, Math.max(2, score));
       vals.push(Math.round(score));
     }
@@ -4081,8 +4081,8 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   const yScale = v => PT + cH - (v/100)*cH;
 
   // Zones de couleur (fond)
-  const redY  = PT + cH - (35/100)*cH;
-  const warnY = PT + cH - (60/100)*cH;
+  const redY  = PT + cH - (50/100)*cH;
+  const warnY = PT + cH - (80/100)*cH;
 
   let svgPaths = '';
   // Fond rouge/orange/vert
@@ -4109,7 +4109,7 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   });
 
   // Axes Y
-  [0,35,60,100].forEach(v=>{
+  [0,50,80,100].forEach(v=>{
     const y = yScale(v);
     svgPaths += `<text x="${PL-3}" y="${y+3}" font-size="9" fill="#888" text-anchor="end" font-family="sans-serif">${v}%</text>`;
   });
@@ -4650,7 +4650,7 @@ function openFormulaStressTest(){
     const retention = SOIL_RET[soil]||1;
     const expF = EXP_F[expose]||1;
     const soilF = drainage>1.0 ? 1.0+(retention-1.0)*0.3 : retention;
-    const baseET = Math.min(6.0,(waterNeed*expF*drainage/soilF)/0.8);
+    const baseET = Math.min(12.0,(waterNeed*expF*drainage/soilF)/0.8);
     const rainEff = drainage>1.5?0.15:0.65;
     const heat = Math.min(1.5, tempMax<=25?1.0:1.0+(tempMax-25)*0.05);
     let score=startScore||70;

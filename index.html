@@ -23,8 +23,8 @@ const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
 const CACHE_VERSION='gardenminder-v1';
-const APP_VERSION='1.21.1';
-const APP_BUILD='23 juin 2026 à 00:30 (Paris)';
+const APP_VERSION='1.22.0';
+const APP_BUILD='30 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
 if('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')){const swBlob=new Blob([SW_CODE],{type:'application/javascript'});const swURL=URL.createObjectURL(swBlob);window.addEventListener('load',()=>{navigator.serviceWorker.register(swURL,{scope:'./'}).catch(e=>console.warn('[PWA]',e));});}
 </script>
@@ -1264,6 +1264,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         </div>
       </div>
       <div id="hero-weather-alerts" style="margin:10px 16px 0;display:flex;flex-direction:column;gap:6px;"></div>
+      <div id="hero-calendar-banner" style="display:none;margin:6px 16px 0;"></div>
       <div id="hero-alert" style="margin:8px 16px 0;padding:10px 14px;border-radius:10px;background:rgba(240,192,64,0.15);border:1px solid rgba(240,192,64,0.3);display:flex;gap:10px;align-items:center;cursor:pointer;" onclick="if(_worstPlantKey)openPlantDetail(_worstPlantKey)">
         <span id="hero-alert-icon" style="font-size:16px;flex-shrink:0;">✅</span>
         <span id="hero-alert-text" style="font-size:0.83rem;color:rgba(255,255,255,0.9);line-height:1.5;flex:1;">Jardin en bonne santé.</span>
@@ -1518,7 +1519,7 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="journal-seg">
       <button class="journal-seg-btn active" onclick="setJournalSeg(this,'notes')">📖 Mes notes</button>
       <button class="journal-seg-btn" onclick="setJournalSeg(this,'watering')">📊 Historique</button>
-      <button class="journal-seg-btn" onclick="setJournalSeg(this,'stats')">📈 Bilan</button>
+      <button class="journal-seg-btn" onclick="setJournalSeg(this,'season')">📅 Saison</button>
     </div>
   </div>
   <div style="flex:1;overflow-y:auto;padding-bottom:80px;" id="journal-content">
@@ -2304,6 +2305,378 @@ const PLANT_DB = {
   passionflower:{ name:'Passiflore',          emoji:'🌸', waterNeed:3.5, label:'Grimpante',       family:'tropical', premium:false },
   strelitzia:   { name:'Strelitzia',          emoji:'🌺', waterNeed:3.0, label:'Massif',          family:'tropical', premium:false },
 };
+
+// ── CALENDRIER SAISONNIER ────────────────────────────────────────────────────
+const CAL_CAT = {
+  semis:     {icon:'🌱', label:'Semis / Bouturage'},
+  plantation:{icon:'🌿', label:'Plantation'},
+  taille:    {icon:'✂️', label:'Taille'},
+  paillage:  {icon:'🟫', label:'Paillage'},
+  engrais:   {icon:'💊', label:'Engrais / Traitement'},
+  recolte:   {icon:'🌾', label:'Récolte'},
+  protection:{icon:'🛡️', label:'Protection'},
+  entretien: {icon:'🔧', label:'Entretien'},
+};
+const CAL_CAT_ORDER = ['semis','plantation','taille','paillage','engrais','recolte','protection','entretien'];
+// m=mois(1-12), c=catégorie, a=action
+const PLANT_CALENDAR = {
+  // ── PAR PLANTE ──────────────────────────────────────────────────────────
+  tomato:[
+    {m:[2,3],c:'semis',a:'Semis en intérieur chauffé (20°C)'},
+    {m:[4],c:'entretien',a:'Repiquer en godet individuel'},
+    {m:[5],c:'plantation',a:'Planter après les saints de glace (13 mai)'},
+    {m:[5,6,7,8],c:'entretien',a:'Ébourgeonner les gourmands et tuteurer'},
+    {m:[6,7,8,9],c:'paillage',a:'Pailler le pied (5-7 cm)'},
+    {m:[6,7,8],c:'engrais',a:'Engrais tomates tous les 15 jours'},
+    {m:[7,8,9,10],c:'recolte',a:'Récolte'},
+    {m:[10],c:'entretien',a:'Arracher les pieds et composter'},
+  ],
+  courgette:[
+    {m:[4],c:'semis',a:'Semis sous abri (18°C)'},
+    {m:[5,6],c:'plantation',a:'Planter après les gelées'},
+    {m:[6,7],c:'paillage',a:'Pailler autour du pied'},
+    {m:[6,7,8,9],c:'recolte',a:'Récolter régulièrement (stimule la production)'},
+    {m:[10],c:'entretien',a:'Arracher les pieds'},
+  ],
+  cucumber:[
+    {m:[3,4],c:'semis',a:'Semis en intérieur'},
+    {m:[5,6],c:'plantation',a:'Planter en place'},
+    {m:[5,6,7,8],c:'entretien',a:'Tuteurer et pincer les tiges'},
+    {m:[7,8,9],c:'recolte',a:'Récolte'},
+  ],
+  pepper:[
+    {m:[2,3],c:'semis',a:'Semis en intérieur (22°C)'},
+    {m:[5,6],c:'plantation',a:'Planter après les saints de glace'},
+    {m:[7,8,9,10],c:'recolte',a:'Récolte (vert puis rouge à maturité)'},
+  ],
+  aubergine:[
+    {m:[2,3],c:'semis',a:'Semis en intérieur chauffé (25°C)'},
+    {m:[5,6],c:'plantation',a:'Planter en place'},
+    {m:[6,7],c:'entretien',a:'Pincer les tiges pour ramifier'},
+    {m:[7,8,9,10],c:'recolte',a:'Récolte'},
+  ],
+  lettuce:[
+    {m:[3,4,5],c:'semis',a:'Semis de printemps en place ou sous abri'},
+    {m:[8,9],c:'semis',a:'Semis d\'automne'},
+    {m:[4,5,6],c:'recolte',a:'Récolte printanière'},
+    {m:[10,11],c:'recolte',a:'Récolte automnale'},
+    {m:[12,1,2],c:'protection',a:'Protéger du gel sous voile ou tunnel'},
+  ],
+  carrot:[
+    {m:[3,4,5],c:'semis',a:'Semis en place (sol ameubli profond)'},
+    {m:[7,8,9],c:'recolte',a:'Récolte de printemps-été'},
+    {m:[8,9],c:'semis',a:'Semis pour carottes de conservation'},
+    {m:[10,11,12],c:'recolte',a:'Récolte et stockage en cave'},
+  ],
+  green_bean:[
+    {m:[5,6],c:'semis',a:'Semis en place (sol > 15°C)'},
+    {m:[7,8,9],c:'recolte',a:'Récolte régulière'},
+    {m:[10],c:'entretien',a:'Arracher les plants'},
+  ],
+  spinach:[
+    {m:[3,4],c:'semis',a:'Semis de printemps'},
+    {m:[8,9],c:'semis',a:'Semis d\'automne'},
+    {m:[5,6],c:'recolte',a:'Récolte printanière'},
+    {m:[10,11,12],c:'recolte',a:'Récolte automnale'},
+  ],
+  radish:[
+    {m:[3,4,5,6,7,8,9],c:'semis',a:'Semis toutes les 2-3 semaines (récolte rapide)'},
+    {m:[4,5,6,7,8,9,10],c:'recolte',a:'Récolte 4-6 semaines après semis'},
+  ],
+  garlic:[
+    {m:[10,11],c:'plantation',a:'Planter l\'ail d\'automne'},
+    {m:[3],c:'plantation',a:'Planter l\'ail de printemps'},
+    {m:[6,7],c:'recolte',a:'Arracher et sécher 2-3 semaines'},
+  ],
+  onion:[
+    {m:[3,4],c:'semis',a:'Semis ou plantation de sets'},
+    {m:[7,8],c:'recolte',a:'Récolte quand les fanes tombent'},
+  ],
+  potato:[
+    {m:[3,4],c:'plantation',a:'Planter les pommes de terre germées'},
+    {m:[4,5,6],c:'entretien',a:'Butter les rangs 2-3 fois'},
+    {m:[7,8,9],c:'recolte',a:'Récolte après dessèchement des fanes'},
+  ],
+  leek:[
+    {m:[2,3],c:'semis',a:'Semis en intérieur'},
+    {m:[6,7],c:'plantation',a:'Repiquer en place'},
+    {m:[10,11,12,1],c:'recolte',a:'Récolte automne-hiver'},
+  ],
+  cabbage:[
+    {m:[3,4],c:'semis',a:'Semis sous abri'},
+    {m:[5,6],c:'plantation',a:'Repiquer en place'},
+    {m:[9,10,11],c:'recolte',a:'Récolte automne'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger du gel sous filet'},
+  ],
+  corn:[
+    {m:[4,5],c:'semis',a:'Semis en place ou sous abri'},
+    {m:[8,9],c:'recolte',a:'Récolte quand les soies sont brunes'},
+  ],
+  melon:[
+    {m:[4],c:'semis',a:'Semis en intérieur (22°C)'},
+    {m:[5,6],c:'plantation',a:'Planter après les gelées, sous film si possible'},
+    {m:[7,8,9],c:'recolte',a:'Récolte (talon crevassé, parfum dégagé)'},
+  ],
+  pumpkin:[
+    {m:[4,5],c:'semis',a:'Semis en godets'},
+    {m:[5,6],c:'plantation',a:'Planter en pleine terre'},
+    {m:[9,10],c:'recolte',a:'Récolte avant les gelées, stocker au sec'},
+  ],
+  basil:[
+    {m:[3,4],c:'semis',a:'Semis en intérieur (20°C min)'},
+    {m:[5,6],c:'plantation',a:'Planter en pot ou pleine terre (après gel)'},
+    {m:[6,7,8,9],c:'entretien',a:'Pincer les fleurs pour prolonger la récolte'},
+    {m:[6,7,8,9],c:'recolte',a:'Récolte des feuilles'},
+    {m:[9],c:'entretien',a:'Récolte finale et conservation (congélation)'},
+  ],
+  mint:[
+    {m:[3,4],c:'plantation',a:'Diviser et replanter les touffes'},
+    {m:[3,4,5],c:'entretien',a:'Nettoyer les tiges mortes'},
+    {m:[5,6,7,8,9],c:'recolte',a:'Récolte régulière'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger du gel en pot (sous abri)'},
+  ],
+  parsley:[
+    {m:[3,4,5],c:'semis',a:'Semis en place ou pot (germination 3-4 semaines)'},
+    {m:[8,9],c:'semis',a:'Semis pour production hivernale'},
+    {m:[5,6,7,8,9,10],c:'recolte',a:'Récolte des feuilles'},
+  ],
+  thyme:[
+    {m:[3,4],c:'semis',a:'Semis ou division de touffe'},
+    {m:[3,4],c:'taille',a:'Taille courte après l\'hiver'},
+    {m:[5,6,7,8],c:'recolte',a:'Récolte et séchage des tiges'},
+  ],
+  rosemary:[
+    {m:[3,4],c:'taille',a:'Taille de nettoyage après l\'hiver'},
+    {m:[3,4],c:'semis',a:'Bouturage'},
+    {m:[5,6,7],c:'recolte',a:'Récolte des tiges pour cuisine ou séchage'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger du gel en pot'},
+  ],
+  sage:[
+    {m:[3],c:'taille',a:'Taille de rajeunissement (couper les vieilles tiges)'},
+    {m:[5,6,7,8,9],c:'recolte',a:'Récolte des feuilles'},
+    {m:[8,9],c:'semis',a:'Bouturage'},
+  ],
+  rose:[
+    {m:[2,3],c:'taille',a:'Taille principale avant le débourrement'},
+    {m:[3],c:'engrais',a:'Apport compost ou engrais rosiers au pied'},
+    {m:[4,5],c:'entretien',a:'Traitement préventif (bouillie bordelaise)'},
+    {m:[5,6,7,8,9,10],c:'entretien',a:'Supprimer les fleurs fanées (deadheading)'},
+    {m:[6],c:'taille',a:'Taille légère après 1re floraison (rosiers remontants)'},
+    {m:[11],c:'entretien',a:'Butter le pied (10-15 cm de terre)'},
+    {m:[11,12],c:'paillage',a:'Pailler pour protéger du gel'},
+  ],
+  lavender:[
+    {m:[3,4],c:'taille',a:'Taille légère pour enlever les vieilles fleurs'},
+    {m:[8,9],c:'taille',a:'Taille principale après floraison (court)'},
+    {m:[6,7,8],c:'recolte',a:'Récolte des tiges fleuries'},
+  ],
+  hydrangea:[
+    {m:[3],c:'taille',a:'Taille légère — ne pas couper trop court (bourgeons floraux !)'},
+    {m:[4,5],c:'engrais',a:'Engrais hortensia (acidifiant si hortensia bleu)'},
+    {m:[6,7,8,9],c:'recolte',a:'Couper des fleurs à sécher'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger les bourgeons terminaux du gel'},
+  ],
+  geranium:[
+    {m:[5],c:'plantation',a:'Sortir les géraniums hivernés en pot'},
+    {m:[5,6,7,8,9],c:'entretien',a:'Supprimer les fleurs fanées régulièrement'},
+    {m:[6,7],c:'engrais',a:'Engrais géranium toutes les 2 semaines'},
+    {m:[10],c:'protection',a:'Rentrer avant les gelées (<5°C)'},
+    {m:[11,12,1,2,3,4],c:'protection',a:'Hiverner en intérieur (8-10°C, peu arroser)'},
+  ],
+  dahlia:[
+    {m:[5],c:'plantation',a:'Planter les tubercules après les gelées'},
+    {m:[5,6,7,8,9],c:'entretien',a:'Tuteurer et supprimer les fleurs fanées'},
+    {m:[6,7,8,9,10],c:'recolte',a:'Couper les fleurs épanouies'},
+    {m:[10,11],c:'entretien',a:'Déterrer et stocker les tubercules avant le gel'},
+    {m:[11,12,1,2,3,4],c:'entretien',a:'Conserver les tubercules au sec hors gel'},
+  ],
+  tulip:[
+    {m:[10,11],c:'plantation',a:'Planter les bulbes (10-15 cm de profondeur)'},
+    {m:[4,5],c:'recolte',a:'Cueillette des fleurs'},
+    {m:[6],c:'entretien',a:'Laisser les feuilles jaunir avant d\'arracher les bulbes'},
+  ],
+  sunflower:[
+    {m:[4,5],c:'semis',a:'Semis en place (sol réchauffé)'},
+    {m:[7,8,9],c:'recolte',a:'Récolte des graines (têtes sèches)'},
+    {m:[10],c:'entretien',a:'Couper les tiges — laisser quelques têtes pour les oiseaux'},
+  ],
+  peony:[
+    {m:[9,10],c:'plantation',a:'Diviser et planter les pivoines'},
+    {m:[3,4],c:'engrais',a:'Engrais de fond au pied'},
+    {m:[5,6],c:'recolte',a:'Couper les fleurs en boutons pour les vases'},
+    {m:[11],c:'entretien',a:'Couper les tiges à 10 cm du sol'},
+  ],
+  apple:[
+    {m:[2,3],c:'taille',a:'Taille de fructification (avant débourrement)'},
+    {m:[3,4],c:'engrais',a:'Apport compost ou engrais fruitiers'},
+    {m:[6],c:'entretien',a:'Éclaircissage : 1 fruit tous les 15 cm'},
+    {m:[8,9,10],c:'recolte',a:'Récolte selon variété'},
+    {m:[11,12],c:'entretien',a:'Ramasser les fruits tombés, nettoyer'},
+  ],
+  pear:[
+    {m:[1,2],c:'taille',a:'Taille de fructification (hiver)'},
+    {m:[3,4],c:'engrais',a:'Apport compost ou engrais fruitiers'},
+    {m:[8,9,10],c:'recolte',a:'Récolte (cueillir avant maturité complète)'},
+  ],
+  strawberry:[
+    {m:[3,4],c:'entretien',a:'Nettoyer les vieilles feuilles, désherber'},
+    {m:[4],c:'engrais',a:'Apport engrais fraisier'},
+    {m:[4,5,6],c:'entretien',a:'Supprimer les stolons (sauf pour multiplication)'},
+    {m:[5,6,7,8,9],c:'recolte',a:'Récolte'},
+    {m:[9,10],c:'plantation',a:'Planter de nouveaux pieds / diviser les touffes'},
+    {m:[11,12,1,2],c:'protection',a:'Pailler pour protéger du gel'},
+  ],
+  raspberry:[
+    {m:[2,3],c:'taille',a:'Couper les vieilles cannes fructifiées à la base'},
+    {m:[3,4],c:'engrais',a:'Apport compost au pied'},
+    {m:[6,7],c:'recolte',a:'Récolte (aussi sept-oct pour les remontants)'},
+    {m:[9,10],c:'recolte',a:'2e récolte des variétés remontantes'},
+    {m:[11,12,1],c:'taille',a:'Taille des remontants (couper tout à 10 cm)'},
+  ],
+  blackcurrant:[
+    {m:[2,3],c:'taille',a:'Tailler les vieilles branches (> 3 ans)'},
+    {m:[6,7],c:'recolte',a:'Récolte des grappes'},
+    {m:[10,11],c:'plantation',a:'Planter ou diviser les touffes'},
+  ],
+  blueberry:[
+    {m:[3],c:'taille',a:'Taille légère, enlever les vieilles branches'},
+    {m:[3,4],c:'engrais',a:'Engrais acidifiant (myrtillier aime le sol acide)'},
+    {m:[7,8,9],c:'recolte',a:'Récolte'},
+  ],
+  cherry:[
+    {m:[6,7],c:'recolte',a:'Récolte (attention aux oiseaux — filet)'},
+    {m:[6,7],c:'taille',a:'Taille légère après récolte (éviter gel et maladies)'},
+  ],
+  plum:[
+    {m:[2,3],c:'taille',a:'Taille de fructification'},
+    {m:[8,9],c:'recolte',a:'Récolte'},
+    {m:[11],c:'entretien',a:'Traitement cuprique préventif'},
+  ],
+  fig:[
+    {m:[3],c:'taille',a:'Taille légère en fin d\'hiver'},
+    {m:[3,4],c:'engrais',a:'Apport compost'},
+    {m:[7,8],c:'recolte',a:'1re récolte (figues-fleurs)'},
+    {m:[8,9,10],c:'recolte',a:'2e récolte (figues d\'automne)'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger du gel (<-5°C) — emmailloter si pot'},
+  ],
+  olive:[
+    {m:[3,4],c:'taille',a:'Taille légère après floraison'},
+    {m:[11,12,1],c:'recolte',a:'Récolte des olives'},
+    {m:[12,1,2],c:'protection',a:'Protéger du gel (<-7°C)'},
+  ],
+  grape:[
+    {m:[2,3],c:'taille',a:'Taille de la vigne avant la montée de sève'},
+    {m:[4,5,6,7],c:'entretien',a:'Palissage et ébourgeonnage'},
+    {m:[8,9,10],c:'recolte',a:'Vendanges'},
+    {m:[11],c:'entretien',a:'Traitement cuivre préventif'},
+  ],
+  lemon:[
+    {m:[3],c:'entretien',a:'Rempoter si les racines sont à l\'étroit'},
+    {m:[3,4],c:'taille',a:'Taille légère de formation'},
+    {m:[4,5,6,7,8,9],c:'engrais',a:'Engrais agrumes tous les 15 jours'},
+    {m:[5],c:'protection',a:'Sortir le pot en extérieur (après les gelées)'},
+    {m:[6,7,8,9],c:'entretien',a:'Surveiller cochenilles et araignées rouges'},
+    {m:[10],c:'protection',a:'Rentrer à l\'abri avant les gelées (<5°C)'},
+    {m:[11,12,1,2,3],c:'protection',a:'Hiverner en pièce lumineuse (8-12°C)'},
+    {m:[12,1,2,3],c:'recolte',a:'Récolte des fruits mûrs'},
+  ],
+  orange:[
+    {m:[4,5,6,7,8,9],c:'engrais',a:'Engrais agrumes tous les 15 jours'},
+    {m:[5],c:'protection',a:'Sortir le pot en extérieur'},
+    {m:[10],c:'protection',a:'Rentrer à l\'abri (<5°C)'},
+    {m:[12,1,2,3],c:'recolte',a:'Récolte des fruits mûrs'},
+  ],
+  mandarin:[
+    {m:[4,5,6,7,8,9],c:'engrais',a:'Engrais agrumes tous les 15 jours'},
+    {m:[5],c:'protection',a:'Sortir le pot en extérieur'},
+    {m:[10],c:'protection',a:'Rentrer à l\'abri (<5°C)'},
+    {m:[11,12,1],c:'recolte',a:'Récolte des fruits mûrs'},
+  ],
+  lawn:[
+    {m:[3],c:'entretien',a:'Scarifier et aérer le sol'},
+    {m:[3,4],c:'semis',a:'Semis ou regarnissage des zones clairsemées'},
+    {m:[4,5,6,7,8,9,10],c:'entretien',a:'Tonte régulière (hauteur +1 cm par forte chaleur)'},
+    {m:[5,6],c:'engrais',a:'Engrais gazon de printemps (azote)'},
+    {m:[9,10],c:'semis',a:'Semis d\'automne et regarnissage'},
+    {m:[10],c:'engrais',a:'Engrais automne (potassium, résistance au gel)'},
+    {m:[11],c:'entretien',a:'Dernière tonte haute, ramasser les feuilles'},
+  ],
+  boxwood:[
+    {m:[5,6],c:'taille',a:'1re taille annuelle'},
+    {m:[8,9],c:'taille',a:'2e taille avant l\'hiver'},
+    {m:[3,4],c:'engrais',a:'Engrais buis au printemps'},
+  ],
+  thuja:[
+    {m:[4,5],c:'taille',a:'Taille légère de printemps'},
+    {m:[8,9],c:'taille',a:'Taille d\'entretien fin d\'été'},
+  ],
+  palm:[
+    {m:[5,6,7,8,9],c:'engrais',a:'Engrais palmier tous les mois'},
+    {m:[11,12,1,2],c:'protection',a:'Protéger le cœur du gel (paille, voile)'},
+    {m:[3],c:'taille',a:'Couper les palmes sèches du bas'},
+  ],
+  bamboo:[
+    {m:[4,5,6],c:'entretien',a:'Limiter l\'extension (barrière anti-rhizomes)'},
+    {m:[5,6],c:'engrais',a:'Engrais azoté en croissance'},
+    {m:[3],c:'taille',a:'Couper les vieilles cannes à la base'},
+  ],
+  cactus:[
+    {m:[5],c:'entretien',a:'Rempoter si les racines débordent'},
+    {m:[5,6,7,8],c:'engrais',a:'Engrais cactus 1 fois par mois'},
+    {m:[10],c:'protection',a:'Rentrer à l\'abri avant les gelées'},
+    {m:[11,12,1,2,3,4],c:'protection',a:'Hiverner au sec (peu ou pas arroser)'},
+  ],
+  // ── FALLBACKS PAR FAMILLE ────────────────────────────────────────────────
+  _potager:[
+    {m:[3,4,5],c:'semis',a:'Semis de printemps'},
+    {m:[5,6],c:'plantation',a:'Planter en place'},
+    {m:[6,7,8],c:'entretien',a:'Désherber et entretenir régulièrement'},
+    {m:[7,8,9,10],c:'recolte',a:'Récolte'},
+    {m:[10,11],c:'entretien',a:'Nettoyer après culture'},
+  ],
+  _aromatiques:[
+    {m:[3,4,5],c:'semis',a:'Semis ou division de touffe'},
+    {m:[5,6,7,8,9],c:'recolte',a:'Récolte régulière des feuilles'},
+    {m:[10,11],c:'entretien',a:'Couper avant les premières gelées'},
+  ],
+  _fleurs:[
+    {m:[3,4],c:'taille',a:'Taille de printemps et nettoyage'},
+    {m:[4,5],c:'engrais',a:'Engrais de floraison'},
+    {m:[5,6,7,8,9],c:'recolte',a:'Cueillette des fleurs'},
+    {m:[10,11],c:'entretien',a:'Nettoyage automne'},
+  ],
+  _fruitiers:[
+    {m:[2,3],c:'taille',a:'Taille hivernale'},
+    {m:[3,4],c:'engrais',a:'Engrais fruitiers au printemps'},
+    {m:[7,8,9,10],c:'recolte',a:'Récolte selon variété'},
+    {m:[11,12],c:'entretien',a:'Ramassage des fruits tombés'},
+  ],
+  _arbustes:[
+    {m:[3,4],c:'taille',a:'Taille de printemps'},
+    {m:[8,9],c:'taille',a:'Taille d\'entretien estivale'},
+    {m:[11],c:'paillage',a:'Pailler le pied pour l\'hiver'},
+  ],
+  _gazon:[
+    {m:[3,4],c:'semis',a:'Semis et regarnissage'},
+    {m:[4,5,6,7,8,9,10],c:'entretien',a:'Tonte régulière'},
+    {m:[9,10],c:'engrais',a:'Engrais automne'},
+  ],
+  _mediterr:[
+    {m:[5],c:'protection',a:'Sortir le pot en extérieur'},
+    {m:[5,6,7,8],c:'engrais',a:'Engrais de croissance'},
+    {m:[10],c:'protection',a:'Rentrer à l\'abri avant le froid'},
+    {m:[11,12,1,2,3,4],c:'protection',a:'Hiverner au chaud et au sec'},
+  ],
+  _tropical:[
+    {m:[5,6],c:'protection',a:'Sortir en extérieur (>15°C la nuit)'},
+    {m:[5,6,7,8,9],c:'engrais',a:'Engrais tropical tous les 15 jours'},
+    {m:[9,10],c:'protection',a:'Rentrer à l\'abri avant les gelées'},
+    {m:[11,12,1,2,3,4],c:'protection',a:'Hiverner en intérieur lumineux (>15°C)'},
+  ],
+};
+function getPlantCal(key){
+  return PLANT_CALENDAR[key] || PLANT_CALENDAR['_'+(PLANT_DB[key]?.family)] || [];
+}
 
 const SOIL_RETENTION = { argileux:1.3, limoneux:1.0, sableux:0.7, calcaire:0.85 };
 const EXPOSE_FACTOR  = { ombre:0.7, 'mi-ombre':0.9, soleil:1.15 };
@@ -3692,6 +4065,7 @@ function updateHeroScore(){
   }
   renderTlReminders();
   updateHeroWeatherAlerts();
+  checkCalendarBanner();
 }
 
 function renderPlantStrip(){
@@ -6257,13 +6631,13 @@ function setJournalSeg(btn, mode) {
   document.querySelectorAll('.journal-seg-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   // Show/hide sections
-  const sections = { notes:'journal-section-notes', watering:'journal-section-watering', stats:'journal-section-stats' };
+  const sections = { notes:'journal-section-notes', watering:'journal-section-watering', season:'journal-section-stats' };
   Object.entries(sections).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if(el) el.style.display = key===mode ? '' : 'none';
   });
   if(mode === 'watering') renderJournalWatering();
-  if(mode === 'stats') renderJournalStats();
+  if(mode === 'season') renderSeasonTab();
 }
 
 let journalHistPeriod = '7j';
@@ -6387,80 +6761,96 @@ function renderJournalWatering() {
   setTimeout(renderJournalHistCharts, 0);
 }
 
-function renderJournalStats() {
+function renderSeasonTab() {
   const el = document.getElementById('journal-stats-content');
   if(!el) return;
-  const pts = state.gardenPoints || 0;
-  const history = state.wateringHistory || [];
-  const totalL = history.reduce((s,e) => s+e.liters, 0);
-  const totalCost = (totalL/1000)*state.price;
-  const savings = Math.max(0,(totalL*1.3/1000)*state.price - totalCost);
-  const entries = state.journalEntries || [];
-
-  // Données du mois en cours
   const now = new Date();
-  const thisMonth = entries.filter(e => {
-    const d = new Date(e.ts || Date.now());
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  const cm = now.getMonth()+1; // mois courant 1-12
+  const nm = cm===12?1:cm+1;
+  const MNAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+  // Collecter les actions du mois courant et suivant
+  const curActions=[], nxtActions=[];
+  state.selectedPlants.forEach(key=>{
+    const plant=PLANT_DB[key]; if(!plant) return;
+    getPlantCal(key).forEach(e=>{
+      if(e.m.includes(cm)) curActions.push({key,plant,...e});
+      if(e.m.includes(nm)) nxtActions.push({key,plant,...e});
+    });
   });
-  const byType = {};
-  entries.forEach(e => { byType[e.type] = (byType[e.type]||0)+1; });
-  const typeLabels = {action:'Actions',note:'Notes',harvest:'Récoltes',problem:'Problèmes',treatment:'Traitements',taille:'Tailles'};
-  const typeEmoji = {action:'✅',note:'📝',harvest:'🌾',problem:'⚠️',treatment:'💊',taille:'✂️'};
 
-  el.innerHTML = `
-    <!-- Bandeau Ce mois-ci -->
-    <div class="journal-summary" style="margin:0 0 10px;border-radius:14px;">
-      <div class="journal-sum-label">Ce mois-ci</div>
-      <div class="journal-sum-row">
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-entries">${thisMonth.length}</div><div class="journal-sum-sub">entrées</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-harvest">${thisMonth.filter(e=>e.type==='harvest').length}</div><div class="journal-sum-sub">récoltes</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-problems">${thisMonth.filter(e=>e.type==='problem').length}</div><div class="journal-sum-sub">problèmes</div></div>
-        <div class="journal-sum-stat"><div class="journal-sum-val" id="jsv-shared">${thisMonth.filter(e=>e.sharedSocial).length}</div><div class="journal-sum-sub">partagées</div></div>
-      </div>
-    </div>
+  function groupByCat(actions){
+    const g={};
+    actions.forEach(a=>{
+      if(!g[a.c]) g[a.c]=[];
+      if(!g[a.c].find(x=>x.key===a.key&&x.a===a.a)) g[a.c].push(a);
+    });
+    return g;
+  }
 
-    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">💧 Bilan arrosages</div>
-        <button onclick="document.getElementById('savings-explain').style.display=document.getElementById('savings-explain').style.display==='none'?'block':'none'" style="background:var(--green-mist);border:none;border-radius:20px;padding:3px 10px;font-size:0.72rem;color:var(--green-mid);font-weight:600;cursor:pointer;">💡 Comment ?</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-        <div><div style="font-family:'Fraunces',serif;font-size:1.5rem;color:var(--water);">${totalL}</div><div style="font-size:0.72rem;color:var(--text-light);">Litres total</div></div>
-        <div><div style="font-family:'Fraunces',serif;font-size:1.5rem;color:var(--text-dark);">${totalCost.toFixed(2)}€</div><div style="font-size:0.72rem;color:var(--text-light);">Coût eau</div></div>
-        <div><div style="font-family:'Fraunces',serif;font-size:1.5rem;color:var(--ok);">${savings.toFixed(2)}€</div><div style="font-size:0.72rem;color:var(--text-light);">Économies</div></div>
-      </div>
-      <div id="savings-explain" style="display:none;margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,#e8f5ec,#d4f0de);border-radius:10px;border:1px solid var(--green-pale);">
-        <div style="font-size:0.78rem;font-weight:700;color:var(--green-deep);margin-bottom:6px;">💡 D'où viennent ces économies ?</div>
-        <div style="font-size:0.8rem;color:var(--text-mid);line-height:1.6;">
-          Sans GardenMinder, un jardinier moyen arrose <strong>30% de trop</strong> : arrosages trop fréquents, mauvais timing, pas d'adaptation météo.<br><br>
-          <strong>Votre coût réel</strong> : ${totalCost.toFixed(2)}€ (${totalL}L × ${(state.price||4.3).toFixed(2)}€/m³)<br>
-          <strong>Sans optimisation</strong> : ${((totalL*1.3/1000)*(state.price||4.3)).toFixed(2)}€ (estimation +30%)<br>
-          <strong>Économie estimée</strong> : <span style="color:var(--ok);font-weight:700;">${savings.toFixed(2)}€</span><br><br>
-          <span style="font-size:0.72rem;color:var(--text-light);">Basé sur les études d'usage : les apps d'arrosage intelligent réduisent la consommation d'eau de 25 à 40% vs arrosage manuel non guidé.</span>
-        </div>
-      </div>
+  function renderGroups(groups, dim){
+    return CAL_CAT_ORDER.filter(c=>groups[c]).map(c=>{
+      const cat=CAL_CAT[c];
+      const items=groups[c].map(a=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--green-mist);">
+          <span style="font-size:1.25rem;flex-shrink:0;line-height:1.3;">${a.plant.emoji}</span>
+          <div>
+            <div style="font-size:0.83rem;font-weight:600;color:var(--text-dark);">${a.plant.name}</div>
+            <div style="font-size:0.78rem;color:var(--text-mid);line-height:1.45;margin-top:1px;">${a.a}</div>
+          </div>
+        </div>`).join('');
+      return `<div style="margin-bottom:14px;">
+        <div style="font-size:0.68rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">${cat.icon} ${cat.label}</div>
+        <div style="background:white;border-radius:12px;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">${items}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const cg=groupByCat(curActions), ng=groupByCat(nxtActions);
+  const hasCur=Object.keys(cg).length>0, hasNxt=Object.keys(ng).length>0;
+  const totalCur=curActions.length;
+
+  el.innerHTML=`<div style="padding:16px;">
+    <div style="background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:16px;padding:20px;margin-bottom:18px;color:white;">
+      <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.65;margin-bottom:3px;">Calendrier saisonnier</div>
+      <div style="font-family:var(--ff-display);font-size:1.6rem;font-weight:700;">${MNAMES[cm-1]} ${now.getFullYear()}</div>
+      <div style="font-size:0.82rem;opacity:0.8;margin-top:5px;">${hasCur?totalCur+' action'+(totalCur>1?'s':'')+' pour vos plantes':'Rien de spécial ce mois-ci 🌿'}</div>
     </div>
-    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">📖 Activité journal</div>
-      ${Object.keys(typeLabels).filter(k=>byType[k]).map(k=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--green-mist);">
-          <span style="font-size:0.88rem;color:var(--text-dark);">${typeEmoji[k]} ${typeLabels[k]}</span>
-          <span style="font-weight:700;color:var(--green-mid);">${byType[k]}</span>
-        </div>`).join('')}
-      ${Object.keys(byType).length===0?'<div style="color:var(--text-light);font-size:0.85rem;text-align:center;padding:12px;">Aucune entrée pour l\'instant</div>':''}
+    ${hasCur?renderGroups(cg,'cur'):`<div style="text-align:center;padding:28px 16px;color:var(--text-light);font-size:0.88rem;background:white;border-radius:12px;margin-bottom:14px;">🌿 Rien de spécial à faire ce mois-ci</div>`}
+    <div style="margin:18px 0 8px;display:flex;align-items:center;gap:8px;">
+      <div style="flex:1;height:1px;background:var(--green-mist);"></div>
+      <div style="font-size:0.68rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;">🔜 ${MNAMES[nm-1]}</div>
+      <div style="flex:1;height:1px;background:var(--green-mist);"></div>
     </div>
-    <div style="background:white;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">🏆 Points jardin</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
-        <div style="font-family:'Fraunces',serif;font-size:2.5rem;color:var(--green-mid);">${pts}</div>
-        <div style="font-size:0.82rem;color:var(--text-mid);">points accumulés<br><span style="color:var(--text-light);">Arrosages, journal, fiches plantes…</span></div>
-      </div>
-      ${(()=>{const _l=GARDEN_LEVELS[getLevelIdx(pts)];const _t=getPlayerTitle(getLevelIdx(pts));return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isPremium()?'linear-gradient(135deg,var(--premium-pale),#e8e0ff)':'var(--green-mist)'};border-radius:10px;border:1px solid ${isPremium()?'#c8b8ff':'var(--green-pale)'};">
-        <div style="font-size:1.4rem;">${_l.emoji}</div>
-        <div><div style="font-size:0.82rem;font-weight:700;color:${isPremium()?'var(--premium)':'var(--green-mid)'};">${_t}</div><div style="font-size:0.7rem;color:var(--text-light);">${_l.name}${isPremium()?' · ✨ Premium':''}</div></div>
-      </div>`;})()}
-    </div>`;
+    ${hasNxt?renderGroups(ng,'nxt'):`<div style="padding:12px;color:var(--text-light);font-size:0.82rem;text-align:center;">Rien de planifié pour ${MNAMES[nm-1]}.</div>`}
+  </div>`;
+}
+
+function checkCalendarBanner(){
+  const banner=document.getElementById('hero-calendar-banner');
+  if(!banner||!state.selectedPlants||state.selectedPlants.length===0) return;
+  const now=new Date();
+  const dow=now.getDay(); // 0=dim,3=mer,5=ven
+  if(dow!==3&&dow!==5) return;
+  const weekKey=now.getFullYear()+'-W'+Math.floor((now.getDate()-1)/7);
+  if(state.calBannerDismissed===weekKey){ banner.style.display='none'; return; }
+  const cm=now.getMonth()+1;
+  const actions=[];
+  state.selectedPlants.forEach(key=>{
+    getPlantCal(key).forEach(e=>{ if(e.m.includes(cm)) actions.push(e); });
+  });
+  if(actions.length===0){ banner.style.display='none'; return; }
+  const cats=[...new Set(actions.map(e=>CAL_CAT[e.c]?.label||e.c))].slice(0,3).join(', ');
+  banner.style.display='';
+  banner.innerHTML=`<div style="background:linear-gradient(135deg,#f0f7ec,#e2f0d9);border:1px solid var(--green-pale);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:1.3rem;flex-shrink:0;">📅</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:0.82rem;font-weight:700;color:var(--green-deep);">${actions.length} action${actions.length>1?'s':''} ce mois pour votre jardin</div>
+      <div style="font-size:0.74rem;color:var(--text-mid);margin-top:1px;">${cats} · <span onclick="switchTab('journal',document.getElementById('nav-journal'));setTimeout(()=>setJournalSeg(document.querySelector('.journal-seg-btn:last-child'),'season'),100)" style="color:var(--green-mid);font-weight:600;cursor:pointer;">Voir le récap →</span></div>
+    </div>
+    <button onclick="state.calBannerDismissed='${weekKey}';saveState();document.getElementById('hero-calendar-banner').style.display='none';" style="background:none;border:none;font-size:1rem;color:var(--text-light);cursor:pointer;padding:4px;flex-shrink:0;">✕</button>
+  </div>`;
+}
 }
 function renderJournalTab() {
   const entries = state.journalEntries || [];

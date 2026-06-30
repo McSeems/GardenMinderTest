@@ -22,7 +22,7 @@ const blob=new Blob([JSON.stringify(MANIFEST)],{type:'application/json'});
 const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
-const CACHE_VERSION='gardenminder-v1';
+const CACHE_VERSION='gardenminder-v2';
 const APP_VERSION='1.22.0';
 const APP_BUILD='30 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
@@ -357,11 +357,11 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .gauge-bar-fill.green{background:linear-gradient(90deg,var(--green-light),var(--green-pale));}
 .gauge-percent{font-family:'Fraunces',serif;font-size:2.5rem;font-weight:300;color:var(--text-dark);}
 .gauge-sub{font-size:0.85rem;color:var(--text-mid);margin-top:4px;}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
-.detail-mini-card{background:white;border-radius:var(--radius-sm);padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);}
-.detail-mini-icon{font-size:18px;margin-bottom:8px;}
-.detail-mini-val{font-size:1.05rem;font-weight:600;color:var(--text-dark);}
-.detail-mini-label{font-size:0.75rem;color:var(--text-light);margin-top:2px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.detail-mini-card{background:white;border-radius:var(--radius-sm);padding:8px 6px;box-shadow:0 2px 8px rgba(0,0,0,0.04);text-align:center;}
+.detail-mini-icon{font-size:14px;margin-bottom:3px;}
+.detail-mini-val{font-size:0.82rem;font-weight:700;color:var(--text-dark);}
+.detail-mini-label{font-size:0.58rem;color:var(--text-light);margin-top:1px;line-height:1.3;}
 .action-card{border-radius:var(--radius);padding:20px;margin-bottom:12px;}
 .action-card.warn{background:linear-gradient(135deg,#fef3e2,#fde9c0);border:1px solid #fbd890;}
 .action-card.ok{background:linear-gradient(135deg,var(--green-mist),#d0edda);border:1px solid var(--green-pale);}
@@ -1363,19 +1363,19 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     </div>
   </div>
   <div class="plant-detail-content">
+    <!-- Timelapse : visible ici uniquement quand actif (au-dessus de la jauge) -->
+    <div id="plant-tl-section" style="margin:0 16px 12px;"></div>
     <div class="gauge-card">
       <div class="gauge-label">Humidité du sol</div>
       <div class="gauge-bar-wrap"><div class="gauge-bar-fill" id="detail-gauge-fill" style="width:0%"></div></div>
       <div class="gauge-percent" id="detail-percent">—%</div>
       <div class="gauge-sub" id="detail-gauge-sub">Calcul en cours…</div>
     </div>
-    <!-- Timelapse par plante -->
-    <div id="plant-tl-section" style="margin:0 16px 16px;"></div>
     <div class="detail-grid">
       <div class="detail-mini-card"><div class="detail-mini-icon">💧</div><div class="detail-mini-val" id="detail-need">—mm/j</div><div class="detail-mini-label">Besoin hydrique</div></div>
-      <div class="detail-mini-card"><div class="detail-mini-icon">🌧️</div><div class="detail-mini-val" id="detail-rain-today">—mm</div><div class="detail-mini-label">Pluie aujourd'hui</div></div>
+      <div class="detail-mini-card"><div class="detail-mini-icon">🌧️</div><div class="detail-mini-val" id="detail-rain-today">—mm</div><div class="detail-mini-label">Pluie auj.</div></div>
       <div class="detail-mini-card"><div class="detail-mini-icon">🪣</div><div class="detail-mini-val" id="detail-last-water">—</div><div class="detail-mini-label">Dernier arrosage</div></div>
-      <div class="detail-mini-card"><div class="detail-mini-icon">📅</div><div class="detail-mini-val" id="detail-next-water">—</div><div class="detail-mini-label">Prochain recommandé</div></div>
+      <div class="detail-mini-card"><div class="detail-mini-icon">📅</div><div class="detail-mini-val" id="detail-next-water">—</div><div class="detail-mini-label">Prochain</div></div>
     </div>
     <div class="action-card" id="detail-action-card">
       <div class="action-title" id="detail-action-title">—</div>
@@ -1391,19 +1391,25 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="watering-list" id="detail-watering-list"></div>
     </div>
 
-    <!-- Fiche plante -->
+    <!-- Fiche plante + paramètres (accordéon unique) -->
     <div class="plant-info-card" id="detail-plant-info-card">
       <div class="plant-info-card-header" onclick="togglePlantInfoCard()">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:18px;">📋</span>
           <div>
-            <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">Fiche plante</div>
+            <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">Fiche & paramètres</div>
             <div style="font-size:0.78rem;color:var(--text-light);" id="plant-info-summary">Aucune info renseignée</div>
           </div>
         </div>
         <div id="plant-info-arrow" style="color:var(--text-light);font-size:18px;transition:transform 0.3s;">▼</div>
       </div>
       <div class="plant-info-body" id="plant-info-body" style="display:none;">
+        <!-- Type de plantation (fusionné ici) -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--green-mist);margin-bottom:12px;">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--text-dark);">🪴 Type de plantation</div>
+          <div id="detail-container-label" style="font-size:0.78rem;color:var(--green-mid);font-weight:600;cursor:pointer;" onclick="openContainerSheet()">🌍 Pleine terre ›</div>
+        </div>
+        <div id="detail-container-impact" style="font-size:0.72rem;color:var(--text-light);line-height:1.5;margin-bottom:12px;"></div>
         <div class="plant-info-photo-zone" id="plant-info-photo-zone" onclick="triggerPlantPhoto()">
           <img id="plant-info-photo-img" style="display:none;width:100%;height:160px;object-fit:cover;border-radius:10px;margin-bottom:10px;" alt="">
           <div id="plant-info-photo-placeholder" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;background:var(--green-mist);border-radius:10px;border:2px dashed var(--green-pale);cursor:pointer;margin-bottom:14px;">
@@ -1413,7 +1419,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
           </div>
           <input type="file" id="plant-photo-input" accept="image/*" style="display:none;" onchange="handlePlantPhoto(this)">
         </div>
-
         <div class="plant-info-fields">
           <div class="plant-info-field">
             <div class="plant-info-field-label">🌱 Date de plantation</div>
@@ -1447,22 +1452,11 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       </div>
     </div>
 
-    <!-- Type de contenant -->
-    <div class="history-card" id="detail-container-card" style="padding:14px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text-dark);">🪴 Type de plantation</div>
-        <div id="detail-container-label" style="font-size:0.78rem;color:var(--green-mid);font-weight:600;cursor:pointer;" onclick="openContainerSheet()">🌍 Pleine terre ›</div>
-      </div>
-      <div id="detail-container-impact" style="font-size:0.75rem;color:var(--text-light);line-height:1.5;"></div>
-    </div>
-
     <!-- Actions rapides -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <button class="btn-primary" id="detail-water-btn" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
       <button class="btn-secondary" onclick="openJournalFromPlant()" style="margin-bottom:0;padding:16px;border-radius:14px;border:2px solid var(--green-pale);background:white;color:var(--green-mid);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">📖 Journal</button>
     </div>
-    <!-- Graphique prévisionnel plante -->
-    <div id="plant-forecast-chart" style="background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:16px;"></div>
   </div>
   <div class="bottom-nav">
     <div class="nav-item active" onclick="goBack()"><div class="nav-icon-wrap"><div class="nav-icon">🏡</div></div><div class="nav-label">Accueil</div></div>
@@ -4673,7 +4667,7 @@ function openPlantDetail(key, fromScreen){
   });
   const wList=document.getElementById('detail-watering-list');
   if(plantHistory.length===0){wList.innerHTML='<div style="font-size:0.85rem;color:var(--text-light);padding:8px 0;">Aucun arrosage enregistré</div>';}
-  else{wList.innerHTML=plantHistory.slice(0,5).map(e=>`<div class="watering-entry"><div class="watering-dot"></div><div class="watering-text">${e.date}</div><div class="watering-amount">${e.liters}L · ${((e.liters/1000)*state.price).toFixed(2)}€</div></div>`).join('');}
+  else{wList.innerHTML=plantHistory.slice(0,3).map(e=>`<div class="watering-entry"><div class="watering-dot"></div><div class="watering-text">${e.date}</div><div class="watering-amount">${e.liters}L · ${((e.liters/1000)*state.price).toFixed(2)}€</div></div>`).join('');}
   // Load plant info card
   loadPlantInfoCard(key);
   // ── Contenant : mise à jour de la carte ──────────────────────────────────
@@ -4711,7 +4705,6 @@ function openPlantDetail(key, fromScreen){
   }
   // ──────────────────────────────────────────────────────────────────────────
   // Graphique prévisionnel pour cette plante
-  renderForecastMoistureChart([key], PLANT_DB[key]?.name || key, 'plant-forecast-chart');
   renderPlantTlSection(key);
   goTo('plant');
 }
@@ -7498,18 +7491,7 @@ function renderPlantTlSection(key) {
   const canWatch = count >= 10;
 
   if(!s.active) {
-    el.innerHTML = `<div class="tl-plant-card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <span style="font-size:1.5rem;">📽️</span>
-        <div style="flex:1;">
-          <div style="font-size:0.88rem;font-weight:700;color:var(--text-dark);">Timelapse de croissance</div>
-          <div style="font-size:0.72rem;color:var(--text-light);">Une photo tous les ${s.notifFreq===1?'jour':'2 jours'} → vidéo spectaculaire</div>
-        </div>
-        ${isPremium()?'':'<div style="font-size:0.65rem;font-weight:700;color:var(--premium);background:var(--premium-light);padding:2px 8px;border-radius:10px;flex-shrink:0;">✨ Premium</div>'}
-      </div>
-      <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.6;margin:0 0 12px;">Suivez la croissance de <strong>${plant.name}</strong> photo par photo. À partir de <strong>10 photos</strong>, GardenMinder crée une vidéo timelapse 9:16 prête à partager.</p>
-      <button onclick="toggleTlActive('${key}',true)" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">📽️ Activer le timelapse${isPremium()?'':' ✨'}</button>
-    </div>`;
+    el.innerHTML = '';
     return;
   }
 

@@ -1369,6 +1369,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <div class="gauge-percent" id="detail-percent">—%</div>
       <div class="gauge-sub" id="detail-gauge-sub">Calcul en cours…</div>
     </div>
+    <!-- Timelapse par plante -->
+    <div id="plant-tl-section" style="margin:0 16px 16px;"></div>
     <div class="detail-grid">
       <div class="detail-mini-card"><div class="detail-mini-icon">💧</div><div class="detail-mini-val" id="detail-need">—mm/j</div><div class="detail-mini-label">Besoin hydrique</div></div>
       <div class="detail-mini-card"><div class="detail-mini-icon">🌧️</div><div class="detail-mini-val" id="detail-rain-today">—mm</div><div class="detail-mini-label">Pluie aujourd'hui</div></div>
@@ -1459,8 +1461,6 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
       <button class="btn-primary" id="detail-water-btn" onclick="openWateringModal()" style="margin-bottom:0;">💧 Arroser</button>
       <button class="btn-secondary" onclick="openJournalFromPlant()" style="margin-bottom:0;padding:16px;border-radius:14px;border:2px solid var(--green-pale);background:white;color:var(--green-mid);font-family:var(--ff-body);font-size:0.95rem;font-weight:600;cursor:pointer;">📖 Journal</button>
     </div>
-    <!-- Timelapse par plante -->
-    <div id="plant-tl-section" style="margin:0 16px 16px;"></div>
     <!-- Graphique prévisionnel plante -->
     <div id="plant-forecast-chart" style="background:white;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:16px;"></div>
   </div>
@@ -7649,20 +7649,18 @@ function renderTlReminders() {
   if(!el) return;
   if(!state.timelapsePlants || !isPremium()){ el.innerHTML=''; return; }
   const due = Object.entries(state.timelapsePlants)
-    .filter(([k,s])=>s.active && s.notifEnabled && tlPhotoDue(k) && PLANT_DB[k])
-    .slice(0,3);
+    .filter(([k,s])=>s.active && s.notifEnabled && tlPhotoDue(k) && PLANT_DB[k]);
   if(!due.length){ el.innerHTML=''; return; }
-  el.innerHTML = due.map(([k,s])=>{
-    const p=PLANT_DB[k], count=s.photos.length;
-    return `<div class="tl-reminder-card" onclick="openPlantDetail('${k}')">
-      <span style="font-size:1.4rem;">${p.emoji}</span>
-      <div style="flex:1;">
-        <div style="font-size:0.85rem;font-weight:700;color:white;">📽️ Photo timelapse due</div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:1px;">${p.name} · ${count} photo${count>1?'s':''}</div>
-      </div>
-      <span style="color:rgba(255,255,255,0.45);font-size:0.9rem;">›</span>
-    </div>`;
-  }).join('');
+  const emojis = due.slice(0,4).map(([k])=>PLANT_DB[k].emoji).join(' ');
+  const firstKey = due[0][0];
+  el.innerHTML = `<div class="tl-reminder-card" onclick="${due.length===1?`openPlantDetail('${firstKey}')`:`openTlPlantsSheet()`}">
+    <span style="font-size:1.4rem;">📽️</span>
+    <div style="flex:1;">
+      <div style="font-size:0.85rem;font-weight:700;color:white;">Photo${due.length>1?'s':''} timelapse due${due.length>1?'s':''}</div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.6);margin-top:1px;">${emojis} ${due.length} plante${due.length>1?'s':''} attendent${due.length===1?' attend':''} une photo</div>
+    </div>
+    <span style="color:rgba(255,255,255,0.45);font-size:0.9rem;">›</span>
+  </div>`;
 }
 
 function openTlPlantsSheet() {

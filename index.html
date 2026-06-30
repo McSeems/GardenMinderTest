@@ -769,6 +769,18 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .badge-name{font-size:0.6rem;font-weight:600;color:var(--text-dark);line-height:1.3;}
 .badge-date{font-size:0.52rem;color:var(--text-light);margin-top:2px;}
 
+/* Calendrier saisonnier — actions cliquables */
+.cal-action-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--green-mist);cursor:pointer;transition:opacity 0.15s;}
+.cal-action-item:active{opacity:0.65;}
+.cal-action-item:last-child{border-bottom:none;}
+.cal-action-done .cal-action-text{text-decoration:line-through;color:var(--text-light);}
+.cal-action-done{opacity:0.7;}
+.cal-action-left{flex:1;min-width:0;}
+.cal-action-plant-info{font-size:0.72rem;color:var(--text-light);margin-bottom:2px;}
+.cal-action-text{font-size:0.83rem;color:var(--text-dark);line-height:1.4;}
+.cal-action-check{font-size:1.15rem;flex-shrink:0;line-height:1;}
+.cal-check-empty{color:var(--text-light);font-size:1rem;}
+
 /* Saisons */
 .seasons-section{margin:0 16px 12px;}
 .seasons-title{font-family:var(--ff-display);font-size:1rem;font-weight:600;color:var(--text-dark);margin-bottom:12px;}
@@ -2677,6 +2689,9 @@ const PLANT_CALENDAR = {
 function getPlantCal(key){
   return PLANT_CALENDAR[key] || PLANT_CALENDAR['_'+(PLANT_DB[key]?.family)] || [];
 }
+function escapeAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
 
 const SOIL_RETENTION = { argileux:1.3, limoneux:1.0, sableux:0.7, calcaire:0.85 };
 const EXPOSE_FACTOR  = { ombre:0.7, 'mi-ombre':0.9, soleil:1.15 };
@@ -2730,6 +2745,8 @@ let state = {
   theme: 'foret',
   alertsReceived: 0,
   lastMoistureDate: null, // ISO date YYYY-MM-DD de la dernière application refreshAllMoisture
+  calDone: {}, // {'YYYY-M': ['plantKey|cat', ...]}
+  calBannerDismissed: null, // clé semaine 'YYYY-Www'
 };
 let currentEditField = null;
 let currentPlant = null;
@@ -6519,7 +6536,7 @@ function openEntrySheet(editId) {
     const p = PLANT_DB[k];
     const label = p.emoji+' '+p.name;
     const sel = editPlant ? label===editPlant : i===0;
-    return `<div class="plant-chip-pick ${sel?'selected':''}" onclick="selectEntryPlant(this)">${label}</div>`;
+    return `<div class="plant-chip-pick ${sel?'selected':''}" data-key="${k}" onclick="selectEntryPlant(this)">${label}</div>`;
   }).join('') + `<div class="plant-chip-pick ${editPlant==='🌱 Tout le jardin'?'selected':''}" onclick="selectEntryPlant(this)">🌱 Tout le jardin</div>`;
   document.getElementById('entry-text').value = entry ? entry.text : '';
   // Photo existante
@@ -6538,6 +6555,48 @@ function openEntrySheet(editId) {
   if(title) title.innerHTML = entry ? 'Modifier l\'<em>entrée</em>' : 'Nouvelle <em>entrée</em>';
   const submitBtn = document.querySelector('.btn-submit-entry');
   if(submitBtn) submitBtn.textContent = entry ? 'Enregistrer les modifications ✓' : 'Enregistrer dans le journal ✓';
+}
+function openEntrySheetPrefilled(plantKey, entryType, prefillText) {
+  openEntrySheet();
+  setTimeout(() => {
+    document.querySelectorAll('.plant-chip-pick').forEach(c => {
+      c.classList.remove('selected');
+      if(c.dataset.key === plantKey) c.classList.add('selected');
+    });
+    document.querySelectorAll('.type-btn').forEach(b => {
+      b.classList.remove('selected');
+      if(b.getAttribute('onclick')?.includes("'"+entryType+"'")) {
+        b.classList.add('selected');
+        currentEntryType = entryType;
+      }
+    });
+    const textEl = document.getElementById('entry-text');
+    if(textEl) textEl.value = prefillText || '';
+  }, 60);
+}
+const CAL_TYPE_MAP = {semis:'action',plantation:'action',taille:'taille',paillage:'action',engrais:'treatment',recolte:'harvest',protection:'action',entretien:'action'};
+function openSeasonAction(el) {
+  const key = el.dataset.key;
+  const cat = el.dataset.cat;
+  const action = el.dataset.action;
+  const now = new Date();
+  const monthKey = now.getFullYear() + '-' + (now.getMonth()+1);
+  const doneKey = key + '|' + cat;
+  if(!state.calDone) state.calDone = {};
+  if(!state.calDone[monthKey]) state.calDone[monthKey] = [];
+  const idx = state.calDone[monthKey].indexOf(doneKey);
+  if(idx !== -1) {
+    // Déjà coché → décocher seulement
+    state.calDone[monthKey].splice(idx, 1);
+    saveState();
+    renderSeasonTab();
+    return;
+  }
+  // Cocher + ouvrir la fiche journal pré-remplie
+  state.calDone[monthKey].push(doneKey);
+  saveState();
+  renderSeasonTab();
+  openEntrySheetPrefilled(key, CAL_TYPE_MAP[cat]||'action', action);
 }
 function closeEntrySheet() {
   document.getElementById('entry-overlay').classList.remove('open');
@@ -6765,16 +6824,18 @@ function renderSeasonTab() {
   const el = document.getElementById('journal-stats-content');
   if(!el) return;
   const now = new Date();
-  const cm = now.getMonth()+1; // mois courant 1-12
+  const cm = now.getMonth()+1;
   const nm = cm===12?1:cm+1;
   const MNAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const monthKey = now.getFullYear()+'-'+cm;
+  if(!state.calDone) state.calDone = {};
+  const done = state.calDone[monthKey] || [];
 
-  // Collecter les actions du mois courant et suivant
   const curActions=[], nxtActions=[];
   state.selectedPlants.forEach(key=>{
     const plant=PLANT_DB[key]; if(!plant) return;
     getPlantCal(key).forEach(e=>{
-      if(e.m.includes(cm)) curActions.push({key,plant,...e});
+      if(e.m.includes(cm)) curActions.push({key,plant,...e,doneKey:key+'|'+e.c,isDone:done.includes(key+'|'+e.c)});
       if(e.m.includes(nm)) nxtActions.push({key,plant,...e});
     });
   });
@@ -6788,17 +6849,23 @@ function renderSeasonTab() {
     return g;
   }
 
-  function renderGroups(groups, dim){
+  function renderGroups(groups, clickable){
     return CAL_CAT_ORDER.filter(c=>groups[c]).map(c=>{
       const cat=CAL_CAT[c];
-      const items=groups[c].map(a=>`
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--green-mist);">
-          <span style="font-size:1.25rem;flex-shrink:0;line-height:1.3;">${a.plant.emoji}</span>
-          <div>
-            <div style="font-size:0.83rem;font-weight:600;color:var(--text-dark);">${a.plant.name}</div>
-            <div style="font-size:0.78rem;color:var(--text-mid);line-height:1.45;margin-top:1px;">${a.a}</div>
-          </div>
-        </div>`).join('');
+      const items=groups[c].map(a=> clickable
+        ? `<div class="cal-action-item${a.isDone?' cal-action-done':''}" data-key="${a.key}" data-cat="${c}" data-action="${escapeAttr(a.a)}" onclick="openSeasonAction(this)">
+            <div class="cal-action-left">
+              <div class="cal-action-plant-info">${a.plant.emoji} ${a.plant.name}</div>
+              <div class="cal-action-text">${a.a}</div>
+            </div>
+            <div class="cal-action-check">${a.isDone?'✅':'<span class="cal-check-empty">○</span>'}</div>
+           </div>`
+        : `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--green-mist);">
+            <span style="font-size:1.2rem;flex-shrink:0;">${a.plant.emoji}</span>
+            <div><div style="font-size:0.8rem;font-weight:600;color:var(--text-dark);">${a.plant.name}</div>
+            <div style="font-size:0.77rem;color:var(--text-mid);line-height:1.4;margin-top:1px;">${a.a}</div></div>
+           </div>`
+      ).join('');
       return `<div style="margin-bottom:14px;">
         <div style="font-size:0.68rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">${cat.icon} ${cat.label}</div>
         <div style="background:white;border-radius:12px;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">${items}</div>
@@ -6808,21 +6875,28 @@ function renderSeasonTab() {
 
   const cg=groupByCat(curActions), ng=groupByCat(nxtActions);
   const hasCur=Object.keys(cg).length>0, hasNxt=Object.keys(ng).length>0;
+  const doneCount=curActions.filter(a=>a.isDone).length;
   const totalCur=curActions.length;
+  const pct=totalCur?Math.round(doneCount/totalCur*100):0;
 
   el.innerHTML=`<div style="padding:16px;">
     <div style="background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:16px;padding:20px;margin-bottom:18px;color:white;">
       <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.65;margin-bottom:3px;">Calendrier saisonnier</div>
       <div style="font-family:var(--ff-display);font-size:1.6rem;font-weight:700;">${MNAMES[cm-1]} ${now.getFullYear()}</div>
-      <div style="font-size:0.82rem;opacity:0.8;margin-top:5px;">${hasCur?totalCur+' action'+(totalCur>1?'s':'')+' pour vos plantes':'Rien de spécial ce mois-ci 🌿'}</div>
+      ${hasCur?`<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <div style="flex:1;height:5px;background:rgba(255,255,255,0.25);border-radius:3px;"><div style="height:100%;border-radius:3px;background:white;width:${pct}%;transition:width 0.3s;"></div></div>
+        <div style="font-size:0.8rem;font-weight:700;opacity:0.9;">${doneCount}/${totalCur}</div>
+      </div>
+      <div style="font-size:0.75rem;opacity:0.75;margin-top:4px;">Appuyez sur une action pour la marquer faite</div>`
+      :`<div style="font-size:0.82rem;opacity:0.8;margin-top:5px;">Rien de spécial ce mois-ci 🌿</div>`}
     </div>
-    ${hasCur?renderGroups(cg,'cur'):`<div style="text-align:center;padding:28px 16px;color:var(--text-light);font-size:0.88rem;background:white;border-radius:12px;margin-bottom:14px;">🌿 Rien de spécial à faire ce mois-ci</div>`}
+    ${hasCur?renderGroups(cg,true):`<div style="text-align:center;padding:28px 16px;color:var(--text-light);font-size:0.88rem;background:white;border-radius:12px;margin-bottom:14px;">🌿 Rien de spécial à faire ce mois-ci</div>`}
     <div style="margin:18px 0 8px;display:flex;align-items:center;gap:8px;">
       <div style="flex:1;height:1px;background:var(--green-mist);"></div>
       <div style="font-size:0.68rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;">🔜 ${MNAMES[nm-1]}</div>
       <div style="flex:1;height:1px;background:var(--green-mist);"></div>
     </div>
-    ${hasNxt?renderGroups(ng,'nxt'):`<div style="padding:12px;color:var(--text-light);font-size:0.82rem;text-align:center;">Rien de planifié pour ${MNAMES[nm-1]}.</div>`}
+    ${hasNxt?renderGroups(ng,false):`<div style="padding:12px;color:var(--text-light);font-size:0.82rem;text-align:center;">Rien de planifié pour ${MNAMES[nm-1]}.</div>`}
   </div>`;
 }
 

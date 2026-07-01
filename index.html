@@ -22,7 +22,7 @@ const blob=new Blob([JSON.stringify(MANIFEST)],{type:'application/json'});
 const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
-const CACHE_VERSION='gardenminder-v2';
+const CACHE_VERSION='gardenminder-v3';
 const APP_VERSION='1.22.0';
 const APP_BUILD='30 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
@@ -1451,6 +1451,26 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
         </div>
       </div>
     </div>
+
+    <!-- Calendrier annuel (accordéon) -->
+    <div class="plant-info-card" id="detail-annual-cal-card">
+      <div class="plant-info-card-header" onclick="toggleAnnualCal()">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">📆</span>
+          <div>
+            <div style="font-size:0.92rem;font-weight:700;color:var(--text-dark);">Calendrier annuel</div>
+            <div style="font-size:0.78rem;color:var(--text-light);" id="annual-cal-summary">Actions tout au long de l'année</div>
+          </div>
+        </div>
+        <div id="annual-cal-arrow" style="color:var(--text-light);font-size:18px;transition:transform 0.3s;">▼</div>
+      </div>
+      <div id="annual-cal-body" style="display:none;padding:12px 16px 16px;">
+        <div id="annual-cal-content"></div>
+      </div>
+    </div>
+
+    <!-- Timelapse : activation quand inactif -->
+    <div id="plant-tl-start-section" style="margin-bottom:12px;"></div>
 
     <!-- Actions rapides -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
@@ -4517,9 +4537,9 @@ function renderForecastMoistureChart(plantKeys, categoryName, containerId){
   // Message d'alerte
   let alertMsg = '';
   if(alertRed > 0 && alertRed <= DAYS){
-    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#ffe0e0;border-radius:8px;font-size:0.78rem;color:#c0392b;font-weight:600;">⚠️ Arrosage requis autour de J+${alertRed} si pas de pluie</div>`;
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#ffe0e0;border-radius:8px;font-size:0.78rem;color:#c0392b;font-weight:600;">🔴 Arrosage urgent vers J+${alertRed} — sol critique (&lt;50%)</div>`;
   } else if(alertYellow > 0 && alertYellow <= DAYS){
-    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#fff8e0;border-radius:8px;font-size:0.78rem;color:#e0a000;font-weight:600;">👁️ Commencera à manquer d'eau vers J+${alertYellow} — prévoyez un arrosage</div>`;
+    alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#fff3e0;border-radius:8px;font-size:0.78rem;color:#e07000;font-weight:600;">⚠️ Arrosage recommandé autour de J+${alertYellow} (seuil 80%)</div>`;
   } else {
     alertMsg = `<div style="margin-top:10px;padding:8px 12px;background:#e8f5ee;border-radius:8px;font-size:0.78rem;color:#2e7d52;font-weight:600;">✅ Jardin bien hydraté pour les 15 prochains jours</div>`;
   }
@@ -4703,9 +4723,8 @@ function openPlantDetail(key, fromScreen){
       waterBtn.style.cursor = '';
     }
   }
-  // ──────────────────────────────────────────────────────────────────────────
-  // Graphique prévisionnel pour cette plante
   renderPlantTlSection(key);
+  renderAnnualCalForPlant(key);
   goTo('plant');
 }
 
@@ -4743,6 +4762,69 @@ function togglePlantInfoCard(){
   const open = body.style.display==='block';
   body.style.display = open?'none':'block';
   arrow.style.transform = open?'':'rotate(180deg)';
+}
+
+function toggleAnnualCal(){
+  const body = document.getElementById('annual-cal-body');
+  const arrow = document.getElementById('annual-cal-arrow');
+  const open = body.style.display==='block';
+  body.style.display = open?'none':'block';
+  arrow.style.transform = open?'':'rotate(180deg)';
+}
+
+function renderAnnualCalForPlant(key){
+  const content = document.getElementById('annual-cal-content');
+  if(!content) return;
+  const cal = getPlantCal(key);
+  if(!cal.length){ content.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.82rem;">Pas de données saisonnières pour cette plante.</div>'; return; }
+
+  const MSHORT = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const now = new Date();
+  const curM = now.getMonth()+1;
+
+  // Récupérer les catégories présentes
+  const catsPresent = CAL_CAT_ORDER.filter(c => cal.some(e=>e.c===c));
+
+  // Mise à jour du résumé
+  const sumEl = document.getElementById('annual-cal-summary');
+  if(sumEl) sumEl.textContent = `${cal.length} action${cal.length>1?'s':''} · ${catsPresent.length} catégorie${catsPresent.length>1?'s':''}`;
+
+  // Construire la grille
+  const colW = 22;
+  let html = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <table style="border-collapse:collapse;width:100%;min-width:280px;font-family:var(--ff-body);">
+      <thead>
+        <tr>
+          <td style="width:80px;"></td>
+          ${MSHORT.map((m,i)=>{
+            const active = (i+1)===curM;
+            return `<td style="text-align:center;width:${colW}px;font-size:0.62rem;font-weight:${active?'800':'600'};color:${active?'var(--green-mid)':'var(--text-light)'};padding:2px 0;${active?'background:var(--green-mist);border-radius:4px;':''}">${m}</td>`;
+          }).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  catsPresent.forEach(c=>{
+    const cat = CAL_CAT[c];
+    const monthsActive = new Set(cal.filter(e=>e.c===c).flatMap(e=>e.m));
+    html += `<tr>
+      <td style="font-size:0.7rem;color:var(--text-mid);padding:4px 4px 4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;" title="${cat.label}">${cat.icon} ${cat.label}</td>
+      ${MSHORT.map((_,i)=>{
+        const m = i+1;
+        const on = monthsActive.has(m);
+        const cur = m===curM;
+        return `<td style="text-align:center;padding:4px 2px;${cur?'background:var(--green-mist);':''}">${on?`<div style="width:14px;height:14px;border-radius:50%;background:${cur?'var(--green-mid)':'var(--green-pale)'};margin:0 auto;"></div>`:'<div style="width:14px;height:14px;"></div>'}</td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--text-light);"><div style="width:10px;height:10px;border-radius:50%;background:var(--green-pale);"></div>Action prévue</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--text-light);"><div style="width:10px;height:10px;border-radius:50%;background:var(--green-mid);"></div>Ce mois-ci</div>
+    </div>`;
+
+  content.innerHTML = html;
 }
 
 function savePlantInfo(){
@@ -7492,8 +7574,24 @@ function renderPlantTlSection(key) {
 
   if(!s.active) {
     el.innerHTML = '';
+    const startEl = document.getElementById('plant-tl-start-section');
+    if(startEl) startEl.innerHTML = `<div class="tl-plant-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="font-size:1.5rem;">📽️</span>
+        <div style="flex:1;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text-dark);">Timelapse de croissance</div>
+          <div style="font-size:0.72rem;color:var(--text-light);">Une photo tous les ${s.notifFreq===1?'jour':'2 jours'} → vidéo spectaculaire</div>
+        </div>
+        ${isPremium()?'':'<div style="font-size:0.65rem;font-weight:700;color:var(--premium);background:var(--premium-light);padding:2px 8px;border-radius:10px;flex-shrink:0;">✨ Premium</div>'}
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.6;margin:0 0 12px;">Suivez la croissance de <strong>${plant.name}</strong> photo par photo. À partir de <strong>10 photos</strong>, GardenMinder crée une vidéo timelapse 9:16 prête à partager.</p>
+      <button onclick="toggleTlActive('${key}',true)" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">📽️ Activer le timelapse${isPremium()?'':' ✨'}</button>
+    </div>`;
     return;
   }
+
+  const startEl2 = document.getElementById('plant-tl-start-section');
+  if(startEl2) startEl2.innerHTML = '';
 
   const recent = s.photos.slice(-6);
   const thumbsHtml = recent.map(p=>{

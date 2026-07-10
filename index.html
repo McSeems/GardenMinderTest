@@ -22,7 +22,7 @@ const blob=new Blob([JSON.stringify(MANIFEST)],{type:'application/json'});
 const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
-const CACHE_VERSION='gardenminder-v4';
+const CACHE_VERSION='gardenminder-v5';
 const APP_VERSION='1.22.0';
 const APP_BUILD='30 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
@@ -3919,17 +3919,8 @@ function computeMoisture(key){
           score = Math.min(100, score + gain);
         });
       } else {
-        const prevScore = score;
-        const isPot = getPlantDrainage(key) > 1.0;
-        if(prevScore < 30){
-          score = prevScore + (isPot ? 45 : 25);
-        } else if(prevScore < 50){
-          score = prevScore + (isPot ? 35 : 20);
-        } else if(prevScore < 70){
-          score = prevScore + (isPot ? 25 : 15);
-        } else {
-          score = prevScore + (isPot ? 15 : 10);
-        }
+        // Un arrosage = plante correctement arrosée → remonte à 90%
+        score = Math.max(score, 90);
         score = Math.min(95, score);
       }
       score = Math.min(100, Math.max(2, score));
@@ -4627,23 +4618,14 @@ function openPlantDetail(key, fromScreen){
   ac.className='action-card '+lvl.action;
   const nextWaterTxt=daysUntilWatering(key);
   // Plan de récupération actif ?
-  const plan = state.recoveryPlan && state.recoveryPlan[key];
   if(pct<30){
     document.getElementById('detail-action-title').textContent='🆘 Urgence — sol presque sec';
-    const sessionsLeft = plan ? (plan.sessions - plan.done) : 5;
-    const gain = 15;
     document.getElementById('detail-action-body').textContent=
-      plant.name+' sont à '+pct+'% — absorption très lente. Plan récupération : '+
-      (plan ? sessionsLeft+' arrosage'+(sessionsLeft>1?'s':'') : '5 arrosages')+
-      ' à répartir sur 5 jours (+'+gain+'% par session). Ne pas tout donner d\'un coup — risque d\'asphyxie racinaire.';
+      plant.name+' sont à '+pct+'% — absorption très lente. Arrosez maintenant, plusieurs petites sessions sur 2-3 jours. Ne pas tout donner d\'un coup — risque d\'asphyxie racinaire.';
   } else if(pct<50){
     document.getElementById('detail-action-title').textContent='⚠️ Stress visible — arrosage intensif';
-    const sessionsLeft = plan ? (plan.sessions - plan.done) : 3;
     document.getElementById('detail-action-body').textContent=
-      plant.name+' sont à '+pct+'%. '+
-      (plan ? 'Plan en cours : encore '+sessionsLeft+' session'+(sessionsLeft>1?'s':'')+'.' :
-       'Arrosage intensif : 3 sessions recommandées sur 3 jours consécutifs (+20%/session).')+
-      ' La récupération complète prend 3-5 jours (littérature agronomique FAO).';
+      plant.name+' sont à '+pct+'%. Arrosez aujourd\'hui et surveillez la remontée dans les 24h.';
   } else if(pct<80){
     document.getElementById('detail-action-title').textContent='👁️ À surveiller — arrosage bientôt';
     document.getElementById('detail-action-body').textContent=plant.name+' commencent à manquer d\'eau ('+pct+'%). Prochain arrosage recommandé '+nextWaterTxt+'.';
@@ -4663,7 +4645,11 @@ function openPlantDetail(key, fromScreen){
     // Les snapshots sont des moyennes jardin — on cherche la date la plus proche
     if(state.moistureHistory && state.moistureHistory.length){
       const entry = state.moistureHistory.find(e=>e.date===ds);
-      if(entry) return Math.min(100,Math.max(2,entry.value));
+      if(entry){
+        if(entry.plants && entry.plants[key] !== undefined)
+          return Math.min(100,Math.max(2,entry.plants[key]));
+        return Math.min(100,Math.max(2,entry.value));
+      }
     }
     return null;
   }
@@ -5079,37 +5065,12 @@ function confirmWatering(){
   state.wateringHistory.unshift({date:dateStr,ts:now.toISOString(),liters:Math.round(liters),plant:effectiveTargets.length===1?effectiveTargets[0]:null,targets:effectiveTargets});
   logWeeklyActivity('watering');
   requestNotifPermission();
-  effectiveTargets.forEach(k=>{
-    state.lastWatered[k] = now.toISOString();
-    const currentScore = state.plantMoisture[k] || 60;
-    if(PLANT_DB[k] && PLANT_DB[k].family==='gazon'){
-      const gain = Math.min(40, liters / Math.max(1, state.surface) * 8);
-      state.plantMoisture[k] = Math.min(100, currentScore + gain);
-    } else if(currentScore < 30){
-      state.plantMoisture[k] = Math.min(45, currentScore + 15);
-      if(!state.recoveryPlan) state.recoveryPlan = {};
-      state.recoveryPlan[k] = { sessions: 5, done: 1, startScore: currentScore, startDate: now.toISOString() };
-    } else if(currentScore < 50){
-      state.plantMoisture[k] = Math.min(70, currentScore + 20);
-      if(!state.recoveryPlan) state.recoveryPlan = {};
-      state.recoveryPlan[k] = { sessions: 3, done: 1, startScore: currentScore, startDate: now.toISOString() };
-    } else {
-      state.plantMoisture[k] = 100;
-      if(state.recoveryPlan) delete state.recoveryPlan[k];
-    }
-    state.plantMoisture[k] = Math.min(100, Math.max(2, state.plantMoisture[k]));
-  });
-  state.lastMoistureDate = localDateStr();
+  effectiveTargets.forEach(k=>{ state.lastWatered[k] = now.toISOString(); });
+  refreshAllMoisture(true);
   saveState();
   const allSelected=(state.selectedPlants||[]).every(k=>effectiveTargets.includes(k));
   const targetLabel=allSelected?'tout le jardin':effectiveTargets.length===1&&PLANT_DB[effectiveTargets[0]]?PLANT_DB[effectiveTargets[0]].name:`${effectiveTargets.length} plantes`;
-  let toastMsg=isSimple?`✅ ${PLANT_DB[effectiveTargets[0]].name} arrosé ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
-  const firstTarget = effectiveTargets[0];
-  if(state.recoveryPlan && state.recoveryPlan[firstTarget]){
-    const plan = state.recoveryPlan[firstTarget];
-    const remaining = plan.sessions - plan.done;
-    toastMsg = '💧 Arrosage enregistré — plan récupération : encore '+remaining+' session'+(remaining>1?'s':'');
-  }
+  const toastMsg=isSimple?`✅ ${PLANT_DB[effectiveTargets[0]].name} arrosé ! +5 pts`:`✅ ${Math.round(liters)}L enregistrés — ${targetLabel} ! +5 pts`;
   document.getElementById('modal-watering').classList.remove('open');
   awardPoints(5, 'Arrosage enregistré 💧');
   showToast(toastMsg);

@@ -8156,10 +8156,17 @@ function renderMemoryTab() {
   sid('streak-num', `🔥 ${streak}`);
   const weeksEl = document.getElementById('streak-weeks');
   if (weeksEl) {
-    const displayCount = Math.max(8, streak+1);
-    weeksEl.innerHTML = Array.from({length:Math.min(displayCount,8)},(_,i) => {
-      const cls = i < streak ? 'done' : i === streak ? 'current' : 'empty';
-      return `<div class="week-dot ${cls}">S${i+1}</div>`;
+    const STREAK_MILESTONES = [4, 8, 12, 16, 24, 52];
+    const nextMilestone = STREAK_MILESTONES.find(m => m > streak) || streak + 4;
+    const showCount = Math.min(Math.max(nextMilestone, streak + 1), 24);
+    weeksEl.style.overflowX = showCount > 8 ? 'auto' : '';
+    weeksEl.style.paddingBottom = showCount > 8 ? '4px' : '';
+    weeksEl.innerHTML = Array.from({length: showCount}, (_,i) => {
+      const cls = i < streak ? 'done' : 'empty';
+      const isMilestone = STREAK_MILESTONES.includes(i + 1);
+      const milStyle = isMilestone ? 'outline:2px solid #f0c840;outline-offset:2px;' : '';
+      const milTitle = isMilestone ? ` title="🏆 Objectif : ${i+1} semaines"` : '';
+      return `<div class="week-dot ${cls}" style="${milStyle}"${milTitle}>S${i+1}</div>`;
     }).join('');
   }
   const flameInfo = document.querySelector('#streak-weeks + .streak-flame .streak-flame-info span');
@@ -8543,13 +8550,29 @@ function awardChallenge(num) {
   renderChallengeCard();
 }
 
+function honorChallenge(num) {
+  const c = WEEKLY_CHALLENGES.find(ch => ch.num === num);
+  if(!c) return;
+  // Défis qui nécessitent un vrai partage
+  if(num === 16 || num === 26) {
+    shareGardenScore();
+    setTimeout(() => awardChallenge(num), 500);
+    return;
+  }
+  // Autres défis d'honneur : confirmation explicite
+  const msg = `Confirmez-vous avoir relevé ce défi ?\n\n"${c.title}"\n${c.desc}`;
+  if(window.confirm(msg)) awardChallenge(num);
+}
+
 function renderChallengeCard() {
   const el = document.getElementById('weekly-challenge-card');
   if(!el) return;
   const c = getActiveChallenge();
   if(!c) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
   const done = (state.challengesCompleted || {})[c.num];
+  // Bannière "complété" disparaît après 24h
+  if(done && Date.now() - done > 24 * 3600 * 1000) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
   const rewardStr = c.badge
     ? c.badge.emoji + ' ' + c.badge.name
     : (c.reward ? (c.reward.type === 'slot' ? '+' + c.reward.n + ' emplacement' + (c.reward.n > 1 ? 's' : '') : '+' + c.reward.days + 'j Premium') : '+' + c.pts + ' pts');
@@ -8568,7 +8591,15 @@ function renderChallengeCard() {
   const canComplete = checkChallengeTrigger(c);
   const isHonor = c.triggerType === 'honor' || c.triggerType === 'champion';
   const showBtn = canComplete || isHonor;
-  const btnLabel = isHonor ? '🤝 Honorer ce défi' : '✅ Valider le défi';
+  // Label du bouton adapté selon le défi
+  const honorLabels = {
+    9:'✅ J\'ai relevé ce défi !', 21:'✅ J\'ai relevé ce défi !',
+    16:'📲 Partager mon score', 26:'📲 Partager et valider',
+  };
+  const btnLabel = isHonor
+    ? (honorLabels[c.num] || '🤝 Honorer ce défi')
+    : '✅ Valider le défi';
+  const btnHandler = isHonor ? `honorChallenge(${c.num})` : `awardChallenge(${c.num})`;
   el.innerHTML = `<div class="challenge-card" style="margin:0 16px;">
     <div class="challenge-badge-emoji">${badgeEmoji}</div>
     <div class="challenge-content">
@@ -8576,7 +8607,7 @@ function renderChallengeCard() {
       <div class="challenge-title">${c.title}</div>
       <div class="challenge-desc">${c.desc}</div>
       <div class="challenge-reward">🎁 ${rewardStr}</div>
-      ${showBtn ? `<button class="challenge-btn" onclick="awardChallenge(${c.num})">${btnLabel}</button>` : '<div class="challenge-progress">En cours…</div>'}
+      ${showBtn ? `<button class="challenge-btn" onclick="${btnHandler}">${btnLabel}</button>` : '<div class="challenge-progress">En cours…</div>'}
     </div>
   </div>`;
 }

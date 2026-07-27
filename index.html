@@ -22,7 +22,7 @@ const blob=new Blob([JSON.stringify(MANIFEST)],{type:'application/json'});
 const manifestURL=URL.createObjectURL(blob);
 const linkEl=document.createElement('link');linkEl.rel='manifest';linkEl.href=manifestURL;
 document.currentScript.parentNode.insertBefore(linkEl,document.currentScript);
-const CACHE_VERSION='gardenminder-v6';
+const CACHE_VERSION='gardenminder-v7';
 const APP_VERSION='1.22.0';
 const APP_BUILD='30 juin 2026 à 12:00 (Paris)';
 const SW_CODE=`const CACHE_NAME='${CACHE_VERSION}';const URLS_TO_CACHE=[location.pathname];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(URLS_TO_CACHE)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(cached=>{const nf=fetch(e.request).then(r=>{if(r&&r.status===200&&r.type==='basic'){const c=r.clone();caches.open(CACHE_NAME).then(ca=>ca.put(e.request,c));}return r;}).catch(()=>cached);return cached||nf;}));});`;
@@ -901,6 +901,20 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
 .auth-error { background: #fde8e8; color: var(--danger); padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 12px; display: none; width: 100%; }
 .auth-error.show { display: block; }
 .auth-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--green-mid); color: white; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+/* ── DÉFIS HEBDOMADAIRES ──────────────────────────────────────────────────── */
+.challenge-card{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,#fffbf0,#fef3cc);border:1.5px solid #f0c840;border-radius:18px;padding:14px 16px;}
+.challenge-card.challenge-done{background:linear-gradient(135deg,#f0fff4,#d4edda);border-color:#6bbf7a;}
+.challenge-badge-emoji{font-size:2rem;flex-shrink:0;margin-top:2px;}
+.challenge-content{flex:1;min-width:0;}
+.challenge-label{font-size:0.67rem;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#b08020;margin-bottom:3px;}
+.challenge-card.challenge-done .challenge-label{color:#2d7a4a;}
+.challenge-title{font-family:var(--ff-serif);font-size:1rem;font-weight:700;color:var(--text-dark);margin-bottom:4px;}
+.challenge-desc{font-size:0.8rem;color:var(--text-light);line-height:1.4;margin-bottom:6px;}
+.challenge-reward{font-size:0.78rem;font-weight:600;color:#8b5e08;margin-bottom:8px;}
+.challenge-pts{font-size:0.82rem;font-weight:600;color:#2d7a4a;}
+.challenge-btn{background:linear-gradient(135deg,#f0c840,#e0a820);border:none;border-radius:10px;padding:8px 16px;font-family:var(--ff-body);font-size:0.85rem;font-weight:700;color:#5c3a00;cursor:pointer;transition:opacity 0.15s;}
+.challenge-btn:active{opacity:0.8;}
+.challenge-progress{font-size:0.78rem;color:var(--text-light);font-style:italic;}
 </style>
 </head>
 <body>
@@ -1239,6 +1253,8 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div id="streak-warn-banner" style="display:none;padding:0 0 4px;"></div>
     <!-- Bannière rappels timelapse -->
     <div id="tl-reminder-banner" style="padding:0 16px;"></div>
+    <!-- Défi hebdomadaire -->
+    <div id="weekly-challenge-card" style="display:none;margin-bottom:8px;"></div>
     <!-- Bannière calendrier saisonnier (au-dessus du héro) -->
     <div id="hero-calendar-banner" style="display:none;padding:0 16px 8px;"></div>
     <!-- Hero gauge card -->
@@ -1628,6 +1644,11 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <div class="badges-section">
       <div class="badges-title">🏆 Vos badges</div>
       <div class="badges-grid" id="badges-grid"></div>
+    </div>
+    <!-- Défis hebdomadaires complétés -->
+    <div class="badges-section" id="challenges-history-section">
+      <div class="badges-title">🎯 Défis complétés</div>
+      <div id="challenges-history"></div>
     </div>
     <!-- 4 Saisons -->
     <div class="seasons-section">
@@ -2352,6 +2373,39 @@ const CAL_CAT = {
   entretien: {icon:'🔧', label:'Entretien'},
 };
 const CAL_CAT_ORDER = ['semis','plantation','taille','paillage','engrais','recolte','protection','entretien'];
+
+// ── DÉFIS HEBDOMADAIRES (26 défis, 1 toutes les 2 semaines) ──────────────────
+// week = semaine ISO de début (défi actif pendant semaines week et week+1)
+// triggerType : auto-détecté OU 'honor' (bouton manuel)
+const WEEKLY_CHALLENGES = [
+  { num:1,  week:1,  season:'❄️', title:'Premier inventaire',      desc:'Photographiez chaque plante et notez son état hivernal dans le journal.',       triggerType:'photo',       pts:15, badge:{id:'ch_explorateur',    emoji:'🏅', name:'Explorateur Hivernal'} },
+  { num:2,  week:3,  season:'❄️', title:'Journal de gel',           desc:'Notez 3 observations sur l\'impact du froid dans votre journal cette semaine.', triggerType:'journal3',    pts:25, badge:{id:'ch_meteo',          emoji:'🌡️', name:'Météorologue'} },
+  { num:3,  week:5,  season:'❄️', title:'Plan de saison',           desc:'Ajoutez au moins 2 plantes à votre jardin pour préparer la saison.',            triggerType:'plants2',     pts:20, reward:{type:'slot', n:1} },
+  { num:4,  week:7,  season:'❄️', title:'Taille hivernale',         desc:'Enregistrez une entrée de taille dans votre journal de bord.',                  triggerType:'taille1',     pts:20, badge:{id:'ch_jardinier_precis',emoji:'✂️', name:'Jardinier Précis'} },
+  { num:5,  week:9,  season:'🌸', title:'Réveil du jardin',         desc:'Photographiez votre jardin qui s\'éveille et notez-le dans le journal.',         triggerType:'photo',       pts:20, badge:{id:'ch_eveil',          emoji:'🌸', name:'Éveil du Printemps'} },
+  { num:6,  week:11, season:'🌸', title:'Calibration sol',          desc:'Réalisez le test de calibration du sol de votre jardin.',                       triggerType:'calibration', pts:30, badge:{id:'ch_expert_sol',     emoji:'🧪', name:'Expert Sol'} },
+  { num:7,  week:13, season:'🌸', title:'Semis en série',           desc:'Enregistrez 2 entrées d\'action ou plus dans le journal cette semaine.',         triggerType:'action2',     pts:20, reward:{type:'slot', n:1} },
+  { num:8,  week:15, season:'🌸', title:'Première récolte',         desc:'Notez votre première récolte de la saison dans le journal.',                    triggerType:'harvest1',    pts:25, badge:{id:'ch_premiere_recolte',emoji:'🌾', name:'Première Récolte'} },
+  { num:9,  week:17, season:'🌸', title:'Semaine zéro déchet',      desc:'Compostez, réutilisez, optimisez votre jardin — validez ce défi vert !',         triggerType:'honor',       pts:30, reward:{type:'premium', days:7} },
+  { num:10, week:19, season:'🌸', title:'Parrainage vert',          desc:'Partagez votre code de parrainage avec un ami jardinier.',                      triggerType:'referral',    pts:20, reward:{type:'slot', n:2} },
+  { num:11, week:21, season:'☀️', title:'Chasse à la chaleur',      desc:'Photographiez une plante à <40% d\'humidité et notez comment vous la sauvez.',  triggerType:'heatphoto',   pts:25, badge:{id:'ch_sentinelle',     emoji:'🔥', name:'Sentinelle Estivale'} },
+  { num:12, week:23, season:'☀️', title:'100 jours de jardin',      desc:'Vous êtes actif depuis plus de 8 semaines consécutives — félicitations !',      triggerType:'streak8',     pts:40, badge:{id:'ch_centenaire',     emoji:'🏆', name:'Centenaire'} },
+  { num:13, week:25, season:'☀️', title:'Canicule survival',        desc:'Gardez toutes vos plantes au-dessus de 20% pendant 7 jours de suite.',           triggerType:'canicule',    pts:35, reward:{type:'premium', days:15} },
+  { num:14, week:27, season:'☀️', title:'Timelapse d\'été',         desc:'Prenez 5 photos dans le journal cette semaine.',                                 triggerType:'photos5',     pts:25, badge:{id:'ch_photographe',    emoji:'📸', name:'Photographe'} },
+  { num:15, week:29, season:'☀️', title:'Abondance estivale',       desc:'Notez 3 récoltes dans votre journal cette semaine.',                             triggerType:'harvest3',    pts:35, badge:{id:'ch_recolteur',      emoji:'🌻', name:'Récolteur Expert'} },
+  { num:16, week:31, season:'☀️', title:'Partage de récolte',       desc:'Partagez votre score de jardin avec votre entourage — honorez ce défi !',        triggerType:'honor',       pts:15, reward:{type:'slot', n:1} },
+  { num:17, week:33, season:'🍂', title:'Bilan estival',            desc:'Écrivez une entrée contenant "bilan" avec une photo dans le journal.',           triggerType:'bilan',       pts:25, badge:{id:'ch_chroniqueur',    emoji:'📖', name:'Chroniqueur'} },
+  { num:18, week:35, season:'🍂', title:'Préparation automne',      desc:'Calibrez votre sol ET enregistrez une taille dans le journal cette semaine.',    triggerType:'automne',     pts:30, badge:{id:'ch_stratege',       emoji:'🍂', name:'Stratège Automnal'} },
+  { num:19, week:37, season:'🍂', title:'La grande récolte',        desc:'Notez 4 récoltes ou plus dans votre journal cette semaine.',                     triggerType:'harvest4',    pts:30, reward:{type:'slot', n:2} },
+  { num:20, week:39, season:'🍂', title:'Protection hivernale',     desc:'Notez une action de protection pour chaque plante avant l\'hiver.',              triggerType:'protection',  pts:25, badge:{id:'ch_prevoyant',      emoji:'🛡️', name:'Prévoyant'} },
+  { num:21, week:41, season:'🍂', title:'Semaine sans gaspillage',  desc:'Compostez, récupérez l\'eau de pluie, réutilisez — honorez ce défi !',           triggerType:'honor',       pts:40, reward:{type:'premium', days:30} },
+  { num:22, week:43, season:'🍂', title:'Série de 4 semaines',      desc:'Maintenez une série de 4 semaines consécutives d\'activité dans le jardin.',     triggerType:'streak4',     pts:30, badge:{id:'ch_serie_auto',     emoji:'🔥', name:'Série Automnale'} },
+  { num:23, week:45, season:'❄️', title:'Inventaire d\'automne',   desc:'Photographiez et notez l\'état de vos plantes avant l\'hiver.',                   triggerType:'photos2',     pts:25, badge:{id:'ch_archiviste',     emoji:'🗂️', name:'Archiviste'} },
+  { num:24, week:47, season:'❄️', title:'Défi silence vert',        desc:'7 jours sans arrosage manuel avec toutes les plantes au-dessus de 60%.',         triggerType:'silence',     pts:20, badge:{id:'ch_zen',            emoji:'🧘', name:'Jardinage Zen'} },
+  { num:25, week:49, season:'❄️', title:'Timelapse de l\'année',   desc:'Votre journal contient 12 photos ou plus sur l\'année en cours.',                 triggerType:'photos12',    pts:50, reward:{type:'premium', days:30} },
+  { num:26, week:51, season:'❄️', title:'Champion de l\'année 🏆', desc:'Notez votre bilan annuel et partagez votre parcours de jardinier !',             triggerType:'champion',    pts:60, badge:{id:'ch_maitre',         emoji:'🏆', name:'Maître de l\'Année'} },
+];
+
 // m=mois(1-12), c=catégorie, a=action
 const PLANT_CALENDAR = {
   // ── PAR PLANTE ──────────────────────────────────────────────────────────
@@ -2782,6 +2836,7 @@ let state = {
   referralCount: 0,        // nb de filleuls (beta: local, sera sync backend)
   referralBonusDays: 0,    // jours premium gagnés par parrainage
   usedReferralCode: null,  // code entré par cet utilisateur (filleul)
+  challengesCompleted: {}, // { [num]: timestamp } — défis hebdomadaires validés
 };
 let currentEditField = null;
 let currentPlant = null;
@@ -3820,6 +3875,7 @@ function initApp(){
   updateStats();
   renderAccountInHeader();
   setTimeout(renderHomePrecipChart, 50);
+  setTimeout(renderChallengeCard, 100);
   } catch(e) { console.warn('initApp error:', e); }
 }
 
@@ -8139,6 +8195,36 @@ function renderMemoryTab() {
     }
   }
 
+  // Défis hebdomadaires complétés
+  const challengesDoneEl = document.getElementById('challenges-history');
+  if(challengesDoneEl) {
+    const done = state.challengesCompleted || {};
+    const doneNums = Object.keys(done).map(Number).sort((a,b) => a-b);
+    if(doneNums.length === 0) {
+      document.getElementById('challenges-history-section').style.display = 'block';
+      challengesDoneEl.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-light);font-size:0.85rem;">Aucun défi complété pour l'instant.<br>Relevez les défis pour gagner des points et des badges !</div>`;
+    } else {
+      document.getElementById('challenges-history-section').style.display = 'block';
+      challengesDoneEl.innerHTML = doneNums.map(n => {
+        const c = WEEKLY_CHALLENGES.find(ch => ch.num === n);
+        if(!c) return '';
+        const dt = new Date(done[n]).toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+        const rwStr = c.badge
+          ? c.badge.emoji + ' ' + c.badge.name
+          : (c.reward ? (c.reward.type === 'slot' ? '+' + c.reward.n + ' emplacement' + (c.reward.n > 1 ? 's' : '') : '+' + c.reward.days + 'j Premium') : '+' + c.pts + ' pts');
+        const ico = c.badge ? c.badge.emoji : (c.reward && c.reward.type === 'premium' ? '👑' : '🎁');
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--cream);border-radius:10px;margin-bottom:6px;">
+          <span style="font-size:1.3rem;">${ico}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.83rem;font-weight:600;color:var(--text-dark);">${c.season} ${c.title}</div>
+            <div style="font-size:0.73rem;color:var(--text-light);">${dt} · ${rwStr} · +${c.pts} pts</div>
+          </div>
+          <span style="font-size:0.74rem;background:#e0f5e8;color:#2d7a4a;padding:3px 8px;border-radius:6px;font-weight:700;">S${n}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
   // Saisons — stats arrosage + journal
   const jEntries = state.journalEntries || [];
   const wHistory = state.wateringHistory || [];
@@ -8323,6 +8409,178 @@ function checkBadges() {
   saveState();
 }
 
+// ── DÉFIS HEBDOMADAIRES ───────────────────────────────────────────────────────
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function getActiveChallenge() {
+  const isoWeek = getISOWeek(new Date());
+  return WEEKLY_CHALLENGES.find(c => isoWeek >= c.week && isoWeek <= c.week + 1) || null;
+}
+
+function _getThisWeekEntries() {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  monday.setHours(0, 0, 0, 0);
+  return (state.journalEntries || []).filter(e => new Date(e.ts || 0) >= monday);
+}
+
+function checkChallengeTrigger(c) {
+  const week = _getThisWeekEntries();
+  const allEntries = state.journalEntries || [];
+  const moisture = state.plantMoisture || {};
+  const plants = state.selectedPlants || [];
+  switch(c.triggerType) {
+    case 'photo':
+      return week.some(e => e.photo);
+    case 'journal3':
+      return week.length >= 3;
+    case 'plants2':
+      return plants.length >= 2;
+    case 'taille1':
+      return week.some(e => e.type === 'taille');
+    case 'calibration':
+      return !!(state.calibration && (state.calibration.offset !== 0 || state.calibration.soilMultiplier !== 1.0));
+    case 'action2':
+      return week.filter(e => e.type === 'action').length >= 2;
+    case 'harvest1':
+      return week.some(e => e.type === 'harvest');
+    case 'heatphoto':
+      return week.some(e => e.photo) && Object.values(moisture).some(v => v < 40);
+    case 'streak8':
+      return (state.weeklyStreak || 0) >= 8;
+    case 'canicule': {
+      if(plants.length === 0) return false;
+      const today = localDateStr();
+      let ok = true;
+      for(let i = 0; i < 7 && ok; i++) {
+        const d = addDays(today, -i);
+        const entry = (state.moistureHistory || []).find(e => e.date === d);
+        if(entry && entry.plants) {
+          plants.forEach(k => { if((entry.plants[k] !== undefined ? entry.plants[k] : 100) < 20) ok = false; });
+        } else if(entry) {
+          if(entry.value < 20) ok = false;
+        }
+      }
+      return ok && plants.every(k => (moisture[k] || 60) >= 20);
+    }
+    case 'photos5':
+      return week.filter(e => e.photo).length >= 5;
+    case 'harvest3':
+      return week.filter(e => e.type === 'harvest').length >= 3;
+    case 'bilan':
+      return week.some(e => e.photo && (e.text || '').toLowerCase().includes('bilan'));
+    case 'automne':
+      return !!(state.calibration && state.calibration.offset !== 0) && week.some(e => e.type === 'taille');
+    case 'harvest4':
+      return week.filter(e => e.type === 'harvest').length >= 4;
+    case 'protection': {
+      const n = Math.max(1, plants.length);
+      return week.filter(e => /(protect|hivern|paillag|bâch)/i.test(e.text || '')).length >= n;
+    }
+    case 'streak4':
+      return (state.weeklyStreak || 0) >= 4;
+    case 'photos2':
+      return week.filter(e => e.photo).length >= 2;
+    case 'silence': {
+      const today = localDateStr();
+      const sevenAgo = addDays(today, -7);
+      const recent = (state.wateringHistory || []).filter(e => localDateStr(new Date(e.ts || 0)) >= sevenAgo);
+      return recent.length === 0 && plants.every(k => (moisture[k] || 60) >= 60);
+    }
+    case 'photos12': {
+      const yr = new Date().getFullYear();
+      return allEntries.filter(e => e.photo && new Date(e.ts || 0).getFullYear() === yr).length >= 12;
+    }
+    case 'referral':
+      return (state.referralCount || 0) > 0;
+    case 'honor':
+    case 'champion':
+      return false;
+    default:
+      return false;
+  }
+}
+
+function awardChallenge(num) {
+  if(!state.challengesCompleted) state.challengesCompleted = {};
+  if(state.challengesCompleted[num]) return;
+  const c = WEEKLY_CHALLENGES.find(ch => ch.num === num);
+  if(!c) return;
+  state.challengesCompleted[num] = Date.now();
+  // Points
+  const prevPts = state.gardenPoints || 0;
+  state.gardenPoints = prevPts + c.pts;
+  checkBadges();
+  checkLevelUp(prevPts);
+  // Badge de défi
+  if(c.badge) {
+    if(!state.earnedBadges) state.earnedBadges = [];
+    if(!state.earnedBadges.includes(c.badge.id)) {
+      state.earnedBadges.push(c.badge.id);
+      setTimeout(() => showToast('🏅 Badge débloqué : ' + c.badge.name + ' ' + c.badge.emoji), 800);
+    }
+  }
+  // Récompense
+  if(c.reward) {
+    if(c.reward.type === 'slot') {
+      state.bonusPlantSlots = (state.bonusPlantSlots || 0) + c.reward.n;
+      setTimeout(() => showToast('🌿 +' + c.reward.n + ' emplacement' + (c.reward.n > 1 ? 's' : '') + ' bonus gagné' + (c.reward.n > 1 ? 's' : '') + ' !'), 400);
+    } else if(c.reward.type === 'premium') {
+      state.referralBonusDays = (state.referralBonusDays || 0) + c.reward.days;
+      if(!state.premium.trialStart) { state.premium.type = 'trial'; state.premium.trialStart = Date.now(); state.premium.active = true; }
+      setTimeout(() => showToast('👑 +' + c.reward.days + ' jours Premium offerts !'), 400);
+    }
+  }
+  saveState();
+  showToast('✅ Défi "' + c.title + '" complété ! +' + c.pts + ' pts');
+  renderChallengeCard();
+}
+
+function renderChallengeCard() {
+  const el = document.getElementById('weekly-challenge-card');
+  if(!el) return;
+  const c = getActiveChallenge();
+  if(!c) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const done = (state.challengesCompleted || {})[c.num];
+  const rewardStr = c.badge
+    ? c.badge.emoji + ' ' + c.badge.name
+    : (c.reward ? (c.reward.type === 'slot' ? '+' + c.reward.n + ' emplacement' + (c.reward.n > 1 ? 's' : '') : '+' + c.reward.days + 'j Premium') : '+' + c.pts + ' pts');
+  const badgeEmoji = c.badge ? c.badge.emoji : (c.reward && c.reward.type === 'premium' ? '👑' : '🎁');
+  if(done) {
+    el.innerHTML = `<div class="challenge-card challenge-done" style="margin:0 16px;">
+      <div class="challenge-badge-emoji">${badgeEmoji}</div>
+      <div class="challenge-content">
+        <div class="challenge-label">Défi ${c.num}/26 ${c.season} — complété !</div>
+        <div class="challenge-title">${c.title} ✅</div>
+        <div class="challenge-pts">+${c.pts} pts gagnés · ${rewardStr}</div>
+      </div>
+    </div>`;
+    return;
+  }
+  const canComplete = checkChallengeTrigger(c);
+  const isHonor = c.triggerType === 'honor' || c.triggerType === 'champion';
+  const showBtn = canComplete || isHonor;
+  const btnLabel = isHonor ? '🤝 Honorer ce défi' : '✅ Valider le défi';
+  el.innerHTML = `<div class="challenge-card" style="margin:0 16px;">
+    <div class="challenge-badge-emoji">${badgeEmoji}</div>
+    <div class="challenge-content">
+      <div class="challenge-label">Défi ${c.num}/26 ${c.season} · +${c.pts} pts</div>
+      <div class="challenge-title">${c.title}</div>
+      <div class="challenge-desc">${c.desc}</div>
+      <div class="challenge-reward">🎁 ${rewardStr}</div>
+      ${showBtn ? `<button class="challenge-btn" onclick="awardChallenge(${c.num})">${btnLabel}</button>` : '<div class="challenge-progress">En cours…</div>'}
+    </div>
+  </div>`;
+}
+
 // ── FAB for journal ───────────────────────────────────────────────────────────
 // (FAB injected dynamically)
 
@@ -8491,6 +8749,7 @@ function renderAccountInHeader() {
   if (!state.referralCode) { state.referralCode = generateReferralCode(); saveState(); }
   if (!state.referralBonusDays) state.referralBonusDays = 0;
   if (!state.referralCount) state.referralCount = 0;
+  if (!state.challengesCompleted) state.challengesCompleted = {};
   checkReferralFromURL();
 
   // ── CORRECTIF ANTI-CORRUPTION ─────────────────────────────────────────────

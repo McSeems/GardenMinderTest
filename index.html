@@ -3923,12 +3923,13 @@ function getRainMeasuredOnly(dateStr){
 }
 
 // Calcule l'humidité d'une plante en recomputant jour par jour sur les 7 derniers jours
+// upToDate : date cible optionnelle (YYYY-MM-DD) — permet de calculer pour un jour passé
 // Part du score stocké dans moistureHistory 7j avant, ou 80% si pas de données
-function computeMoisture(key){
+function computeMoisture(key, upToDate){
   const plant = PLANT_DB[key];
   if(!plant) return 60;
 
-  const todayStr = localDateStr();
+  const todayStr = upToDate || localDateStr();
   const WINDOW = 7;
   const baseET = plantET(key);
   const rainEff = plantRainEff(key);
@@ -4068,20 +4069,25 @@ function refreshAllMoisture(forceToday){
       lastEntry.ts = new Date().toISOString();
     }
 
-    // Remplir les jours manquants des 7 derniers jours (app non ouverte = pas de snapshot)
-    // Évite les barres vides dans le graphique 7 jours
+    // Remplir les jours manquants des 7 derniers jours avec un vrai recalcul
+    // (app non ouverte = pas de snapshot → on recalcule avec météo/pluie/arrosage réels)
     const existingDates = new Set(state.moistureHistory.map(e => e.date));
+    const gapsToFill = [];
     for(let g = 6; g >= 1; g--){
       const gapDate = addDays(todayStr, -g);
-      if(!existingDates.has(gapDate)){
-        const before = [...state.moistureHistory].filter(e => e.date < gapDate).pop();
-        if(before){
-          state.moistureHistory.push({ date: gapDate, value: before.value, plants: before.plants || {}, ts: new Date().toISOString(), estimated: true });
-          existingDates.add(gapDate);
-        }
-      }
+      if(!existingDates.has(gapDate)) gapsToFill.push(gapDate);
     }
-    state.moistureHistory.sort((a,b) => a.date < b.date ? -1 : 1);
+    if(gapsToFill.length > 0 && state.selectedPlants.length > 0){
+      gapsToFill.forEach(gapDate => {
+        const gapPlants = {};
+        state.selectedPlants.forEach(k => {
+          gapPlants[k] = Math.min(100, Math.max(2, Math.round(computeMoisture(k, gapDate))));
+        });
+        const gapAvg = Math.round(Math.min(...Object.values(gapPlants)));
+        state.moistureHistory.push({ date: gapDate, value: gapAvg, plants: gapPlants, ts: new Date().toISOString(), estimated: true });
+      });
+      state.moistureHistory.sort((a,b) => a.date < b.date ? -1 : 1);
+    }
   }
   saveState();
 }

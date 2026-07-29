@@ -3983,13 +3983,18 @@ function computeMoisture(key){
     if(dayWaterings.length > 0){
       if(isGazon){
         dayWaterings.forEach(w=>{
-          const gain = Math.min(40, (w.liters||0) / Math.max(1, state.surface) * 8);
-          score = Math.min(100, score + gain);
+          // Gain proportionnel aux litres, mais plafonné : une pelouse stressée
+          // ne récupère pas totalement en un seul arrosage
+          const rawGain = (w.liters||0) / Math.max(1, state.surface) * 4;
+          const gain = Math.min(22, rawGain);
+          const capAfterWatering = score < 45 ? 68 : 90;
+          score = Math.min(capAfterWatering, score + gain);
         });
       } else {
-        // Un arrosage = plante correctement arrosée → remonte à 90%
-        score = Math.max(score, 90);
-        score = Math.min(95, score);
+        // Boost fixe par arrosage, mais plafond selon le niveau de stress :
+        // une plante presque fanée ne revient pas au top en un seul arrosage
+        const stressCap = score < 35 ? 60 : score < 60 ? 75 : 88;
+        score = Math.min(stressCap, score + 20);
       }
       score = Math.min(100, Math.max(2, score));
     }
@@ -4062,6 +4067,21 @@ function refreshAllMoisture(forceToday){
       lastEntry.plants = perPlant;
       lastEntry.ts = new Date().toISOString();
     }
+
+    // Remplir les jours manquants des 7 derniers jours (app non ouverte = pas de snapshot)
+    // Évite les barres vides dans le graphique 7 jours
+    const existingDates = new Set(state.moistureHistory.map(e => e.date));
+    for(let g = 6; g >= 1; g--){
+      const gapDate = addDays(todayStr, -g);
+      if(!existingDates.has(gapDate)){
+        const before = [...state.moistureHistory].filter(e => e.date < gapDate).pop();
+        if(before){
+          state.moistureHistory.push({ date: gapDate, value: before.value, plants: before.plants || {}, ts: new Date().toISOString(), estimated: true });
+          existingDates.add(gapDate);
+        }
+      }
+    }
+    state.moistureHistory.sort((a,b) => a.date < b.date ? -1 : 1);
   }
   saveState();
 }

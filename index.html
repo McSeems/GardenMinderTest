@@ -2026,6 +2026,13 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
             <div style="font-size:0.75rem;color:var(--text-light);margin-top:2px;">Reconstitution réelle : 15 jours météo + arrosages enregistrés</div>
           </div>
         </div>
+        <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="openVacationModal()">
+          <div style="font-size:18px;width:32px;text-align:center;">🏖️</div>
+          <div style="flex:1;">
+            <div style="font-size:0.92rem;font-weight:500;color:var(--text-dark);">Retour de vacances</div>
+            <div style="font-size:0.75rem;color:var(--text-light);margin-top:2px;">Recalibrer après une absence prolongée</div>
+          </div>
+        </div>
         <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(0,0,0,0.05);" onclick="resetApp()">
           <div style="font-size:18px;width:32px;text-align:center;">🗑️</div>
           <div style="flex:1;font-size:0.92rem;color:var(--danger);font-weight:500;">Réinitialiser l'application</div>
@@ -2203,6 +2210,43 @@ body{font-family:var(--ff-body);background:var(--cream);color:var(--text-dark);m
     <button class="btn-start-trial" onclick="startTrial()">🎁 Essayer 30 jours gratuitement</button>
     <button onclick="openBetaCodeModal()" style="width:100%;padding:11px;border-radius:12px;border:1px dashed #c8b8ff;cursor:pointer;background:transparent;color:#8a6aaa;font-family:var(--ff-body);font-size:0.82rem;font-weight:500;margin-top:6px;transition:all 0.2s;">🎟️ J'ai un code bêta</button>
     <div class="premium-legal">Achat unique sans abonnement. Moins cher qu'un sac de terreau.<br>Aucune CB pour l'essai. Annulation en 2 clics.</div>
+  </div>
+</div>
+
+<!-- Modal retour vacances -->
+<div class="modal-overlay" id="modal-vacation" onclick="closeModal(event,'modal-vacation')">
+  <div class="modal-sheet" style="position:relative;">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="document.getElementById('modal-vacation').classList.remove('open')">×</button>
+    <div class="modal-title">🏖️ Retour de vacances</div>
+    <div style="font-size:0.88rem;color:var(--text-light);margin-bottom:16px;line-height:1.5;">
+      Après une absence prolongée, le modèle a reconstitué l'évolution de votre jardin à partir des données météo et de pluie réelles. Vous pouvez ajuster l'estimation si vous avez constaté un état différent à votre retour.
+    </div>
+    <div style="background:#f0faf4;border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:0.82rem;color:#1a3a5a;font-weight:600;margin-bottom:8px;">💧 État actuel estimé par le modèle</div>
+      <div id="vacation-current-state" style="font-size:1.1rem;font-weight:700;color:var(--green-deep);"></div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:0.85rem;font-weight:600;color:var(--text-dark);display:block;margin-bottom:8px;">
+        Ajustez si vous avez constaté une sécheresse/saturation à votre retour :
+      </label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:0.75rem;color:var(--text-light);">Sec 0%</span>
+        <input type="range" id="vacation-slider" min="0" max="100" step="5" value="50"
+          oninput="document.getElementById('vacation-slider-val').textContent=this.value+'%'"
+          style="flex:1;">
+        <span style="font-size:0.75rem;color:var(--text-light);">100% Saturé</span>
+      </div>
+      <div style="text-align:center;font-size:1.1rem;font-weight:700;color:var(--green-deep);margin-top:6px;" id="vacation-slider-val">50%</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="applyVacationReset(false)" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--green-mid);background:white;color:var(--green-deep);font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">
+        Garder l'estimation
+      </button>
+      <button onclick="applyVacationReset(true)" style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--green-mid);color:white;font-family:var(--ff-body);font-size:0.9rem;font-weight:600;cursor:pointer;">
+        Appliquer ma valeur
+      </button>
+    </div>
   </div>
 </div>
 
@@ -3156,6 +3200,44 @@ function resetMoisture(){
   showToast('🔄 Reconstitution 15j terminée !');
   console.info('GardenMinder resetMoisture:\n' + lines);
 }
+function openVacationModal(){
+  // D'abord recalculer avec les données actuelles
+  refreshAllMoisture(true);
+  const avg = state.selectedPlants.length > 0
+    ? Math.round(state.selectedPlants.reduce((s,k) => s + (state.plantMoisture[k]||50), 0) / state.selectedPlants.length)
+    : 50;
+  const lines = state.selectedPlants.map(k =>
+    `${PLANT_DB[k]?.emoji||'🌱'} ${PLANT_DB[k]?.name||k} : ${state.plantMoisture[k]||50}%`
+  ).join('<br>');
+  const el = document.getElementById('vacation-current-state');
+  if(el) el.innerHTML = lines || `Moyenne jardin : ${avg}%`;
+  const slider = document.getElementById('vacation-slider');
+  if(slider){ slider.value = avg; document.getElementById('vacation-slider-val').textContent = avg + '%'; }
+  document.getElementById('modal-vacation').classList.add('open');
+}
+function applyVacationReset(useSlider){
+  if(useSlider){
+    const val = parseInt(document.getElementById('vacation-slider').value, 10);
+    // Forcer tous les snapshots estimés récents à la valeur choisie
+    const todayStr = localDateStr();
+    state.selectedPlants.forEach(k => { state.plantMoisture[k] = val; });
+    // Supprimer les snapshots estimés des 30 derniers jours pour forcer un recalcul propre
+    state.moistureHistory = state.moistureHistory.filter(e => !e.estimated || e.date < addDays(todayStr, -30));
+    // Injecter un snapshot réel à J-1 pour que computeMoisture s'ancre dessus
+    const yesterday = addDays(todayStr, -1);
+    state.moistureHistory = state.moistureHistory.filter(e => e.date !== yesterday);
+    const anchorPlants = {};
+    state.selectedPlants.forEach(k => { anchorPlants[k] = val; });
+    state.moistureHistory.push({ date: yesterday, value: val, plants: anchorPlants, ts: new Date().toISOString(), estimated: false });
+    state.moistureHistory.sort((a,b) => a.date < b.date ? -1 : 1);
+    saveState();
+    refreshAllMoisture(true);
+    showToast('🏖️ Calibration retour vacances appliquée !');
+  } else {
+    showToast('✅ Estimation modèle conservée');
+  }
+  document.getElementById('modal-vacation').classList.remove('open');
+}
 function relaunchWizard() {
   if(confirm('Relancer l\'assistant de configuration ? Vos plantes et historiques seront conservés.')) {
     wizardStep = 1;
@@ -3922,15 +4004,15 @@ function getRainMeasuredOnly(dateStr){
   return 0; // pas de mesure = on ne préjuge pas
 }
 
-// Calcule l'humidité d'une plante en recomputant jour par jour sur les 7 derniers jours
+// Calcule l'humidité d'une plante en recomputant jour par jour depuis le dernier snapshot connu
 // upToDate : date cible optionnelle (YYYY-MM-DD) — permet de calculer pour un jour passé
-// Part du score stocké dans moistureHistory 7j avant, ou 80% si pas de données
+// La fenêtre s'étend dynamiquement jusqu'au dernier snapshot réel (max 30 jours)
 function computeMoisture(key, upToDate){
   const plant = PLANT_DB[key];
   if(!plant) return 60;
 
   const todayStr = upToDate || localDateStr();
-  const WINDOW = 7;
+  const MAX_WINDOW = 30; // max 30 jours en arrière
   const baseET = plantET(key);
   const rainEff = plantRainEff(key);
   const isGazon = plant.family === 'gazon';
@@ -3948,29 +4030,35 @@ function computeMoisture(key, upToDate){
     });
   }
 
-  // Construire la liste des jours à recomputer
-  const anchorDate = addDays(todayStr, -WINDOW);
-  const days = [];
-  for(let i = WINDOW; i >= 0; i--) days.push(addDays(todayStr, -i));
-
-  // Score de départ : chercher dans moistureHistory le score au jour anchor
-  // On cherche l'entrée la plus proche <= anchorDate
+  // Trouver le dernier snapshot RÉEL (non estimé) comme point de départ
+  // Fenêtre dynamique : depuis ce snapshot jusqu'à aujourd'hui, max 30 jours
   let score = 80;
+  let anchorDate = addDays(todayStr, -MAX_WINDOW);
   if(state.moistureHistory && state.moistureHistory.length > 0){
     let best = null;
     state.moistureHistory.forEach(h=>{
-      if(h.date <= anchorDate && (!best || h.date > best.date)) best = h;
+      if(h.estimated) return; // ignorer les estimations pour l'ancrage
+      if(h.date < todayStr && (!best || h.date > best.date)) best = h;
     });
-    if(best && best.plants && best.plants[key] !== undefined) score = best.plants[key];
-    else if(best) score = best.value;
+    if(best){
+      if(best.plants && best.plants[key] !== undefined) score = best.plants[key];
+      else score = best.value;
+      // Utiliser la date du snapshot comme ancre (mais pas plus de 30j en arrière)
+      anchorDate = addDays(todayStr, -MAX_WINDOW) > best.date
+        ? addDays(todayStr, -MAX_WINDOW)
+        : best.date;
+    }
   }
-  // Si on a un score stocké pour cette plante et pas d'historique, utiliser le score actuel
-  // (cas de premier lancement après mise à jour)
   if(!state.moistureHistory || state.moistureHistory.length === 0){
     score = state.plantMoisture[key] || 80;
   }
 
-  // Boucler jour par jour depuis anchor+1 (le jour après l'anchor) jusqu'à aujourd'hui
+  // Construire la liste des jours depuis anchorDate+1 jusqu'à todayStr
+  const days = [anchorDate];
+  let _d = addDays(anchorDate, 1);
+  while(_d <= todayStr){ days.push(_d); _d = addDays(_d, 1); }
+
+  // Boucler jour par jour depuis anchor+1 jusqu'à aujourd'hui
   for(let i = 1; i < days.length; i++){
     const dateStr = days[i];
     const tempMax = getTempMaxForDate(dateStr);
@@ -4069,15 +4157,18 @@ function refreshAllMoisture(forceToday){
       lastEntry.ts = new Date().toISOString();
     }
 
-    // Remplir les jours manquants des 7 derniers jours avec un vrai recalcul
-    // (app non ouverte = pas de snapshot → on recalcule avec météo/pluie/arrosage réels)
-    const existingDates = new Set(state.moistureHistory.map(e => e.date));
+    // Remplir (ou mettre à jour) les jours manquants des 14 derniers jours
+    // Les snapshots estimés (estimated:true) sont toujours recalculés pour intégrer
+    // les données météo/pluie fraîchement chargées par fetchWeather
     const gapsToFill = [];
-    for(let g = 6; g >= 1; g--){
+    for(let g = 14; g >= 1; g--){
       const gapDate = addDays(todayStr, -g);
-      if(!existingDates.has(gapDate)) gapsToFill.push(gapDate);
+      const existing = state.moistureHistory.find(e => e.date === gapDate);
+      if(!existing || existing.estimated) gapsToFill.push(gapDate);
     }
     if(gapsToFill.length > 0 && state.selectedPlants.length > 0){
+      // Supprimer les anciens snapshots estimés pour ces dates (ils seront recréés avec la pluie à jour)
+      state.moistureHistory = state.moistureHistory.filter(e => !gapsToFill.includes(e.date) || !e.estimated);
       gapsToFill.forEach(gapDate => {
         const gapPlants = {};
         state.selectedPlants.forEach(k => {
